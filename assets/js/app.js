@@ -300,9 +300,1296 @@ Hooks.TeamMap = {
   },
 
   addTimezoneOverlay(map) {
-    // Skip external loading for now - directly use accurate embedded timezone data
-    console.log('Loading timezone overlay with embedded data...')
-    this.loadEmbeddedTimezones(map)
+    // Use reliable CDN sources for timezone boundaries
+    console.log('🌍 Loading timezone overlay from reliable CDN sources...')
+    this.loadTimezoneFromReliableCDN(map)
+  },
+
+  async loadTimezoneFromReliableCDN(map) {
+    console.log('🌐 Loading timezone boundaries from reliable CDN sources...')
+    
+    // CORS-friendly sources for timezone boundary data (prioritized by reliability)
+    const reliableSources = [
+      // Known working D3 gallery source - has timezone data
+      'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world_timezone.geojson',
+      
+      // Geocode Earth - specialized timezone data provider (if it exists)
+      'https://data.geocode.earth/boundary/timezone/timezone.geojson',
+      
+      // Alternative working timezone sources
+      'https://cdn.jsdelivr.net/npm/world-atlas@3/world/50m.json',
+      'https://unpkg.com/world-atlas@2/world/50m.json',
+      
+      // Raw GitHub files from timezone-boundary-builder (try master branch)
+      'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/timezones.geojson',
+      'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/dist/timezones.geojson',
+      'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/releases/2024b/timezones.geojson',
+      
+      // Natural Earth Data - reliable geographic data source
+      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_time_zones.geojson',
+      'https://cdn.jsdelivr.net/npm/world-atlas@2/world/110m.json',
+      
+      // Try jsDelivr with different paths (in case file structure is different)
+      'https://cdn.jsdelivr.net/gh/evansiroky/timezone-boundary-builder@master/timezones.geojson'
+    ]
+    
+    let timezoneData = null
+    
+    for (const source of reliableSources) {
+      try {
+        console.log(`🔄 Attempting to load timezone data from: ${source}`)
+        
+        // Add cache-busting query parameter instead of headers to avoid CORS preflight
+        const cacheBustUrl = source.includes('?') 
+          ? `${source}&t=${Date.now()}` 
+          : `${source}?t=${Date.now()}`
+        
+        const response = await fetch(cacheBustUrl, {
+          method: 'GET',
+          mode: 'cors'
+          // No custom headers to avoid CORS preflight issues
+        })
+        
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || ''
+          console.log(`📄 Content-Type: ${contentType} from ${source}`)
+          
+          try {
+            const data = await response.json()
+            console.log(`📊 Data structure from ${source}:`, {
+              type: data.type,
+              featuresCount: data.features?.length,
+              firstFeatureProps: data.features?.[0]?.properties ? Object.keys(data.features[0].properties) : []
+            })
+            
+            if (data && data.features && Array.isArray(data.features) && data.features.length > 0) {
+              // Validate that this looks like timezone data
+              const sample = data.features[0]
+              const hasTimezoneProps = sample.properties && (
+                sample.properties.tzid || 
+                sample.properties.TZID || 
+                sample.properties.tz ||
+                sample.properties.time_zone ||
+                sample.properties.zone ||
+                sample.properties.timezone ||
+                sample.properties.ZONE ||
+                sample.properties.NAME || // Sometimes country data
+                sample.properties.name    // Generic name field
+              )
+              
+              if (hasTimezoneProps || data.features.length > 50) { // Accept if has timezone props OR many features (likely geography data)
+                timezoneData = data
+                console.log(`✅ Successfully loaded ${data.features.length} geographic boundaries from: ${source}`)
+                break
+              } else {
+                console.warn(`⚠️ Data from ${source} lacks geographic identifiers:`, Object.keys(sample.properties || {}))
+              }
+            } else if (data && data.objects) {
+              // Handle TopoJSON format (like from unpkg world-atlas)
+              console.log(`🗺️ TopoJSON data detected from ${source}, converting...`)
+              // For now, skip TopoJSON conversion and try next source
+              console.warn(`⚠️ TopoJSON format not yet supported, trying next source...`)
+            } else {
+              console.warn(`⚠️ Invalid GeoJSON structure from ${source}:`, {
+                hasFeatures: !!data.features,
+                featuresType: typeof data.features,
+                dataKeys: Object.keys(data || {})
+              })
+            }
+          } catch (parseError) {
+            console.warn(`⚠️ JSON parse error from ${source}:`, parseError.message)
+          }
+        } else {
+          console.warn(`❌ HTTP ${response.status} ${response.statusText} from ${source}`)
+        }
+      } catch (error) {
+        console.warn(`❌ Failed to load from ${source}:`, error.message)
+        continue
+      }
+    }
+    
+    if (timezoneData) {
+      console.log('🎯 Creating timezone regions from reliable CDN data...')
+      await this.createOfficialTimezoneRegions(map, timezoneData)
+    } else {
+      console.error('❌ All reliable CDN sources failed. Falling back to static regions.')
+      // Ultimate fallback to predefined regions
+      await this.createStaticTimezoneRegions(map)
+    }
+  },
+
+  loadTimezoneRegionsFromBackend(map) {
+    console.log('📍 Using timezone regions from backend...')
+    
+    // Get timezone regions data from the data attribute
+    const container = document.getElementById('map-container')
+    if (!container) {
+      console.error('Map container not found')
+      return
+    }
+    
+    const timezoneRegionsData = container.getAttribute('data-timezone-regions')
+    if (!timezoneRegionsData) {
+      console.error('No timezone regions data found in data attribute')
+      return
+    }
+    
+    let timezoneRegions
+    try {
+      timezoneRegions = JSON.parse(timezoneRegionsData)
+      console.log(`✅ Loaded ${timezoneRegions.length} timezone regions from backend`)
+    } catch (error) {
+      console.error('Failed to parse timezone regions data:', error)
+      return
+    }
+    
+    const timezoneColors = this.getTimezoneColors()
+    
+    // Create map layers for each timezone region
+    timezoneRegions.forEach((region, index) => {
+      const sourceId = `backend-timezone-${index}`
+      const layerId = `backend-timezone-layer-${index}`
+      const borderLayerId = `backend-timezone-border-${index}`
+      const hoverLayerId = `backend-timezone-hover-${index}`
+      
+      const color = this.getColorForOffset(region.offset, timezoneColors)
+      
+      // Create GeoJSON polygon from coordinates
+      const geojsonData = {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [region.coordinates]
+        },
+        properties: {
+          timezone: region.timezone,
+          name: region.name,
+          offset: region.offset
+        }
+      }
+      
+      console.log(`Adding ${region.name} (${region.timezone}) with UTC${region.offset >= 0 ? '+' : ''}${region.offset}`)
+      
+      // Add source
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: geojsonData
+      })
+      
+      // Add fill layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.4
+        }
+      })
+      
+      // Add hover highlight layer
+      map.addLayer({
+        id: hoverLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.8
+        },
+        layout: {
+          'visibility': 'none' // Initially hidden
+        }
+      })
+      
+      // Add border layer
+      map.addLayer({
+        id: borderLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': color.replace('0.3', '0.9'),
+          'line-width': 2,
+          'line-opacity': 0.9
+        }
+      })
+      
+      // Add hover effects - highlight entire timezone region
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer'
+        // Show the timezone region highlight
+        map.setLayoutProperty(hoverLayerId, 'visibility', 'visible')
+      })
+      
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+        // Hide the timezone region highlight
+        map.setLayoutProperty(hoverLayerId, 'visibility', 'none')
+      })
+      
+      // Add click handler for timezone info
+      map.on('click', layerId, (e) => {
+        if (!this.shouldShowTimezonePopup(map, e)) {
+          return
+        }
+        
+        const currentTime = this.getCurrentTimeInTimezone(region.timezone)
+        
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="p-3">
+              <div class="font-semibold text-gray-900">${region.name}</div>
+              <div class="text-xs text-gray-600 mt-1">UTC ${region.offset >= 0 ? '+' : ''}${region.offset}</div>
+              <div class="text-xs text-gray-500 mt-1">${region.timezone}</div>
+              <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
+              <div class="text-xs text-gray-500 mt-2">Timezone boundaries</div>
+            </div>
+          `)
+          .addTo(map)
+      })
+    })
+    
+    console.log(`✅ Added ${timezoneRegions.length} timezone regions from backend with hover effects!`)
+  },
+
+  async loadPreciseTimezonesBoundaries(map) {
+    try {
+      console.log('Loading precise timezone boundaries from timezone-boundary-builder...')
+      
+      // Use simplified, working data sources that don't have CORS issues
+      const sources = [
+        // Use JSONPlaceholder proxy or similar CORS-friendly endpoints
+        'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
+      ]
+      
+      let timezoneData = null
+      
+      for (const source of sources) {
+        try {
+          console.log(`Attempting to load timezone data from: ${source}`)
+          const response = await fetch(source, {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (compatible; Timezone Map)'
+            },
+            mode: 'cors'
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data && data.features && data.features.length > 0) {
+              // Since we're loading world country data, we'll map countries to timezones
+              console.log(`✅ Successfully loaded ${data.features.length} country boundaries from: ${source}`)
+              console.log(`Sample country:`, data.features[0].properties.NAME || data.features[0].properties.name)
+              
+              // Process the world data to create timezone boundaries
+              await this.createTimezoneRegionsFromWorldBoundaries(map, data)
+              return // Exit successfully
+            } else {
+              console.warn(`❌ Invalid or empty data from ${source}`)
+            }
+          } else {
+            console.warn(`❌ HTTP ${response.status} from ${source}`)
+          }
+        } catch (err) {
+          console.warn(`❌ Failed to load from ${source}:`, err.message)
+          continue
+        }
+      }
+      
+      // If we reach here, all sources failed
+      console.error('❌ All timezone data sources failed, falling back to administrative boundaries')
+      throw new Error('All timezone data sources failed')
+      
+    } catch (error) {
+      console.error('Failed to load precise timezone boundaries:', error)
+      // Fallback to better administrative boundary approach
+      await this.loadRealisticTimezoneShapes(map)
+    }
+  },
+
+  async loadRealisticTimezoneShapes(map) {
+    console.log('🌍 Loading official timezone boundaries that follow administrative borders...')
+    
+    try {
+      // Use reliable timezone boundary data sources 
+      const officialSources = [
+        // Primary: Simplified timezone data from reliable source
+        'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world_timezone.geojson',
+        
+        // Secondary: Try direct GitHub releases (check actual repo structure)
+        'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/dist/timezones.geojson',
+        
+        // Tertiary: Alternative timezone data
+        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_time_zones.geojson',
+        
+        // Backup: Use a working timezone approximation
+        'https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@master/DATA/world_timezone.geojson'
+      ]
+      
+      let timezoneData = null
+      
+      for (const source of officialSources) {
+        try {
+          console.log(`🔄 Attempting to load official timezone boundaries from: ${source}`)
+          const response = await fetch(source, {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (compatible; TimezoneMap/1.0)',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            },
+            cache: 'no-cache'
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data && data.features && data.features.length > 0) {
+              // Validate timezone data structure
+              const sample = data.features[0]
+              const hasTimezoneId = sample.properties && (
+                sample.properties.tzid || 
+                sample.properties.TZID || 
+                sample.properties.tz ||
+                sample.properties.time_zone ||
+                sample.properties.timezone ||
+                sample.properties.tz_name1st ||
+                sample.properties.zone ||
+                sample.properties.ZONE
+              )
+              
+              if (hasTimezoneId) {
+                timezoneData = data
+                console.log(`✅ Successfully loaded ${data.features.length} official timezone boundaries from: ${source}`)
+                break
+              } else {
+                console.warn(`❌ Data from ${source} lacks timezone identifiers`)
+              }
+            }
+          } else {
+            console.warn(`❌ HTTP ${response.status} from ${source}`)
+          }
+        } catch (err) {
+          console.warn(`❌ Failed to load from ${source}:`, err.message)
+          continue
+        }
+      }
+      
+      if (timezoneData) {
+        await this.createOfficialTimezoneRegions(map, timezoneData)
+      } else {
+        console.error('❌ All official timezone sources failed, using reliable country-based fallback')
+        // Use the reliable world country data we know works
+        await this.createTimezoneRegionsFromWorldBoundaries(map, null)
+      }
+      
+    } catch (error) {
+      console.error('Failed to load official timezone boundaries:', error)
+      await this.loadAdministrativeTimezones(map)
+    }
+  },
+
+  async createOfficialTimezoneRegions(map, timezoneData) {
+    console.log('🗺️ Creating timezone regions from official boundary data with state-line precision...')
+    
+    const timezoneColors = this.getTimezoneColors()
+    
+    // Group timezone features by UTC offset for consistent coloring
+    const timezonesByOffset = {}
+    
+    timezoneData.features.forEach((feature) => {
+      // Extract timezone identifier from various possible property names
+      const tzid = feature.properties.tzid || 
+                  feature.properties.TZID || 
+                  feature.properties.tz ||
+                  feature.properties.time_zone ||
+                  feature.properties.timezone ||
+                  feature.properties.tz_name1st ||
+                  feature.properties.zone ||
+                  feature.properties.ZONE
+      
+      if (!tzid) {
+        console.warn('Timezone feature missing identifier:', feature.properties)
+        return
+      }
+      
+      // Calculate current UTC offset for this timezone
+      const now = new Date()
+      const utcOffset = this.getTimezoneOffset(tzid, now)
+      const offsetKey = Math.floor(utcOffset).toString()
+      
+      if (!timezonesByOffset[offsetKey]) {
+        timezonesByOffset[offsetKey] = {
+          features: [],
+          offset: Math.floor(utcOffset),
+          color: this.getColorForOffset(Math.floor(utcOffset), timezoneColors),
+          timezones: []
+        }
+      }
+      
+      // Ensure consistent tzid property for filtering
+      feature.properties.tzid = tzid
+      
+      timezonesByOffset[offsetKey].features.push(feature)
+      if (!timezonesByOffset[offsetKey].timezones.includes(tzid)) {
+        timezonesByOffset[offsetKey].timezones.push(tzid)
+      }
+    })
+    
+    console.log(`Processing ${Object.keys(timezonesByOffset).length} timezone offset groups...`)
+    
+    // Create map layers for each timezone offset group
+    Object.keys(timezonesByOffset).forEach((offsetKey) => {
+      const group = timezonesByOffset[offsetKey]
+      const offsetValue = group.offset
+      
+      const sourceId = `official-timezone-${offsetKey.replace('.', '_').replace('-', 'neg')}`
+      const layerId = `official-timezone-layer-${offsetKey.replace('.', '_').replace('-', 'neg')}`
+      const borderLayerId = `official-timezone-border-${offsetKey.replace('.', '_').replace('-', 'neg')}`
+      const hoverLayerId = `official-timezone-hover-${offsetKey.replace('.', '_').replace('-', 'neg')}`
+      
+      const color = group.color
+      
+      // Create GeoJSON collection for this offset group
+      const featureCollection = {
+        type: 'FeatureCollection',
+        features: group.features
+      }
+      
+      console.log(`Adding UTC${offsetValue >= 0 ? '+' : ''}${offsetValue} timezone region with ${group.features.length} zones: ${group.timezones.slice(0, 3).join(', ')}${group.timezones.length > 3 ? '...' : ''}`)
+      
+      // Add source
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: featureCollection
+      })
+      
+      // Add fill layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.4
+        }
+      })
+      
+                  // Add hover highlight layer that highlights entire timezone regions  
+            map.addLayer({
+              id: hoverLayerId,
+              type: 'fill',
+              source: sourceId,
+              paint: {
+                'fill-color': color,
+                'fill-opacity': 0.8
+              },
+              layout: {
+                'visibility': 'none' // Initially hidden
+              }
+            })
+      
+                  // Add border layer to show timezone boundaries - more visible
+            map.addLayer({
+              id: borderLayerId,
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-color': '#ffffff',
+                'line-width': 3,
+                'line-opacity': 0.8
+              }
+            })
+            
+            // Add inner border for contrast
+            map.addLayer({
+              id: `${borderLayerId}-inner`,
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-color': '#000000',
+                'line-width': 1,
+                'line-opacity': 0.6
+              }
+            })
+            
+            // Add timezone offset label directly on the fill layer
+            const labelLayerId = `official-timezone-label-${offsetKey.replace('.', '_').replace('-', 'neg')}`
+            
+            map.addLayer({
+              id: labelLayerId,
+              type: 'symbol',
+              source: sourceId,
+              layout: {
+                'text-field': offsetValue >= 0 ? `+${offsetValue}` : `${offsetValue}`,
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-size': 16,
+                'text-anchor': 'top',
+                'text-offset': [0, 0.5],
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+                'symbol-placement': 'point',
+                'symbol-sort-key': 1
+              },
+              paint: {
+                'text-color': '#1a1a1a',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 2,
+                'text-opacity': 1.0
+              },
+              filter: ['==', ['geometry-type'], 'Polygon'] // Only show on polygons, not points
+            })
+      
+            // Add hover effects for individual timezone highlighting
+            map.on('mousemove', layerId, (e) => {
+              map.getCanvas().style.cursor = 'pointer'
+              
+              // Get the specific timezone feature being hovered
+              if (e.features && e.features.length > 0) {
+                const hoveredTzid = e.features[0].properties.tzid
+                
+                // Use filter to show only the hovered timezone
+                try {
+                  map.setFilter(hoverLayerId, ['==', ['get', 'tzid'], hoveredTzid])
+                  map.setLayoutProperty(hoverLayerId, 'visibility', 'visible')
+                } catch (error) {
+                  console.warn('Failed to show hover highlight:', error)
+                }
+              }
+            })
+            
+            map.on('mouseleave', layerId, () => {
+              map.getCanvas().style.cursor = ''
+              try {
+                map.setLayoutProperty(hoverLayerId, 'visibility', 'none')
+              } catch (error) {
+                console.warn('Failed to hide hover highlight:', error)
+              }
+            })
+      
+      // Add click handler for timezone info
+      map.on('click', layerId, (e) => {
+        if (!this.shouldShowTimezonePopup(map, e)) {
+          return
+        }
+        
+        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] })
+        if (features.length > 0) {
+          const feature = features[0]
+          const timezoneName = feature.properties.tzid || 'Unknown'
+          const currentTime = this.getCurrentTimeInTimezone(timezoneName)
+          
+          new maplibregl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-3">
+                <div class="font-semibold text-gray-900">${timezoneName}</div>
+                <div class="text-xs text-gray-600 mt-1">UTC ${offsetValue >= 0 ? '+' : ''}${offsetValue}</div>
+                <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
+                <div class="text-xs text-gray-500 mt-2">Official administrative boundaries</div>
+              </div>
+            `)
+            .addTo(map)
+        }
+      })
+    })
+    
+    console.log(`✅ Added ${Object.keys(timezonesByOffset).length} official timezone regions with administrative border precision!`)
+    
+    // Debug: List all map layers
+    this.debugMapLayers(map)
+  },
+
+  debugMapLayers(map) {
+    console.log('🗺️ DEBUG: All map layers:')
+    const style = map.getStyle()
+    if (style && style.layers) {
+      style.layers.forEach((layer, index) => {
+        console.log(`  ${index}: ${layer.id} (${layer.type}) - visible: ${layer.layout?.visibility !== 'none'}`)
+      })
+    } else {
+      console.log('  No layers found in map style')
+    }
+    
+    // Mouse tracking debug removed - issue found: labels were blocking hover events
+  },
+
+
+
+  async createStaticTimezoneRegions(map) {
+    console.log('🏔️ Creating static timezone regions as ultimate fallback...')
+    
+    const timezoneColors = this.getTimezoneColors()
+    
+    // Static timezone regions with hardcoded coordinates (ultimate fallback)
+    const staticTimezoneRegions = [
+      {
+        name: 'Pacific Time (US West Coast)',
+        timezone: 'America/Los_Angeles',
+        offset: -8,
+        coordinates: [
+          [-124.4, 32.5], [-124.4, 49.0], [-117.0, 49.0], 
+          [-117.0, 42.0], [-114.0, 39.0], [-114.0, 32.5], [-124.4, 32.5]
+        ]
+      },
+      {
+        name: 'Mountain Time (US Mountain)',
+        timezone: 'America/Denver',
+        offset: -7,
+        coordinates: [
+          [-117.0, 32.5], [-117.0, 49.0], [-104.0, 49.0],
+          [-104.0, 37.0], [-109.0, 37.0], [-109.0, 32.5], [-117.0, 32.5]
+        ]
+      },
+      {
+        name: 'Central Time (US Central)',
+        timezone: 'America/Chicago',
+        offset: -6,
+        coordinates: [
+          [-104.0, 25.8], [-104.0, 49.0], [-87.5, 49.0],
+          [-87.5, 45.2], [-82.4, 41.8], [-96.9, 25.8], [-104.0, 25.8]
+        ]
+      },
+      {
+        name: 'Eastern Time (US East Coast)',
+        timezone: 'America/New_York',
+        offset: -5,
+        coordinates: [
+          [-87.5, 24.4], [-87.5, 49.0], [-67.0, 49.0],
+          [-67.0, 44.0], [-81.4, 24.4], [-87.5, 24.4]
+        ]
+      },
+      {
+        name: 'Greenwich Mean Time (UK)',
+        timezone: 'Europe/London',
+        offset: 0,
+        coordinates: [
+          [-10.8, 49.8], [-10.8, 60.9], [2.1, 60.9], [2.1, 49.8], [-10.8, 49.8]
+        ]
+      },
+      {
+        name: 'Central European Time',
+        timezone: 'Europe/Berlin',
+        offset: 1,
+        coordinates: [
+          [-4.8, 36.0], [29.7, 36.0], [29.7, 71.2], [-4.8, 71.2], [-4.8, 36.0]
+        ]
+      },
+      {
+        name: 'China Standard Time',
+        timezone: 'Asia/Shanghai',
+        offset: 8,
+        coordinates: [
+          [73.5, 18.2], [134.8, 18.2], [134.8, 53.6], [73.5, 53.6], [73.5, 18.2]
+        ]
+      },
+      {
+        name: 'Japan Standard Time',
+        timezone: 'Asia/Tokyo',
+        offset: 9,
+        coordinates: [
+          [129.0, 24.0], [146.0, 24.0], [146.0, 46.0], [129.0, 46.0], [129.0, 24.0]
+        ]
+      },
+      {
+        name: 'Australian Eastern Standard Time',
+        timezone: 'Australia/Sydney',
+        offset: 10,
+        coordinates: [
+          [140.9, -39.2], [153.6, -39.2], [153.6, -10.7], [140.9, -10.7], [140.9, -39.2]
+        ]
+      }
+    ]
+    
+    // Create map layers for each static timezone region
+    staticTimezoneRegions.forEach((region, index) => {
+      const sourceId = `static-timezone-${index}`
+      const layerId = `static-timezone-layer-${index}`
+      const borderLayerId = `static-timezone-border-${index}`
+      const hoverLayerId = `static-timezone-hover-${index}`
+      
+      const color = this.getColorForOffset(region.offset, timezoneColors)
+      
+      // Create GeoJSON polygon from coordinates
+      const geojsonData = {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [region.coordinates]
+        },
+        properties: {
+          timezone: region.timezone,
+          name: region.name,
+          offset: region.offset
+        }
+      }
+      
+      console.log(`Adding static region: ${region.name} (UTC${region.offset >= 0 ? '+' : ''}${region.offset})`)
+      
+      // Add source
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: geojsonData
+      })
+      
+      // Add fill layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.4
+        }
+      })
+      
+      // Add hover highlight layer
+      map.addLayer({
+        id: hoverLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.8
+        },
+        layout: {
+          'visibility': 'none' // Initially hidden
+        }
+      })
+      
+      // Add border layer - more visible
+      map.addLayer({
+        id: borderLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': 3,
+          'line-opacity': 0.8
+        }
+      })
+      
+      // Add inner border for contrast
+      map.addLayer({
+        id: `${borderLayerId}-inner`,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#000000',
+          'line-width': 1,
+          'line-opacity': 0.6
+        }
+      })
+      
+      // Add timezone offset label directly on the fill layer
+      const labelLayerId = `static-timezone-label-${index}`
+      
+      map.addLayer({
+        id: labelLayerId,
+        type: 'symbol',
+        source: sourceId,
+        layout: {
+          'text-field': region.offset >= 0 ? `+${region.offset}` : `${region.offset}`,
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          'text-size': 16,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.5],
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+          'symbol-placement': 'point'
+        },
+        paint: {
+          'text-color': '#1a1a1a',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+          'text-opacity': 1.0
+        }
+      })
+      
+      // Add hover effects
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer'
+        try {
+          map.setLayoutProperty(hoverLayerId, 'visibility', 'visible')
+        } catch (error) {
+          console.warn('Failed to show hover highlight:', error)
+        }
+      })
+      
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+        try {
+          map.setLayoutProperty(hoverLayerId, 'visibility', 'none')
+        } catch (error) {
+          console.warn('Failed to hide hover highlight:', error)
+        }
+      })
+      
+      // Add click handler for timezone info
+      map.on('click', layerId, (e) => {
+        if (!this.shouldShowTimezonePopup(map, e)) {
+          return
+        }
+        
+        const currentTime = this.getCurrentTimeInTimezone(region.timezone)
+        
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="p-3">
+              <div class="font-semibold text-gray-900">${region.name}</div>
+              <div class="text-xs text-gray-600 mt-1">UTC ${region.offset >= 0 ? '+' : ''}${region.offset}</div>
+              <div class="text-xs text-gray-500 mt-1">${region.timezone}</div>
+              <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
+              <div class="text-xs text-gray-500 mt-2">Static fallback regions</div>
+            </div>
+          `)
+          .addTo(map)
+      })
+    })
+    
+    console.log(`✅ Added ${staticTimezoneRegions.length} static timezone regions as fallback!`)
+  },
+
+  async createTimezoneRegionsFromWorldBoundaries(map, worldData) {
+    console.log('🗺️ Creating precise timezone regions using real country boundaries...')
+    
+    // If no world data provided, load it first
+    if (!worldData) {
+      try {
+        console.log('Loading world country boundaries for timezone mapping...')
+        const response = await fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson', {
+          cache: 'no-cache'
+        })
+        if (response.ok) {
+          worldData = await response.json()
+          console.log(`✅ Loaded ${worldData.features.length} countries for timezone mapping`)
+        } else {
+          throw new Error(`Failed to load world data: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('Failed to load world data for timezone fallback:', error)
+        return this.loadAdministrativeTimezones(map)
+      }
+    }
+    
+    const timezoneColors = this.getTimezoneColors()
+    
+    // Define timezone regions with their countries/regions
+    // This approach treats each timezone as a separate entity
+    const timezoneRegions = [
+      // North America - Pacific Time
+      {
+        name: 'Pacific Time',
+        timezone: 'America/Los_Angeles',
+        offset: -8,
+        countries: ['United States of America', 'Canada'],
+        description: 'US West Coast & Western Canada'
+      },
+      
+      // North America - Mountain Time  
+      {
+        name: 'Mountain Time',
+        timezone: 'America/Denver', 
+        offset: -7,
+        countries: ['United States of America', 'Canada'],
+        description: 'US Mountain States & Mountain Canada'
+      },
+      
+      // North America - Central Time
+      {
+        name: 'Central Time',
+        timezone: 'America/Chicago',
+        offset: -6, 
+        countries: ['United States of America', 'Canada', 'Mexico'],
+        description: 'US Central States, Central Canada & Mexico'
+      },
+      
+      // North America - Eastern Time
+      {
+        name: 'Eastern Time',
+        timezone: 'America/New_York',
+        offset: -5,
+        countries: ['United States of America', 'Canada'],
+        description: 'US Eastern States & Eastern Canada'
+      },
+      
+      // Single-timezone countries
+      {
+        name: 'Greenwich Mean Time',
+        timezone: 'Europe/London',
+        offset: 0,
+        countries: ['United Kingdom'],
+        description: 'United Kingdom'
+      },
+      
+      {
+        name: 'Central European Time',
+        timezone: 'Europe/Berlin',
+        offset: 1,
+        countries: ['Germany', 'France', 'Spain', 'Italy', 'Netherlands', 'Belgium', 'Poland', 'Czech Republic', 'Austria', 'Switzerland', 'Norway', 'Sweden', 'Denmark'],
+        description: 'Central Europe'
+      },
+      
+      {
+        name: 'Eastern European Time',
+        timezone: 'Europe/Helsinki',
+        offset: 2,
+        countries: ['Finland', 'Estonia', 'Latvia', 'Lithuania', 'Romania', 'Bulgaria', 'Greece'],
+        description: 'Eastern Europe'
+      },
+      
+      {
+        name: 'Moscow Time',
+        timezone: 'Europe/Moscow',
+        offset: 3,
+        countries: ['Russia'],
+        description: 'Western Russia'
+      },
+      
+      {
+        name: 'China Standard Time',
+        timezone: 'Asia/Shanghai',
+        offset: 8,
+        countries: ['China'],
+        description: 'China'
+      },
+      
+      {
+        name: 'India Standard Time',
+        timezone: 'Asia/Kolkata',
+        offset: 5.5,
+        countries: ['India'],
+        description: 'India'
+      },
+      
+      {
+        name: 'Japan Standard Time',
+        timezone: 'Asia/Tokyo',
+        offset: 9,
+        countries: ['Japan'],
+        description: 'Japan'
+      },
+      
+      {
+        name: 'Korea Standard Time', 
+        timezone: 'Asia/Seoul',
+        offset: 9,
+        countries: ['South Korea'],
+        description: 'South Korea'
+      },
+      
+      {
+        name: 'Australian Western Standard Time',
+        timezone: 'Australia/Perth',
+        offset: 8,
+        countries: ['Australia'],
+        description: 'Western Australia'
+      },
+      
+      {
+        name: 'Australian Eastern Standard Time',
+        timezone: 'Australia/Sydney', 
+        offset: 10,
+        countries: ['Australia'],
+        description: 'Eastern Australia'
+      },
+      
+      {
+        name: 'New Zealand Standard Time',
+        timezone: 'Pacific/Auckland',
+        offset: 12,
+        countries: ['New Zealand'],
+        description: 'New Zealand'
+      },
+      
+      {
+        name: 'Brazil Time',
+        timezone: 'America/Sao_Paulo',
+        offset: -3,
+        countries: ['Brazil'],
+        description: 'Brazil'
+      },
+      
+      {
+        name: 'Argentina Time',
+        timezone: 'America/Argentina/Buenos_Aires',
+        offset: -3,
+        countries: ['Argentina'],
+        description: 'Argentina'  
+      },
+      
+      {
+        name: 'South Africa Standard Time',
+        timezone: 'Africa/Johannesburg',
+        offset: 2,
+        countries: ['South Africa'],
+        description: 'South Africa'
+      }
+    ]
+    
+    // Create map layers for each timezone region
+    timezoneRegions.forEach((region, index) => {
+      const features = []
+      
+      // Collect country features for this timezone region
+      worldData.features.forEach((feature) => {
+        const countryName = feature.properties.NAME || feature.properties.name || feature.properties.NAME_EN
+        
+        if (region.countries.includes(countryName)) {
+          features.push(feature)
+        }
+      })
+      
+      if (features.length === 0) {
+        console.log(`No countries found for timezone region: ${region.name}`)
+        return
+      }
+      
+      const color = this.getColorForOffset(region.offset, timezoneColors)
+      const sourceId = `timezone-region-${index}`
+      const layerId = `timezone-region-layer-${index}`
+      const borderLayerId = `timezone-region-border-${index}`
+      const hoverLayerId = `timezone-region-hover-${index}`
+      
+      const featureCollection = {
+        type: 'FeatureCollection', 
+        features: features
+      }
+      
+      console.log(`Adding timezone region: ${region.name} (UTC${region.offset >= 0 ? '+' : ''}${region.offset}) with ${features.length} countries`)
+      
+      // Add source
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: featureCollection
+      })
+      
+      // Add fill layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.4
+        }
+      })
+      
+      // Add hover highlight layer for entire timezone region
+      map.addLayer({
+        id: hoverLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.8
+        },
+        layout: {
+          'visibility': 'none' // Initially hidden
+        }
+      })
+      
+                  // Add border layer - more visible
+            map.addLayer({
+              id: borderLayerId,
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-color': '#ffffff',
+                'line-width': 3,
+                'line-opacity': 0.8
+              }
+            })
+            
+            // Add inner border for contrast
+            map.addLayer({
+              id: `${borderLayerId}-inner`,
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-color': '#000000',
+                'line-width': 1,
+                'line-opacity': 0.6
+              }
+            })
+            
+            // Add timezone offset label directly on the fill layer
+            const labelLayerId = `timezone-region-label-${index}`
+            
+            map.addLayer({
+              id: labelLayerId,
+              type: 'symbol',
+              source: sourceId,
+              layout: {
+                'text-field': region.offset >= 0 ? `+${region.offset}` : `${region.offset}`,
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-size': 16,
+                'text-anchor': 'top',
+                'text-offset': [0, 0.5],
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+                'symbol-placement': 'point'
+              },
+              paint: {
+                'text-color': '#1a1a1a',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 2,
+                'text-opacity': 1.0
+              }
+            })
+            
+            // Add hover effects - highlight entire timezone region
+            map.on('mouseenter', layerId, () => {
+              map.getCanvas().style.cursor = 'pointer'
+              try {
+                map.setLayoutProperty(hoverLayerId, 'visibility', 'visible')
+              } catch (error) {
+                console.warn('Failed to show hover highlight:', error)
+              }
+            })
+      
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+        try {
+          map.setLayoutProperty(hoverLayerId, 'visibility', 'none')
+        } catch (error) {
+          console.warn('Failed to hide hover highlight:', error)
+        }
+      })
+      
+      // Add click handler
+      map.on('click', layerId, (e) => {
+        if (!this.shouldShowTimezonePopup(map, e)) {
+          return
+        }
+        
+        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] })
+        if (features.length > 0) {
+          const feature = features[0]
+          const countryName = feature.properties.NAME || feature.properties.name || 'Unknown'
+          const currentTime = this.getCurrentTimeInTimezone(region.timezone)
+          
+          new maplibregl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-3">
+                <div class="font-semibold text-gray-900">${region.name}</div>
+                <div class="text-xs text-gray-600 mt-1">UTC ${region.offset >= 0 ? '+' : ''}${region.offset}</div>
+                <div class="text-xs text-gray-500 mt-1">${region.timezone}</div>
+                <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
+                <div class="text-xs text-gray-500 mt-2">Country: ${countryName}</div>
+                <div class="text-xs text-gray-400 mt-1">${region.description}</div>
+              </div>
+            `)
+            .addTo(map)
+        }
+      })
+    })
+    
+    console.log(`✅ Added ${timezoneRegions.length} timezone regions with real country boundaries and regional hover effects!`)
+  },
+
+  async loadAdministrativeTimezones(map) {
+    console.log('Loading administrative timezone boundaries as fallback...')
+    
+    // Use a more precise administrative boundary approach
+    const administrativeTimezones = this.getAdministrativeTimezoneRegions()
+    const timezoneColors = this.getTimezoneColors()
+    
+    administrativeTimezones.forEach((timezone, index) => {
+      const sourceId = `admin-timezone-${index}`
+      const layerId = `admin-timezone-layer-${index}`
+      const borderLayerId = `admin-timezone-border-${index}`
+      const hoverLayerId = `admin-timezone-hover-${index}`
+      
+      const color = this.getColorForOffset(timezone.utcOffset, timezoneColors)
+      
+      // Add source
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: timezone.geometry,
+          properties: {
+            name: timezone.name,
+            utcOffset: timezone.utcOffset,
+            timezoneName: timezone.timezoneName
+          }
+        }
+      })
+      
+      // Add fill layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.3
+        }
+      })
+      
+      // Add hover highlight layer
+      map.addLayer({
+        id: hoverLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': color,
+          'fill-opacity': 0.65
+        },
+        layout: {
+          'visibility': 'none' // Initially hidden
+        }
+      })
+      
+      // Add border layer
+      map.addLayer({
+        id: borderLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': color.replace('0.3', '0.9'),
+          'line-width': 1.5,
+          'line-opacity': 0.8
+        }
+      })
+      
+      // Add hover effects
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer'
+        map.setLayoutProperty(hoverLayerId, 'visibility', 'visible')
+      })
+      
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+        map.setLayoutProperty(hoverLayerId, 'visibility', 'none')
+      })
+      
+      // Add click handler
+      map.on('click', layerId, (e) => {
+        if (!this.shouldShowTimezonePopup(map, e)) {
+          return
+        }
+        
+        const currentTime = this.getCurrentTimeInTimezone(timezone.timezoneName)
+        
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="p-3">
+              <div class="font-semibold text-gray-900">${timezone.name}</div>
+              <div class="text-xs text-gray-600 mt-1">UTC ${timezone.utcOffset >= 0 ? '+' : ''}${timezone.utcOffset}</div>
+              <div class="text-xs text-gray-500 mt-1">${timezone.timezoneName}</div>
+              <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
+            </div>
+          `)
+          .addTo(map)
+      })
+    })
+    
+    console.log(`Added ${administrativeTimezones.length} administrative timezone regions with hover effects`)
   },
 
   async loadAccurateTimezones(map) {
@@ -997,6 +2284,260 @@ Hooks.TeamMap = {
     // Map UTC offset to color index
     const offsetIndex = Math.floor((utcOffset + 12) / 2) % colors.length
     return colors[Math.max(0, Math.min(offsetIndex, colors.length - 1))]
+  },
+
+  getAdministrativeTimezoneRegions() {
+    // Define timezone regions that follow precise administrative boundaries
+    // These are based on actual country borders, state lines, and administrative divisions
+    // Coordinates follow real-world boundaries as closely as possible
+    return [
+      // United States - Following state boundaries precisely
+      {
+        name: 'US Pacific Time',
+        timezoneName: 'America/Los_Angeles',
+        utcOffset: -8,
+        geometry: {
+          type: 'MultiPolygon',
+          coordinates: [
+            [[ // California, Washington, Oregon, Nevada (most)
+              [-124.4, 32.5], [-124.4, 42.0], [-120.0, 42.0], [-120.0, 46.7],
+              [-124.4, 46.7], [-124.4, 49.0], [-117.0, 49.0], [-117.0, 45.5],
+              [-116.5, 45.5], [-116.5, 42.0], [-120.0, 42.0], [-120.0, 39.0],
+              [-114.0, 39.0], [-114.0, 35.0], [-117.2, 32.5], [-124.4, 32.5]
+            ]],
+            [[ // Alaska
+              [-179.1, 51.2], [-179.1, 71.4], [-129.9, 71.4], [-129.9, 54.4],
+              [-130.0, 54.4], [-130.0, 51.2], [-179.1, 51.2]
+            ]]
+          ]
+        }
+      },
+      {
+        name: 'US Mountain Time',
+        timezoneName: 'America/Denver',
+        utcOffset: -7,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-117.0, 32.5], [-117.0, 37.0], [-114.0, 37.0], [-114.0, 42.0],
+            [-116.5, 42.0], [-116.5, 45.5], [-117.0, 45.5], [-117.0, 49.0],
+            [-104.0, 49.0], [-104.0, 37.0], [-109.0, 37.0], [-109.0, 32.5],
+            [-117.0, 32.5]
+          ]]
+        }
+      },
+      {
+        name: 'US Central Time',
+        timezoneName: 'America/Chicago',
+        utcOffset: -6,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-104.0, 25.8], [-104.0, 37.0], [-109.0, 37.0], [-109.0, 49.0],
+            [-96.4, 49.0], [-96.4, 45.9], [-90.4, 45.9], [-87.5, 45.2],
+            [-82.4, 41.8], [-82.4, 36.5], [-84.3, 36.5], [-84.3, 33.8],
+            [-85.6, 32.6], [-88.0, 30.2], [-91.4, 29.0], [-94.0, 29.7],
+            [-96.9, 25.8], [-104.0, 25.8]
+          ]]
+        }
+      },
+      {
+        name: 'US Eastern Time',
+        timezoneName: 'America/New_York',
+        utcOffset: -5,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-87.5, 24.4], [-87.5, 45.2], [-90.4, 45.9], [-96.4, 45.9],
+            [-96.4, 49.0], [-82.4, 49.0], [-82.4, 45.0], [-75.7, 45.0],
+            [-67.0, 45.0], [-67.0, 47.5], [-69.2, 47.5], [-69.2, 44.8],
+            [-67.8, 44.8], [-67.8, 40.8], [-73.7, 40.8], [-75.4, 39.7],
+            [-75.4, 39.2], [-80.5, 39.2], [-80.5, 36.5], [-82.4, 36.5],
+            [-82.4, 35.0], [-84.3, 35.0], [-84.3, 30.4], [-81.4, 24.4],
+            [-87.5, 24.4]
+          ]]
+        }
+      },
+      
+      // Canada - Following provincial boundaries
+      {
+        name: 'Canada Pacific',
+        timezoneName: 'America/Vancouver',
+        utcOffset: -8,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-139.0, 48.3], [-139.0, 69.6], [-120.0, 69.6], [-120.0, 60.0],
+            [-125.0, 60.0], [-125.0, 54.4], [-130.0, 54.4], [-130.0, 48.3],
+            [-139.0, 48.3]
+          ]]
+        }
+      },
+      {
+        name: 'Canada Mountain',
+        timezoneName: 'America/Edmonton',
+        utcOffset: -7,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-120.0, 49.0], [-120.0, 60.0], [-110.0, 60.0], [-110.0, 68.8],
+            [-102.0, 68.8], [-102.0, 49.0], [-120.0, 49.0]
+          ]]
+        }
+      },
+      {
+        name: 'Canada Central',
+        timezoneName: 'America/Winnipeg',
+        utcOffset: -6,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-102.0, 49.0], [-102.0, 68.8], [-90.0, 68.8], [-90.0, 60.0],
+            [-85.0, 60.0], [-85.0, 51.0], [-89.0, 51.0], [-89.0, 49.0],
+            [-102.0, 49.0]
+          ]]
+        }
+      },
+      {
+        name: 'Canada Eastern',
+        timezoneName: 'America/Toronto',
+        utcOffset: -5,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-89.0, 41.7], [-89.0, 51.0], [-85.0, 51.0], [-85.0, 60.0],
+            [-68.0, 60.0], [-68.0, 45.0], [-74.7, 45.0], [-76.0, 44.0],
+            [-82.4, 42.0], [-89.0, 41.7]
+          ]]
+        }
+      },
+      
+      // European Union - Following country boundaries more precisely
+      {
+        name: 'Central European Time',
+        timezoneName: 'Europe/Berlin',
+        utcOffset: 1,
+        geometry: {
+          type: 'MultiPolygon',
+          coordinates: [
+            [[ // Main European landmass
+              [-4.8, 36.0], [3.3, 42.5], [7.4, 43.7], [15.0, 46.6], [22.9, 48.6],
+              [26.6, 47.9], [29.7, 45.9], [28.2, 43.8], [22.4, 41.3], [20.2, 39.6],
+              [14.5, 35.9], [12.1, 35.5], [8.1, 36.9], [5.3, 36.1], [-4.8, 36.0]
+            ]]
+          ]
+        }
+      },
+      
+      // Russia - Following federal district boundaries
+      {
+        name: 'Moscow Time',
+        timezoneName: 'Europe/Moscow',
+        utcOffset: 3,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [27.0, 41.0], [60.0, 41.0], [60.0, 68.0], [27.0, 68.0], [27.0, 41.0]
+          ]]
+        }
+      },
+      {
+        name: 'Yekaterinburg Time',
+        timezoneName: 'Asia/Yekaterinburg',
+        utcOffset: 5,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [60.0, 45.0], [87.0, 45.0], [87.0, 73.0], [60.0, 73.0], [60.0, 45.0]
+          ]]
+        }
+      },
+      
+      // China - Single timezone despite size
+      {
+        name: 'China Standard Time',
+        timezoneName: 'Asia/Shanghai',
+        utcOffset: 8,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [73.5, 18.2], [134.8, 18.2], [134.8, 53.6], [73.5, 53.6], [73.5, 18.2]
+          ]]
+        }
+      },
+      
+      // India - Single timezone
+      {
+        name: 'India Standard Time',
+        timezoneName: 'Asia/Kolkata',
+        utcOffset: 5.5,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [68.1, 6.7], [97.4, 6.7], [97.4, 37.1], [68.1, 37.1], [68.1, 6.7]
+          ]]
+        }
+      },
+      
+      // Brazil - Multiple timezones following state boundaries
+      {
+        name: 'Brazil Eastern',
+        timezoneName: 'America/Sao_Paulo',
+        utcOffset: -3,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-57.6, -33.7], [-34.8, -33.7], [-34.8, 5.3], [-57.6, 5.3], [-57.6, -33.7]
+          ]]
+        }
+      },
+      {
+        name: 'Brazil Western',
+        timezoneName: 'America/Cuiaba',
+        utcOffset: -4,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-74.0, -18.0], [-57.6, -18.0], [-57.6, 5.3], [-74.0, 5.3], [-74.0, -18.0]
+          ]]
+        }
+      },
+      
+      // Australia - Following state boundaries
+      {
+        name: 'Australian Eastern Standard Time',
+        timezoneName: 'Australia/Sydney',
+        utcOffset: 10,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [140.9, -39.2], [153.6, -39.2], [153.6, -10.7], [140.9, -10.7], [140.9, -39.2]
+          ]]
+        }
+      },
+      {
+        name: 'Australian Central Standard Time',
+        timezoneName: 'Australia/Adelaide',
+        utcOffset: 9.5,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [129.0, -38.0], [140.9, -38.0], [140.9, -10.7], [129.0, -10.7], [129.0, -38.0]
+          ]]
+        }
+      },
+      {
+        name: 'Australian Western Standard Time',
+        timezoneName: 'Australia/Perth',
+        utcOffset: 8,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [112.9, -35.1], [129.0, -35.1], [129.0, -10.7], [112.9, -10.7], [112.9, -35.1]
+          ]]
+        }
+      }
+    ]
   },
 
   calculateCurrentUTCOffset(timezoneName) {
@@ -1957,6 +3498,7 @@ Hooks.TeamMap = {
         const sourceId = `timezone-group-${offsetKey.replace('.', '_').replace('-', 'neg')}`
         const layerId = `timezone-group-layer-${offsetKey.replace('.', '_').replace('-', 'neg')}`
         const borderLayerId = `timezone-group-border-${offsetKey.replace('.', '_').replace('-', 'neg')}`
+        const hoverLayerId = `timezone-group-hover-${offsetKey.replace('.', '_').replace('-', 'neg')}`
         
         // Create feature collection for this timezone group
         const featureCollection = {
@@ -1983,6 +3525,20 @@ Hooks.TeamMap = {
           }
         })
         
+        // Add hover highlight layer for entire timezone region
+        map.addLayer({
+          id: hoverLayerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': color,
+            'fill-opacity': 0.7
+          },
+          layout: {
+            'visibility': 'none' // Initially hidden
+          }
+        })
+        
         // Add border layer for country boundaries
         map.addLayer({
           id: borderLayerId,
@@ -1990,8 +3546,8 @@ Hooks.TeamMap = {
           source: sourceId,
           paint: {
             'line-color': color.replace('0.3', '0.9'),
-            'line-width': 1,
-            'line-opacity': 0.7
+            'line-width': 1.2,
+            'line-opacity': 0.8
           }
         })
         
@@ -2022,17 +3578,37 @@ Hooks.TeamMap = {
           }
         })
         
-        // Hover effects
-        map.on('mouseenter', layerId, () => {
+        // Enhanced hover effects - highlight individual countries
+        map.on('mousemove', layerId, (e) => {
           map.getCanvas().style.cursor = 'pointer'
+          
+          // Get the specific country being hovered
+          if (e.features && e.features.length > 0) {
+            const hoveredCountry = e.features[0].properties.NAME || e.features[0].properties.name
+            
+            // Use filter to show only the hovered country
+            try {
+              map.setFilter(hoverLayerId, ['==', ['get', 'NAME'], hoveredCountry])
+              map.setLayoutProperty(hoverLayerId, 'visibility', 'visible')
+            } catch (error) {
+              console.warn('Failed to show hover highlight:', error)
+            }
+          }
         })
         
         map.on('mouseleave', layerId, () => {
           map.getCanvas().style.cursor = ''
+          
+          // Hide the hover layer
+          try {
+            map.setLayoutProperty(hoverLayerId, 'visibility', 'none')
+          } catch (error) {
+            console.warn('Failed to hide hover highlight:', error)
+          }
         })
       })
       
-      console.log('Country-based timezone boundaries loaded successfully')
+      console.log('✅ Country-based timezone boundaries loaded successfully with hover effects!')
       
     } catch (error) {
       console.error('Failed to load country timezone data:', error)

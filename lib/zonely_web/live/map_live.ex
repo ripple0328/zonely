@@ -4,13 +4,13 @@ defmodule ZonelyWeb.MapLive do
   alias Zonely.Accounts
   alias Zonely.TextToSpeech
 
-  @impl true
+    @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_users()
     maptiler_api_key = Application.get_env(:zonely, :maptiler)[:api_key]
-    
-    {:ok, assign(socket, 
-      users: users, 
+
+    {:ok, assign(socket,
+      users: users,
       selected_user: nil,
       maptiler_api_key: maptiler_api_key
     )}
@@ -42,14 +42,16 @@ defmodule ZonelyWeb.MapLive do
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
     text_to_speak = user.phonetic_native || user.name_native || user.name
-    
-    {:noreply, 
+
+    {:noreply,
      socket
      |> push_event("speak_text", %{
        text: text_to_speak,
        lang: user.native_language || "en-US"
      })}
   end
+
+
 
   # Convert users to JSON for JavaScript
   defp users_to_json(users) do
@@ -77,6 +79,8 @@ defmodule ZonelyWeb.MapLive do
     end)
     |> Jason.encode!()
   end
+
+
 
   # Generate fake profile pictures using external service
   defp fake_profile_picture(name) do
@@ -143,8 +147,8 @@ defmodule ZonelyWeb.MapLive do
     ~H"""
     <div class="fixed top-0 left-0 w-full h-screen pt-[4rem] z-0">
       <!-- MapLibre GL JS Map Container -->
-      <div 
-        id="map-container" 
+            <div
+        id="map-container"
         class="h-full w-full"
         phx-hook="TeamMap"
         data-api-key={@maptiler_api_key}
@@ -172,7 +176,7 @@ defmodule ZonelyWeb.MapLive do
                 <.icon name="hero-x-mark" class="h-6 w-6" />
               </button>
             </div>
-            
+
             <div class="mt-4 space-y-3">
               <div :if={@selected_user.phonetic}>
                 <label class="block text-sm font-medium text-gray-700">English Pronunciation</label>
@@ -222,7 +226,7 @@ defmodule ZonelyWeb.MapLive do
               <div>
                 <label class="block text-sm font-medium text-gray-700">Working Hours</label>
                 <p class="text-sm text-gray-900">
-                  <%= Calendar.strftime(@selected_user.work_start, "%I:%M %p") %> - 
+                  <%= Calendar.strftime(@selected_user.work_start, "%I:%M %p") %> -
                   <%= Calendar.strftime(@selected_user.work_end, "%I:%M %p") %>
                 </p>
               </div>

@@ -31,6 +31,11 @@ config :zonely, ZonelyWeb.Endpoint,
 
 config :zonely, dev_routes: true
 
+# Tidewave AI assistant configuration
+config :tidewave,
+  enabled: true,
+  path: "/tidewave/mcp"
+
 config :logger, :console, format: "[$level] $message\n"
 
 config :phoenix, :stacktrace_depth, 20
