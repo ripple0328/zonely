@@ -31,6 +31,13 @@ social_circle-*.tar
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json
 
+# Ignore compiled/hashed static files (favicon, robots.txt, etc. with hashes)
+/priv/static/*-*.ico
+/priv/static/*-*.png
+/priv/static/*-*.svg
+/priv/static/*-*.txt
+/priv/static/*.gz
+
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
 /assets/node_modules/

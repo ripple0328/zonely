@@ -28,13 +28,8 @@ let Hooks = {}
 Hooks.TeamMap = {
   mounted() {
     console.log('TeamMap hook mounted!')
-    const apiKey = this.el.dataset.apiKey
     const users = JSON.parse(this.el.dataset.users)
-    
-    console.log('API Key:', apiKey)
-    console.log('Users:', users)
-    console.log('Container element:', this.el)
-    
+
     // Initialize MapLibre GL JS map
     let map
     try {
