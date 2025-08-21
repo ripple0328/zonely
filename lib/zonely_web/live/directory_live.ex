@@ -46,6 +46,11 @@ defmodule ZonelyWeb.DirectoryLive do
      })}
   end
 
+  defp user_avatar_url(name) do
+    seed = name |> String.downcase() |> String.replace(" ", "-")
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -65,11 +70,11 @@ defmodule ZonelyWeb.DirectoryLive do
           <div class="p-5">
             <div class="flex items-center">
               <div class="flex-shrink-0">
-                <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                  <span class="text-sm font-medium text-gray-700">
-                    <%= String.first(user.name) %>
-                  </span>
-                </div>
+                <img 
+                  src={user_avatar_url(user.name)} 
+                  alt={"#{user.name}'s avatar"} 
+                  class="h-12 w-12 rounded-full shadow-sm border border-gray-200"
+                />
               </div>
               <div class="ml-5 w-0 flex-1">
                 <dl>

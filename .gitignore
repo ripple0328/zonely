@@ -1,2 +1,5 @@
 _build/
 deps/
+
+# Environment variables
+.envrc

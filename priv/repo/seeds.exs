@@ -31,7 +31,9 @@ users = [
     timezone: "America/Los_Angeles",
     country: "US",
     work_start: ~T[09:00:00],
-    work_end: ~T[17:00:00]
+    work_end: ~T[17:00:00],
+    latitude: 37.7749,
+    longitude: -122.4194
   },
   %{
     name: "Björn Eriksson",
@@ -44,7 +46,9 @@ users = [
     timezone: "Europe/Stockholm",
     country: "SE",
     work_start: ~T[08:00:00],
-    work_end: ~T[16:00:00]
+    work_end: ~T[16:00:00],
+    latitude: 59.3293,
+    longitude: 18.0686
   },
   %{
     name: "Priya Sharma",
@@ -57,7 +61,9 @@ users = [
     timezone: "Asia/Kolkata",
     country: "IN",
     work_start: ~T[10:00:00],
-    work_end: ~T[18:00:00]
+    work_end: ~T[18:00:00],
+    latitude: 28.7041,
+    longitude: 77.1025
   },
   %{
     name: "James Wilson",
@@ -70,7 +76,9 @@ users = [
     timezone: "America/New_York",
     country: "US",
     work_start: ~T[08:30:00],
-    work_end: ~T[16:30:00]
+    work_end: ~T[16:30:00],
+    latitude: 40.7128,
+    longitude: -74.0060
   },
   %{
     name: "Yuki Tanaka",
@@ -83,7 +91,9 @@ users = [
     timezone: "Asia/Tokyo",
     country: "JP",
     work_start: ~T[09:30:00],
-    work_end: ~T[17:30:00]
+    work_end: ~T[17:30:00],
+    latitude: 35.6762,
+    longitude: 139.6503
   },
   %{
     name: "Maria García",
@@ -96,7 +106,9 @@ users = [
     timezone: "Europe/Madrid",
     country: "ES",
     work_start: ~T[09:00:00],
-    work_end: ~T[17:00:00]
+    work_end: ~T[17:00:00],
+    latitude: 40.4168,
+    longitude: -3.7038
   },
   %{
     name: "David Kim",
@@ -109,7 +121,9 @@ users = [
     timezone: "Australia/Sydney",
     country: "AU",
     work_start: ~T[09:00:00],
-    work_end: ~T[17:00:00]
+    work_end: ~T[17:00:00],
+    latitude: -33.8688,
+    longitude: 151.2093
   },
   %{
     name: "Sarah O'Connor",
@@ -122,7 +136,9 @@ users = [
     timezone: "Europe/London",
     country: "GB",
     work_start: ~T[08:00:00],
-    work_end: ~T[16:00:00]
+    work_end: ~T[16:00:00],
+    latitude: 51.5074,
+    longitude: -0.1278
   },
   %{
     name: "Ahmed Hassan",
@@ -135,7 +151,9 @@ users = [
     timezone: "Africa/Cairo",
     country: "EG",
     work_start: ~T[09:00:00],
-    work_end: ~T[17:00:00]
+    work_end: ~T[17:00:00],
+    latitude: 30.0444,
+    longitude: 31.2357
   },
   %{
     name: "Luiza Santos",
@@ -148,7 +166,9 @@ users = [
     timezone: "America/Sao_Paulo",
     country: "BR",
     work_start: ~T[08:00:00],
-    work_end: ~T[16:00:00]
+    work_end: ~T[16:00:00],
+    latitude: -23.5505,
+    longitude: -46.6333
   }
 ]
 

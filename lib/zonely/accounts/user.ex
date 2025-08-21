@@ -18,13 +18,15 @@ defmodule Zonely.Accounts.User do
     field :name_native, :string
     field :phonetic_native, :string
     field :native_language, :string
+    field :latitude, :decimal
+    field :longitude, :decimal
 
     timestamps(type: :utc_datetime)
   end
 
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:name, :phonetic, :pronunciation_audio_url, :pronouns, :role, :timezone, :country, :work_start, :work_end, :name_native, :phonetic_native, :native_language])
+    |> cast(attrs, [:name, :phonetic, :pronunciation_audio_url, :pronouns, :role, :timezone, :country, :work_start, :work_end, :name_native, :phonetic_native, :native_language, :latitude, :longitude])
     |> validate_required([:name, :timezone, :country, :work_start, :work_end])
     |> validate_timezone()
     |> validate_country_code()

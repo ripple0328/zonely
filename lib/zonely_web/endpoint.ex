@@ -12,9 +12,15 @@ defmodule ZonelyWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
-  socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
-  plug Phoenix.LiveReloader
-  plug Phoenix.CodeReloader
+  if Code.ensure_loaded?(Tidewave) do
+    plug Tidewave
+  end
+
+  if code_reloading? do
+    socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
+    plug Phoenix.LiveReloader
+    plug Phoenix.CodeReloader
+  end
 
   plug Plug.Static,
     at: "/",

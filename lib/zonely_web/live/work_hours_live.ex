@@ -51,6 +51,13 @@ defmodule ZonelyWeb.WorkHoursLive do
     end
   end
 
+  # Generate fake profile pictures using external service
+  defp fake_profile_picture(name) do
+    # Using DiceBear Avatars API for consistent fake profile pictures
+    seed = name |> String.downcase() |> String.replace(" ", "-")
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=48"
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -64,10 +71,10 @@ defmodule ZonelyWeb.WorkHoursLive do
       <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">Select Team Members</h3>
-          <div class="space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <label
               :for={user <- @users}
-              class="relative flex items-start py-2 cursor-pointer"
+              class="relative flex items-center py-3 px-3 cursor-pointer hover:bg-gray-50 rounded-lg border border-gray-200 transition-all duration-150 hover:border-indigo-300 hover:shadow-sm"
             >
               <div class="flex items-center h-5">
                 <input
@@ -78,10 +85,26 @@ defmodule ZonelyWeb.WorkHoursLive do
                   class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                 />
               </div>
-              <div class="ml-3 text-sm">
-                <div class="font-medium text-gray-700"><%= user.name %></div>
-                <div class="text-gray-500">
-                  <%= user.timezone %> • 
+              <!-- Avatar -->
+              <div class="ml-3 flex-shrink-0">
+                <img 
+                  src={fake_profile_picture(user.name)} 
+                  alt={user.name} 
+                  class="w-10 h-10 rounded-full"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                />
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center" style="display: none;">
+                  <span class="text-white font-medium text-sm">
+                    <%= String.first(user.name) %>
+                  </span>
+                </div>
+              </div>
+              <div class="ml-3 text-sm flex-1 min-w-0">
+                <div class="font-medium text-gray-700 truncate"><%= user.name %></div>
+                <div class="text-gray-500 text-xs truncate">
+                  <%= user.timezone %>
+                </div>
+                <div class="text-gray-400 text-xs">
                   <%= Calendar.strftime(user.work_start, "%H:%M") %> - <%= Calendar.strftime(user.work_end, "%H:%M") %>
                 </div>
               </div>
@@ -110,8 +133,24 @@ defmodule ZonelyWeb.WorkHoursLive do
               :for={user <- get_selected_user_data(@users, @selected_users)}
               class="flex items-center"
             >
-              <div class="w-32 text-sm font-medium text-gray-900 truncate">
-                <%= user.name %>
+              <div class="flex items-center w-40">
+                <!-- Avatar -->
+                <div class="flex-shrink-0 mr-3">
+                  <img 
+                    src={fake_profile_picture(user.name)} 
+                    alt={user.name} 
+                    class="w-8 h-8 rounded-full"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                  />
+                  <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center" style="display: none;">
+                    <span class="text-white font-medium text-xs">
+                      <%= String.first(user.name) %>
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm font-medium text-gray-900 truncate">
+                  <%= user.name %>
+                </div>
               </div>
               <div class="flex-1 grid grid-cols-24 gap-1">
                 <div

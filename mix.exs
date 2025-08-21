@@ -50,7 +50,8 @@ defmodule Zonely.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:req, "~> 0.5"}
+      {:req, "~> 0.5"},
+      {:tidewave, "~> 0.4", only: :dev}
     ]
   end
 
@@ -66,7 +67,10 @@ defmodule Zonely.MixProject do
         "tailwind zonely --minify",
         "esbuild zonely --minify",
         "phx.digest"
-      ]
+      ],
+      "db.up": ["cmd docker compose up -d db"],
+      "db.down": ["cmd docker compose down db"],
+      "db.logs": ["cmd docker compose logs db"]
     ]
   end
 end

@@ -3,3 +3,108 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+
+/* Remove all padding and margins for full screen map */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* MapLibre GL CSS customizations */
+#map-container {
+  position: relative;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure the MapLibre canvas takes full size */
+#map-container .maplibregl-map {
+  height: 100% !important;
+  width: 100% !important;
+}
+.team-marker-card {
+  cursor: pointer;
+  z-index: 10;
+}
+
+.team-marker-card:hover {
+  z-index: 20;
+}
+
+/* Ensure cards don't overlap map controls */
+.team-marker-card .bg-white {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.team-popup-container .maplibregl-popup-content {
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: none;
+  padding: 0;
+  max-width: 300px;
+}
+
+.team-popup-container .maplibregl-popup-tip {
+  border-top-color: white;
+}
+
+.team-popup {
+  border-radius: 8px;
+}
+
+/* Ensure map controls are above other elements */
+.maplibregl-ctrl-group {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.maplibregl-ctrl button {
+  border-radius: 4px;
+}
+
+/* Timezone overlay popup styling */
+.maplibregl-popup-content {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: none;
+  padding: 0;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: white;
+}
+
+/* Custom scrollbar for popup if content is long */
+.team-popup::-webkit-scrollbar {
+  width: 4px;
+}
+
+.team-popup::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 2px;
+}
+
+.team-popup::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.team-popup::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Sunlight overlay styling */
+.maplibregl-popup.sunlight-info .maplibregl-popup-content {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #fbbf24;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.maplibregl-popup.sunlight-info .maplibregl-popup-tip {
+  border-top-color: #1a1a2e;
+}

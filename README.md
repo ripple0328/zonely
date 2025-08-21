@@ -14,6 +14,7 @@ A web app that helps distributed teams connect better by showing name pronunciat
 - **Database**: PostgreSQL with Ecto
 - **Frontend**: TailwindCSS + Heroicons
 - **API Integration**: Nager.Date for holiday data
+- **Development Tools**: Tidewave for AI-powered development assistance
 
 ## Getting Started
 
@@ -22,30 +23,57 @@ A web app that helps distributed teams connect better by showing name pronunciat
 - Elixir 1.18+
 - Phoenix Framework
 - PostgreSQL
+- [direnv](https://direnv.net/) for environment variable management
 
 ### Setup
 
-1. Install dependencies:
+1. Install direnv and allow environment loading:
+   ```bash
+   # Install direnv (macOS)
+   brew install direnv
+   
+   # Add to your shell profile (~/.zshrc, ~/.bashrc, etc.)
+   eval "$(direnv hook zsh)"  # or bash/fish
+   
+   # Allow the .envrc file in this project
+   direnv allow
+   ```
+
+2. Configure environment variables:
+   - The `.envrc` file contains development environment variables
+   - Update `SECRET_KEY_BASE` by running: `mix phx.gen.secret`
+   - Update `MAPTILER_API_KEY` with your actual API key from [MapTiler](https://www.maptiler.com/)
+
+3. Install dependencies:
    ```bash
    mix deps.get
    ```
 
-2. Create and migrate database:
+4. Create and migrate database:
    ```bash
    mix ecto.setup
    ```
 
-3. Install npm dependencies:
+5. Install npm dependencies:
    ```bash
    npm install --prefix assets
    ```
 
-4. Start the Phoenix server:
+6. Start the Phoenix server:
    ```bash
    mix phx.server
    ```
 
-5. Visit [`localhost:4000`](http://localhost:4000) to see the app
+7. Visit [`localhost:4000`](http://localhost:4000) to see the app
+
+### Tidewave AI Development Assistant
+
+The project includes [Tidewave](https://github.com/tidewave-ai/tidewave_phoenix) for AI-powered development assistance. Once the Phoenix server is running, Tidewave is available at:
+
+- **MCP Endpoint**: `http://localhost:4000/tidewave/mcp`
+- **Compatible Editors**: Claude Code, VS Code (GitHub Copilot), Cursor, Zed, Neovim
+
+To connect your editor to Tidewave, follow the [editor-specific setup guides](https://github.com/tidewave-ai/tidewave_phoenix/tree/main/pages/editors).
 
 ## Features
 

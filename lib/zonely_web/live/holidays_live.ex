@@ -60,6 +60,13 @@ defmodule ZonelyWeb.HolidaysLive do
     Date.diff(date, Date.utc_today())
   end
 
+  # Generate fake profile pictures using external service
+  defp fake_profile_picture(name) do
+    # Using DiceBear Avatars API for consistent fake profile pictures
+    seed = name |> String.downcase() |> String.replace(" ", "-")
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=32"
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -94,12 +101,28 @@ defmodule ZonelyWeb.HolidaysLive do
             
             <div class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Team Members</h4>
-              <div class="space-y-1">
+              <div class="space-y-2">
                 <div
                   :for={user <- get_users_for_country(@users, country)}
-                  class="text-sm text-gray-600"
+                  class="flex items-center space-x-2"
                 >
-                  <%= user.name %>
+                  <!-- Avatar -->
+                  <div class="flex-shrink-0">
+                    <img 
+                      src={fake_profile_picture(user.name)} 
+                      alt={user.name} 
+                      class="w-6 h-6 rounded-full"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    />
+                    <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center" style="display: none;">
+                      <span class="text-white font-medium text-xs">
+                        <%= String.first(user.name) %>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="text-sm text-gray-600">
+                    <%= user.name %>
+                  </div>
                 </div>
               </div>
             </div>
@@ -139,26 +162,58 @@ defmodule ZonelyWeb.HolidaysLive do
                 <p class="mt-1 text-sm text-gray-600"><%= format_date(holiday.date) %></p>
               </div>
               
-              <div class="text-right">
-                <div class={[
-                  "text-sm font-medium",
-                  days_until(holiday.date) <= 7 && "text-red-700",
-                  days_until(holiday.date) > 7 && days_until(holiday.date) <= 30 && "text-yellow-700",
-                  days_until(holiday.date) > 30 && "text-gray-700"
-                ]}>
-                  <%= cond do %>
-                    <% days_until(holiday.date) == 0 -> %>
-                      Today
-                    <% days_until(holiday.date) == 1 -> %>
-                      Tomorrow
-                    <% days_until(holiday.date) > 1 -> %>
-                      In <%= days_until(holiday.date) %> days
-                    <% true -> %>
-                      <%= days_until(holiday.date) %> days ago
-                  <% end %>
+              <div class="flex items-center space-x-4">
+                <!-- Affected users avatars -->
+                <div class="flex -space-x-1">
+                  <div
+                    :for={user <- get_users_for_country(@users, holiday.country) |> Enum.take(3)}
+                    class="flex-shrink-0"
+                  >
+                    <img 
+                      src={fake_profile_picture(user.name)} 
+                      alt={user.name} 
+                      class="w-6 h-6 rounded-full border-2 border-white"
+                      title={user.name}
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    />
+                    <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full border-2 border-white flex items-center justify-center" style="display: none;" title={user.name}>
+                      <span class="text-white font-medium text-xs">
+                        <%= String.first(user.name) %>
+                      </span>
+                    </div>
+                  </div>
+                  <div 
+                    :if={length(get_users_for_country(@users, holiday.country)) > 3} 
+                    class="w-6 h-6 bg-gray-300 rounded-full border-2 border-white flex items-center justify-center"
+                    title={"#{length(get_users_for_country(@users, holiday.country)) - 3} more"}
+                  >
+                    <span class="text-gray-600 font-medium text-xs">
+                      +<%= length(get_users_for_country(@users, holiday.country)) - 3 %>
+                    </span>
+                  </div>
                 </div>
-                <div class="text-xs text-gray-500">
-                  Affects <%= length(get_users_for_country(@users, holiday.country)) %> members
+                
+                <div class="text-right">
+                  <div class={[
+                    "text-sm font-medium",
+                    days_until(holiday.date) <= 7 && "text-red-700",
+                    days_until(holiday.date) > 7 && days_until(holiday.date) <= 30 && "text-yellow-700",
+                    days_until(holiday.date) > 30 && "text-gray-700"
+                  ]}>
+                    <%= cond do %>
+                      <% days_until(holiday.date) == 0 -> %>
+                        Today
+                      <% days_until(holiday.date) == 1 -> %>
+                        Tomorrow
+                      <% days_until(holiday.date) > 1 -> %>
+                        In <%= days_until(holiday.date) %> days
+                      <% true -> %>
+                        <%= days_until(holiday.date) %> days ago
+                    <% end %>
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    <%= length(get_users_for_country(@users, holiday.country)) %> members
+                  </div>
                 </div>
               </div>
             </div>
