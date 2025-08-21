@@ -2538,7 +2538,7 @@ Hooks.TeamMap = {
     const offsetString = utcOffset >= 0 ? `+${utcOffset}` : `${utcOffset}`
     const workingHoursStatus = this.getWorkingHoursStatus(properTimezoneName)
     const workingHoursIndicator = this.getWorkingHoursIndicator(properTimezoneName)
-    const locationFlag = this.getLocationFlag(properTimezoneName)
+    const locationInfo = this.getLocationInfo(properTimezoneName)
     
     // Apply styling based on day/night
     const icon = isDayTime ? '☀️' : '🌙'
@@ -2557,15 +2557,14 @@ Hooks.TeamMap = {
       .setHTML(`
         <div class="p-3 timezone-popup-content">
           <div class="${titleClass} flex items-center gap-1">
-            ${icon} ${locationFlag} ${tzAbbreviation} (GMT${offsetString})
+            📍 ${locationInfo.flag} ${locationInfo.city}
           </div>
-          <div class="${timezoneClass} text-xs">${properTimezoneName}</div>
-          <div class="${timeClass} font-bold text-base mt-2">${localDateAndTime}</div>
-          <div class="mt-2 flex items-center gap-2">
+          <div class="${timeClass} font-bold text-base mt-1">🕒 ${localDateAndTime}</div>
+          <div class="${timezoneClass} text-xs mt-1">⏳ ${timeDifference}</div>
+          <div class="working-hours-row">
             ${workingHoursIndicator}
             <span class="${statusClass}">${workingHoursStatus}</span>
           </div>
-          <div class="${timezoneClass} text-xs mt-1">${timeDifference}</div>
         </div>
       `)
       .addTo(map)
@@ -2747,56 +2746,60 @@ Hooks.TeamMap = {
       
       // Weekend
       if (day === 0 || day === 6) {
-        return '<div class="w-3 h-3 rounded-full bg-blue-400"></div>'
+        return '<div class="working-hours-dot bg-blue-400"></div>'
       }
       
       // Working hours (9 AM to 5 PM)
       if (hour >= 9 && hour < 17) {
-        return '<div class="w-3 h-3 rounded-full bg-green-500"></div>'
+        return '<div class="working-hours-dot bg-green-500"></div>'
       } else if (hour >= 17 && hour < 22) {
-        return '<div class="w-3 h-3 rounded-full bg-orange-400"></div>'
+        return '<div class="working-hours-dot bg-orange-400"></div>'
       } else if (hour >= 22 || hour < 6) {
-        return '<div class="w-3 h-3 rounded-full bg-purple-600"></div>'
+        return '<div class="working-hours-dot bg-purple-600"></div>'
       } else {
-        return '<div class="w-3 h-3 rounded-full bg-yellow-400"></div>'
+        return '<div class="working-hours-dot bg-yellow-400"></div>'
       }
     } catch (error) {
-      return '<div class="w-3 h-3 rounded-full bg-gray-400"></div>'
+      return '<div class="working-hours-dot bg-gray-400"></div>'
     }
   },
 
-  getLocationFlag(timezoneName) {
-    const flagMap = {
-      'America/New_York': '🇺🇸',
-      'America/Chicago': '🇺🇸',
-      'America/Denver': '🇺🇸',
-      'America/Los_Angeles': '🇺🇸',
-      'America/Anchorage': '🇺🇸',
-      'Pacific/Honolulu': '🇺🇸',
-      'America/Toronto': '🇨🇦',
-      'America/Vancouver': '🇨🇦',
-      'Europe/London': '🇬🇧',
-      'Europe/Berlin': '🇩🇪',
-      'Europe/Paris': '🇫🇷',
-      'Europe/Rome': '🇮🇹',
-      'Europe/Helsinki': '🇫🇮',
-      'Europe/Athens': '🇬🇷',
-      'Europe/Moscow': '🇷🇺',
-      'Asia/Tokyo': '🇯🇵',
-      'Asia/Shanghai': '🇨🇳',
-      'Asia/Kolkata': '🇮🇳',
-      'Asia/Karachi': '🇵🇰',
-      'Asia/Dubai': '🇦🇪',
-      'Asia/Bangkok': '🇹🇭',
-      'Asia/Dhaka': '🇧🇩',
-      'Australia/Sydney': '🇦🇺',
-      'Australia/Melbourne': '🇦🇺',
-      'Pacific/Auckland': '🇳🇿',
-      'America/Sao_Paulo': '🇧🇷',
-      'America/Mexico_City': '🇲🇽'
+  getLocationInfo(timezoneName) {
+    const locationMap = {
+      'America/New_York': { flag: '🇺🇸', city: 'New York' },
+      'America/Chicago': { flag: '🇺🇸', city: 'Chicago' },
+      'America/Denver': { flag: '🇺🇸', city: 'Denver' },
+      'America/Los_Angeles': { flag: '🇺🇸', city: 'Los Angeles' },
+      'America/Anchorage': { flag: '🇺🇸', city: 'Anchorage' },
+      'Pacific/Honolulu': { flag: '🇺🇸', city: 'Honolulu' },
+      'America/Toronto': { flag: '🇨🇦', city: 'Toronto' },
+      'America/Vancouver': { flag: '🇨🇦', city: 'Vancouver' },
+      'Europe/London': { flag: '🇬🇧', city: 'London' },
+      'Europe/Berlin': { flag: '🇩🇪', city: 'Berlin' },
+      'Europe/Paris': { flag: '🇫🇷', city: 'Paris' },
+      'Europe/Rome': { flag: '🇮🇹', city: 'Rome' },
+      'Europe/Helsinki': { flag: '🇫🇮', city: 'Helsinki' },
+      'Europe/Athens': { flag: '🇬🇷', city: 'Athens' },
+      'Europe/Moscow': { flag: '🇷🇺', city: 'Moscow' },
+      'Asia/Tokyo': { flag: '🇯🇵', city: 'Tokyo' },
+      'Asia/Shanghai': { flag: '🇨🇳', city: 'Shanghai' },
+      'Asia/Kolkata': { flag: '🇮🇳', city: 'Mumbai' },
+      'Asia/Karachi': { flag: '🇵🇰', city: 'Karachi' },
+      'Asia/Dubai': { flag: '🇦🇪', city: 'Dubai' },
+      'Asia/Bangkok': { flag: '🇹🇭', city: 'Bangkok' },
+      'Asia/Dhaka': { flag: '🇧🇩', city: 'Dhaka' },
+      'Australia/Sydney': { flag: '🇦🇺', city: 'Sydney' },
+      'Australia/Melbourne': { flag: '🇦🇺', city: 'Melbourne' },
+      'Pacific/Auckland': { flag: '🇳🇿', city: 'Auckland' },
+      'America/Sao_Paulo': { flag: '🇧🇷', city: 'São Paulo' },
+      'America/Mexico_City': { flag: '🇲🇽', city: 'Mexico City' }
     }
     
-    return flagMap[timezoneName] || '🌍'
+    return locationMap[timezoneName] || { flag: '🌍', city: timezoneName.split('/').pop().replace(/_/g, ' ') }
+  },
+
+  getLocationFlag(timezoneName) {
+    return this.getLocationInfo(timezoneName).flag
   },
 
   getWorkingHoursStatus(timezoneName) {
