@@ -180,26 +180,37 @@ Hooks.TeamMap = {
           .setLngLat([user.longitude, user.latitude])
           .addTo(map)
 
-        // Handle hover for card expansion
+        // Handle click for card expansion (converted from hover)
         const expandedCard = markerEl.querySelector('.team-card-expanded')
-        let hoverTimeout
+        let isExpanded = false
         
-        markerEl.addEventListener('mouseenter', () => {
-          clearTimeout(hoverTimeout)
-          expandedCard.classList.remove('opacity-0', 'invisible', 'scale-95')
-          expandedCard.classList.add('opacity-100', 'visible', 'scale-100')
-        })
-        
-        markerEl.addEventListener('mouseleave', () => {
-          hoverTimeout = setTimeout(() => {
+        markerEl.addEventListener('click', (e) => {
+          e.stopPropagation()
+          
+          if (isExpanded) {
             expandedCard.classList.add('opacity-0', 'invisible', 'scale-95')
             expandedCard.classList.remove('opacity-100', 'visible', 'scale-100')
-          }, 100)
+            isExpanded = false
+          } else {
+            // Close any other expanded cards first
+            document.querySelectorAll('.team-card-expanded.opacity-100').forEach(card => {
+              card.classList.add('opacity-0', 'invisible', 'scale-95')
+              card.classList.remove('opacity-100', 'visible', 'scale-100')
+            })
+            
+            expandedCard.classList.remove('opacity-0', 'invisible', 'scale-95')
+            expandedCard.classList.add('opacity-100', 'visible', 'scale-100')
+            isExpanded = true
+          }
         })
-
-        // Handle marker clicks for full profile
-        markerEl.addEventListener('click', () => {
-          this.pushEvent('show_profile', { user_id: user.id })
+        
+        // Close expanded card when clicking elsewhere on map
+        map.on('click', () => {
+          if (isExpanded) {
+            expandedCard.classList.add('opacity-0', 'invisible', 'scale-95')
+            expandedCard.classList.remove('opacity-100', 'visible', 'scale-100')
+            isExpanded = false
+          }
         })
       })
 
@@ -1727,6 +1738,7 @@ Hooks.TeamMap = {
       map.on('mouseleave', layerId, () => {
         map.getCanvas().style.cursor = ''
       })
+
     })
     
     console.log('Generated timezone overlay added successfully')
@@ -4152,6 +4164,7 @@ Hooks.TeamMap = {
     map.on('mouseleave', 'night-overlay-layer', () => {
       map.getCanvas().style.cursor = ''
     })
+
     
     // Update overlay every minute
     this.sunlightInterval = setInterval(() => {
