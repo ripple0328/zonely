@@ -848,23 +848,7 @@ Hooks.TeamMap = {
           return
         }
         
-        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] })
-        if (features.length > 0) {
-          const feature = features[0]
-          const timezoneName = feature.properties.tzid || 'Unknown'
-          const currentTime = this.getCurrentTimeInTimezone(timezoneName)
-          
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div class="p-3">
-                <div class="font-semibold text-gray-900">${timezoneName}</div>
-                <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
-                <div class="text-xs text-gray-500 mt-2">Official administrative boundaries</div>
-              </div>
-            `)
-            .addTo(map)
-        }
+        this.createTimezonePopup(e, map, true)
       })
     })
     
@@ -2460,6 +2444,23 @@ Hooks.TeamMap = {
   },
 
   calculateCurrentUTCOffset(timezoneName) {
+    // Handle UTC offset strings first (like UTC-03:00, UTC+05:30)
+    if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+      const match = timezoneName.match(/^UTC([+\-±])(\d{1,2}):(\d{2})$/)
+      if (match) {
+        const sign = match[1] === '+' ? 1 : -1
+        const hours = parseInt(match[2], 10)
+        const minutes = parseInt(match[3], 10)
+        
+        // UTC±00:00, UTC+00:00 and UTC-00:00 all represent GMT/UTC (offset 0)
+        if (hours === 0 && minutes === 0) {
+          return 0
+        }
+        
+        return sign * (hours + minutes / 60)
+      }
+    }
+    
     // Calculate the current UTC offset for a timezone, accounting for DST
     try {
       const now = new Date()
@@ -2485,6 +2486,21 @@ Hooks.TeamMap = {
   getCurrentTimeInTimezone(timezoneName) {
     try {
       const now = new Date()
+      
+      // Handle UTC offset strings (like UTC-08:00)
+      if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+        const offset = this.calculateCurrentUTCOffset(timezoneName)
+        // Get current UTC time and apply offset
+        const utcTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000))
+        const localTime = new Date(utcTime.getTime() + (offset * 60 * 60 * 1000))
+        return localTime.toLocaleString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })
+      }
+      
+      // Use proper timezone name
       return now.toLocaleString('en-US', {
         timeZone: timezoneName,
         hour: '2-digit',
@@ -2496,7 +2512,351 @@ Hooks.TeamMap = {
     }
   },
 
+  createTimezonePopup(e, map, isDayTime = true) {
+    // Close any existing popups
+    const existingPopups = document.querySelectorAll('.maplibregl-popup')
+    existingPopups.forEach(popup => popup.remove())
+    
+    // Get timezone data from the clicked location - consistent for both day/night
+    const features = map.queryRenderedFeatures(e.point)
+    let timezoneName = 'UTC'
+    
+    // Look for timezone information in any layer (consistent approach)
+    for (const feature of features) {
+      if (feature.properties && (feature.properties.tzid || feature.properties.TZID)) {
+        timezoneName = feature.properties.tzid || feature.properties.TZID
+        break
+      }
+    }
+    
+    // Process timezone data consistently for both day and night
+    const properTimezoneName = this.getProperTimezoneName(timezoneName)
+    const localDateAndTime = this.getLocalDateAndTime(properTimezoneName)
+    const timeDifference = this.getTimeDifference(properTimezoneName)
+    const tzAbbreviation = this.getTimezoneAbbreviation(properTimezoneName)
+    const utcOffset = this.calculateCurrentUTCOffset(properTimezoneName)
+    const offsetString = utcOffset >= 0 ? `+${utcOffset}` : `${utcOffset}`
+    const workingHoursStatus = this.getWorkingHoursStatus(properTimezoneName)
+    const workingHoursIndicator = this.getWorkingHoursIndicator(properTimezoneName)
+    const locationFlag = this.getLocationFlag(properTimezoneName)
+    
+    // Apply styling based on day/night
+    const icon = isDayTime ? '☀️' : '🌙'
+    const className = isDayTime ? 'timezone-popup' : 'sunlight-info'
+    const titleClass = isDayTime ? 'font-semibold text-gray-900' : 'font-semibold text-yellow-400'
+    const timeClass = isDayTime ? 'text-xs text-gray-700 mt-1' : 'text-xs text-yellow-300 mt-1'
+    const statusClass = isDayTime ? 'text-xs text-gray-500 mt-2' : 'text-xs text-yellow-300 mt-2'
+    const timezoneClass = isDayTime ? 'text-xs text-gray-600 mt-1' : 'text-xs text-yellow-300 mt-1'
+    
+    return new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      className: className
+    })
+      .setLngLat(e.lngLat)
+      .setHTML(`
+        <div class="p-3 timezone-popup-content">
+          <div class="${titleClass} flex items-center gap-1">
+            ${icon} ${locationFlag} ${tzAbbreviation} (GMT${offsetString})
+          </div>
+          <div class="${timezoneClass} text-xs">${properTimezoneName}</div>
+          <div class="${timeClass} font-bold text-base mt-2">${localDateAndTime}</div>
+          <div class="mt-2 flex items-center gap-2">
+            ${workingHoursIndicator}
+            <span class="${statusClass}">${workingHoursStatus}</span>
+          </div>
+          <div class="${timezoneClass} text-xs mt-1">${timeDifference}</div>
+        </div>
+      `)
+      .addTo(map)
+  },
+
+  getProperTimezoneName(timezoneName) {
+    // Map UTC offset strings to proper timezone names for better DST handling
+    if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+      const offset = this.calculateCurrentUTCOffset(timezoneName)
+      
+      // Map common UTC offsets to timezone names (prioritizing major cities)
+      const offsetToProperTimezone = {
+        '-12': 'Pacific/Baker_Island',
+        '-11': 'Pacific/Midway',
+        '-10': 'Pacific/Honolulu',
+        '-9': 'America/Anchorage',
+        '-8': 'America/Los_Angeles', // This will automatically handle PST/PDT
+        '-7': 'America/Denver',
+        '-6': 'America/Chicago',
+        '-5': 'America/New_York',
+        '-4': 'America/Halifax',
+        '-3': 'America/Sao_Paulo',
+        '-2': 'Atlantic/South_Georgia',
+        '-1': 'Atlantic/Cape_Verde',
+        '0': 'Europe/London',
+        '1': 'Europe/Berlin',
+        '2': 'Europe/Helsinki',
+        '3': 'Europe/Moscow',
+        '4': 'Asia/Dubai',
+        '5': 'Asia/Karachi',
+        '5.5': 'Asia/Kolkata',
+        '6': 'Asia/Dhaka',
+        '7': 'Asia/Bangkok',
+        '8': 'Asia/Shanghai',
+        '9': 'Asia/Tokyo',
+        '10': 'Australia/Sydney',
+        '11': 'Pacific/Norfolk',
+        '12': 'Pacific/Auckland'
+      }
+      
+      return offsetToProperTimezone[offset.toString()] || timezoneName
+    }
+    
+    return timezoneName
+  },
+
+  getTimezoneAbbreviation(timezoneName) {
+    // First check our static mapping for common timezone names
+    const abbreviationMap = {
+      'America/New_York': 'EST',
+      'America/Chicago': 'CST', 
+      'America/Denver': 'MST',
+      'America/Los_Angeles': 'PST',
+      'America/Anchorage': 'AKST',
+      'Pacific/Honolulu': 'HST',
+      'Europe/London': 'GMT',
+      'Europe/Berlin': 'CET',
+      'Europe/Helsinki': 'EET',
+      'Europe/Moscow': 'MSK',
+      'Asia/Tokyo': 'JST',
+      'Asia/Shanghai': 'CST',
+      'Asia/Kolkata': 'IST',
+      'Asia/Karachi': 'PKT',
+      'Asia/Dubai': 'GST',
+      'Asia/Bangkok': 'ICT',
+      'Asia/Dhaka': 'BST',
+      'Australia/Sydney': 'AEST',
+      'Pacific/Auckland': 'NZST'
+    }
+    
+    // Return static mapping if available
+    if (abbreviationMap[timezoneName]) {
+      return abbreviationMap[timezoneName]
+    }
+    
+    // Handle UTC offset strings (like UTC-08:00)
+    if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+      const offset = this.calculateCurrentUTCOffset(timezoneName)
+      
+      // Map common UTC offsets to timezone abbreviations
+      const offsetToTimezone = {
+        '-12': 'AoE', '-11': 'SST', '-10': 'HST', '-9': 'AKST', '-8': 'PST',
+        '-7': 'PDT', '-6': 'MDT', '-5': 'CDT', '-4': 'EDT', '-3': 'ADT', 
+        '-2': 'GST', '-1': 'CVT', '0': 'GMT', '1': 'CET', '2': 'EET',
+        '3': 'MSK', '4': 'GST', '5': 'PKT', '5.5': 'IST', '6': 'BST',
+        '7': 'ICT', '8': 'CST', '9': 'JST', '10': 'AEST', '11': 'NCT', '12': 'NZST'
+      }
+      
+      return offsetToTimezone[offset.toString()] || `UTC${offset >= 0 ? '+' : ''}${offset}`
+    }
+    
+    // Try browser's built-in timezone abbreviation as last resort
+    try {
+      const now = new Date()
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezoneName,
+        timeZoneName: 'short'
+      })
+      const parts = formatter.formatToParts(now)
+      const timeZonePart = parts.find(part => part.type === 'timeZoneName')
+      if (timeZonePart) {
+        return timeZonePart.value
+      }
+    } catch (error) {
+      // Fallback to timezone name
+    }
+    
+    return timezoneName.split('/').pop().replace(/_/g, ' ')
+  },
+
+  getLocalDateAndTime(timezoneName) {
+    try {
+      const now = new Date()
+      let localTime
+      
+      // Handle UTC offset strings (like UTC-08:00)
+      if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+        const offset = this.calculateCurrentUTCOffset(timezoneName)
+        const utcTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000))
+        localTime = new Date(utcTime.getTime() + (offset * 60 * 60 * 1000))
+      } else {
+        localTime = new Date(now.toLocaleString('en-US', { timeZone: timezoneName }))
+      }
+      
+      // Format as YYYY/MM/DD-HH:MM
+      const year = localTime.getFullYear()
+      const month = String(localTime.getMonth() + 1).padStart(2, '0')
+      const day = String(localTime.getDate()).padStart(2, '0')
+      const hours = String(localTime.getHours()).padStart(2, '0')
+      const minutes = String(localTime.getMinutes()).padStart(2, '0')
+      
+      return `${year}/${month}/${day}-${hours}:${minutes}`
+    } catch (error) {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      
+      return `${year}/${month}/${day}-${hours}:${minutes}`
+    }
+  },
+
+  getTimeDifference(timezoneName) {
+    try {
+      const now = new Date()
+      const userOffset = now.getTimezoneOffset() / 60 // User's offset in hours
+      const targetOffset = this.calculateCurrentUTCOffset(timezoneName)
+      const difference = targetOffset + userOffset // Difference from user's time
+      
+      if (difference === 0) {
+        return "Same as your time"
+      } else if (difference > 0) {
+        return `+${difference} hours ahead of you`
+      } else {
+        return `${Math.abs(difference)} hours behind you`
+      }
+    } catch (error) {
+      return ""
+    }
+  },
+
+  getWorkingHoursIndicator(timezoneName) {
+    try {
+      const now = new Date()
+      let localTime
+      
+      if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+        const offset = this.calculateCurrentUTCOffset(timezoneName)
+        const utcTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000))
+        localTime = new Date(utcTime.getTime() + (offset * 60 * 60 * 1000))
+      } else {
+        localTime = new Date(now.toLocaleString('en-US', { timeZone: timezoneName }))
+      }
+      
+      const hour = localTime.getHours()
+      const day = localTime.getDay()
+      
+      // Weekend
+      if (day === 0 || day === 6) {
+        return '<div class="w-3 h-3 rounded-full bg-blue-400"></div>'
+      }
+      
+      // Working hours (9 AM to 5 PM)
+      if (hour >= 9 && hour < 17) {
+        return '<div class="w-3 h-3 rounded-full bg-green-500"></div>'
+      } else if (hour >= 17 && hour < 22) {
+        return '<div class="w-3 h-3 rounded-full bg-orange-400"></div>'
+      } else if (hour >= 22 || hour < 6) {
+        return '<div class="w-3 h-3 rounded-full bg-purple-600"></div>'
+      } else {
+        return '<div class="w-3 h-3 rounded-full bg-yellow-400"></div>'
+      }
+    } catch (error) {
+      return '<div class="w-3 h-3 rounded-full bg-gray-400"></div>'
+    }
+  },
+
+  getLocationFlag(timezoneName) {
+    const flagMap = {
+      'America/New_York': '🇺🇸',
+      'America/Chicago': '🇺🇸',
+      'America/Denver': '🇺🇸',
+      'America/Los_Angeles': '🇺🇸',
+      'America/Anchorage': '🇺🇸',
+      'Pacific/Honolulu': '🇺🇸',
+      'America/Toronto': '🇨🇦',
+      'America/Vancouver': '🇨🇦',
+      'Europe/London': '🇬🇧',
+      'Europe/Berlin': '🇩🇪',
+      'Europe/Paris': '🇫🇷',
+      'Europe/Rome': '🇮🇹',
+      'Europe/Helsinki': '🇫🇮',
+      'Europe/Athens': '🇬🇷',
+      'Europe/Moscow': '🇷🇺',
+      'Asia/Tokyo': '🇯🇵',
+      'Asia/Shanghai': '🇨🇳',
+      'Asia/Kolkata': '🇮🇳',
+      'Asia/Karachi': '🇵🇰',
+      'Asia/Dubai': '🇦🇪',
+      'Asia/Bangkok': '🇹🇭',
+      'Asia/Dhaka': '🇧🇩',
+      'Australia/Sydney': '🇦🇺',
+      'Australia/Melbourne': '🇦🇺',
+      'Pacific/Auckland': '🇳🇿',
+      'America/Sao_Paulo': '🇧🇷',
+      'America/Mexico_City': '🇲🇽'
+    }
+    
+    return flagMap[timezoneName] || '🌍'
+  },
+
+  getWorkingHoursStatus(timezoneName) {
+    try {
+      const now = new Date()
+      let localTime
+      
+      // Handle UTC offset strings (like UTC-08:00)
+      if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+        const offset = this.calculateCurrentUTCOffset(timezoneName)
+        // Get current UTC time and apply offset
+        const utcTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000))
+        localTime = new Date(utcTime.getTime() + (offset * 60 * 60 * 1000))
+      } else {
+        // Use proper timezone name
+        localTime = new Date(now.toLocaleString('en-US', { timeZone: timezoneName }))
+      }
+      
+      const hour = localTime.getHours()
+      const day = localTime.getDay()
+      
+      // Weekend check (Saturday = 6, Sunday = 0)
+      if (day === 0 || day === 6) {
+        return 'Weekend'
+      }
+      
+      // Working hours check (9 AM to 5 PM)
+      if (hour >= 9 && hour < 17) {
+        return 'Working hours'
+      } else if (hour >= 17 && hour < 22) {
+        return 'Evening hours'
+      } else if (hour >= 22 || hour < 6) {
+        return 'Night hours'
+      } else {
+        return 'Morning hours'
+      }
+    } catch (error) {
+      return 'Working hours unknown'
+    }
+  },
+
   getTimezoneOffset(timezoneName) {
+    // Handle UTC±XX:XX format timezone identifiers (including ± symbol)
+    if (typeof timezoneName === 'string' && timezoneName.match(/^UTC[+\-±]\d{1,2}:\d{2}$/)) {
+      const match = timezoneName.match(/^UTC([+\-±])(\d{1,2}):(\d{2})$/)
+      if (match) {
+        const sign = match[1] === '+' ? 1 : -1  // ± symbol defaults to 0 (handled below)
+        const hours = parseInt(match[2], 10)
+        const minutes = parseInt(match[3], 10)
+        
+        // UTC±00:00, UTC+00:00 and UTC-00:00 all represent GMT/UTC (offset 0)
+        if (hours === 0 && minutes === 0) {
+          return 0
+        }
+        
+        const offset = sign * (hours + minutes / 60)
+        return offset
+      }
+    }
+    
     try {
       const now = new Date()
       const utc = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
@@ -3783,23 +4143,7 @@ Hooks.TeamMap = {
     
     // Add click handler for night overlay
     map.on('click', 'night-overlay-layer', (e) => {
-      const now = new Date()
-      const localTime = now.toLocaleTimeString()
-      const utcTime = now.toUTCString()
-      
-      new maplibregl.Popup({ className: 'sunlight-info' })
-        .setLngLat(e.lngLat)
-        .setHTML(`
-          <div class="p-3">
-            <div class="font-semibold text-yellow-400 mb-2">🌙 Night Region</div>
-            <div class="text-xs space-y-1">
-              <div>Local: ${localTime}</div>
-              <div>UTC: ${utcTime}</div>
-              <div class="text-yellow-300 mt-2">Solar terminator moves continuously as Earth rotates</div>
-            </div>
-          </div>
-        `)
-        .addTo(map)
+      this.createTimezonePopup(e, map, false)
     })
     
     // Change cursor on hover
