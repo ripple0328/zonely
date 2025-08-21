@@ -1,14 +1,7 @@
 <header class={if @socket.view == ZonelyWeb.MapLive, do: "px-4 sm:px-6 lg:px-8 relative z-10", else: "px-4 sm:px-6 lg:px-8"}>
   <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
     <div class="flex items-center gap-4">
-      <a href="/">
-        <div class="flex items-center gap-2">
-          <div class="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-lg">Z</span>
-          </div>
-          <span class="text-xl font-bold text-gray-900">Zonely</span>
-        </div>
-      </a>
+      <.logo_link />
     </div>
     <div class="flex items-center gap-4 font-semibold leading-6 text-zinc-900">
       <a href={~p"/"} class="hover:text-zinc-700">

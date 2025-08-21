@@ -339,27 +339,8 @@ Hooks.TeamMap = {
     
     // CORS-friendly sources for timezone boundary data (prioritized by reliability)
     const reliableSources = [
-      // Known working D3 gallery source - has timezone data
-      'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world_timezone.geojson',
-      
-      // Geocode Earth - specialized timezone data provider (if it exists)
-      'https://data.geocode.earth/boundary/timezone/timezone.geojson',
-      
-      // Alternative working timezone sources
-      'https://cdn.jsdelivr.net/npm/world-atlas@3/world/50m.json',
-      'https://unpkg.com/world-atlas@2/world/50m.json',
-      
-      // Raw GitHub files from timezone-boundary-builder (try master branch)
-      'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/timezones.geojson',
-      'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/dist/timezones.geojson',
-      'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/releases/2024b/timezones.geojson',
-      
-      // Natural Earth Data - reliable geographic data source
-      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_time_zones.geojson',
-      'https://cdn.jsdelivr.net/npm/world-atlas@2/world/110m.json',
-      
-      // Try jsDelivr with different paths (in case file structure is different)
-      'https://cdn.jsdelivr.net/gh/evansiroky/timezone-boundary-builder@master/timezones.geojson'
+      // Natural Earth Data - reliable geographic data source (only working source)
+      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_time_zones.geojson'
     ]
     
     let timezoneData = null
@@ -586,8 +567,8 @@ Hooks.TeamMap = {
       
       // Use simplified, working data sources that don't have CORS issues
       const sources = [
-        // Use JSONPlaceholder proxy or similar CORS-friendly endpoints
-        'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
+        // Use working alternative sources
+        'https://cdn.jsdelivr.net/npm/world-atlas@3/countries-110m.json'
       ]
       
       let timezoneData = null
@@ -642,17 +623,8 @@ Hooks.TeamMap = {
     try {
       // Use reliable timezone boundary data sources 
       const officialSources = [
-        // Primary: Simplified timezone data from reliable source
-        'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world_timezone.geojson',
-        
-        // Secondary: Try direct GitHub releases (check actual repo structure)
-        'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/dist/timezones.geojson',
-        
-        // Tertiary: Alternative timezone data
-        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_time_zones.geojson',
-        
-        // Backup: Use a working timezone approximation
-        'https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@master/DATA/world_timezone.geojson'
+        // Natural Earth Data - working timezone data source
+        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_time_zones.geojson'
       ]
       
       let timezoneData = null
@@ -1136,7 +1108,7 @@ Hooks.TeamMap = {
     if (!worldData) {
       try {
         console.log('Loading world country boundaries for timezone mapping...')
-        const response = await fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson', {
+        const response = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@3/countries-110m.json', {
           cache: 'no-cache'
         })
         if (response.ok) {
@@ -1550,16 +1522,10 @@ Hooks.TeamMap = {
     try {
       console.log('Loading accurate timezone boundaries from timezone-boundary-builder...')
       
-      // Use the official timezone-boundary-builder data sources
-      // These are the exact same sources that accurate timezone maps use
+      // Use reliable timezone data source
       const sources = [
-        // CDN hosted versions of the official data
-        'https://cdn.jsdelivr.net/npm/@timezone-boundary-builder/timezone-boundaries@latest/timezones-now.geojson',
-        'https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/dist/timezones-now.geojson',
-        // Alternative high-quality sources
-        'https://cdn.jsdelivr.net/gh/evansiroky/timezone-boundary-builder@master/dist/timezones-now.geojson',
-        // Simplified but accurate version as fallback
-        'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world_timezone.geojson'
+        // Natural Earth Data - working timezone data source
+        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_time_zones.geojson'
       ]
       
       let timezoneData = null
@@ -3402,7 +3368,7 @@ Hooks.TeamMap = {
     console.log('Loading country boundaries for timezone mapping...')
     
     try {
-      const response = await fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
+      const response = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@3/countries-110m.json')
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)

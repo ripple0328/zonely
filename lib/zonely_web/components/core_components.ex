@@ -7,6 +7,49 @@ defmodule ZonelyWeb.CoreComponents do
   alias Phoenix.LiveView.JS
 
   @doc """
+  Renders the Zonely logo with consistent styling.
+  """
+  attr :class, :string, default: "", doc: "additional CSS classes"
+  attr :link, :boolean, default: true, doc: "whether to wrap in a link to home"
+
+  def logo(assigns) do
+    ~H"""
+    <div class={["flex items-center gap-3", @class]}>
+      <div class="relative h-8 w-8">
+        <!-- Outer ring for contrast on any background -->
+        <div class="absolute inset-0 rounded-full bg-slate-600 shadow-sm"></div>
+        <!-- Inner clock face with subtle transparency -->
+        <div class="absolute inset-1 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center">
+          <!-- Clock hands representing different timezones -->
+          <div class="absolute inset-0">
+            <!-- Hour hand -->
+            <div class="absolute top-1/2 left-1/2 w-1.5 h-px bg-slate-600 origin-left transform -translate-x-0.5 -translate-y-px rotate-45"></div>
+            <!-- Minute hand -->
+            <div class="absolute top-1/2 left-1/2 w-2 h-px bg-slate-500 origin-left transform -translate-x-0.5 -translate-y-px -rotate-12"></div>
+          </div>
+          <!-- Center dot -->
+          <div class="w-0.5 h-0.5 bg-slate-700 rounded-full z-10"></div>
+        </div>
+      </div>
+      <span class="text-xl font-medium text-slate-700 tracking-tight">Zonely</span>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the Zonely logo with a link to home.
+  """
+  attr :class, :string, default: "", doc: "additional CSS classes"
+
+  def logo_link(assigns) do
+    ~H"""
+    <a href="/" class={@class}>
+      <.logo />
+    </a>
+    """
+  end
+
+  @doc """
   Renders flash notices.
   """
   attr :id, :string, doc: "the optional id of flash container"
