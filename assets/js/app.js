@@ -40,7 +40,36 @@ Hooks.TeamMap = {
     try {
       map = new maplibregl.Map({
         container: this.el,
-        style: `https://api.maptiler.com/maps/streets/style.json?key=${apiKey}`,
+        style: {
+          version: 8,
+          sources: {
+            'simple-tiles': {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© OpenStreetMap contributors'
+            }
+          },
+          layers: [
+            {
+              id: 'background',
+              type: 'background',
+              paint: {
+                'background-color': '#f8f9fa'
+              }
+            },
+            {
+              id: 'simple-tiles-layer',
+              type: 'raster',
+              source: 'simple-tiles',
+              paint: {
+                'raster-opacity': 0.85,
+                'raster-saturation': -0.2,
+                'raster-contrast': 0.1
+              }
+            }
+          ]
+        },
         center: [0, 20], // Center on world
         zoom: 1.5,
         projection: 'mercator'
@@ -483,7 +512,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -493,8 +522,8 @@ Hooks.TeamMap = {
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': color,
-          'fill-opacity': 0.8
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.3
         },
         layout: {
           'visibility': 'none' // Initially hidden
@@ -508,8 +537,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': color.replace('0.3', '0.9'),
-          'line-width': 2,
-          'line-opacity': 0.9
+          'line-width': 0.8,
+          'line-opacity': 0.4
         }
       })
       
@@ -539,7 +568,6 @@ Hooks.TeamMap = {
           .setHTML(`
             <div class="p-3">
               <div class="font-semibold text-gray-900">${region.name}</div>
-              <div class="text-xs text-gray-600 mt-1">UTC ${region.offset >= 0 ? '+' : ''}${region.offset}</div>
               <div class="text-xs text-gray-500 mt-1">${region.timezone}</div>
               <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
               <div class="text-xs text-gray-500 mt-2">Timezone boundaries</div>
@@ -771,7 +799,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -781,8 +809,8 @@ Hooks.TeamMap = {
               type: 'fill',
               source: sourceId,
               paint: {
-                'fill-color': color,
-                'fill-opacity': 0.8
+                'fill-color': '#3b82f6',
+                'fill-opacity': 0.3
               },
               layout: {
                 'visibility': 'none' // Initially hidden
@@ -796,8 +824,8 @@ Hooks.TeamMap = {
               source: sourceId,
               paint: {
                 'line-color': '#ffffff',
-                'line-width': 3,
-                'line-opacity': 0.8
+                'line-width': 1,
+                'line-opacity': 0.35
               }
             })
             
@@ -808,37 +836,12 @@ Hooks.TeamMap = {
               source: sourceId,
               paint: {
                 'line-color': '#000000',
-                'line-width': 1,
-                'line-opacity': 0.6
+                'line-width': 0.6,
+                'line-opacity': 0.25
               }
             })
             
-            // Add timezone offset label directly on the fill layer
-            const labelLayerId = `official-timezone-label-${offsetKey.replace('.', '_').replace('-', 'neg')}`
-            
-            map.addLayer({
-              id: labelLayerId,
-              type: 'symbol',
-              source: sourceId,
-              layout: {
-                'text-field': offsetValue >= 0 ? `+${offsetValue}` : `${offsetValue}`,
-                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                'text-size': 16,
-                'text-anchor': 'top',
-                'text-offset': [0, 0.5],
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
-                'symbol-placement': 'point',
-                'symbol-sort-key': 1
-              },
-              paint: {
-                'text-color': '#1a1a1a',
-                'text-halo-color': '#ffffff',
-                'text-halo-width': 2,
-                'text-opacity': 1.0
-              },
-              filter: ['==', ['geometry-type'], 'Polygon'] // Only show on polygons, not points
-            })
+            // Timezone offset labels removed for cleaner display
       
             // Add hover effects for individual timezone highlighting
             map.on('mousemove', layerId, (e) => {
@@ -884,7 +887,6 @@ Hooks.TeamMap = {
             .setHTML(`
               <div class="p-3">
                 <div class="font-semibold text-gray-900">${timezoneName}</div>
-                <div class="text-xs text-gray-600 mt-1">UTC ${offsetValue >= 0 ? '+' : ''}${offsetValue}</div>
                 <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
                 <div class="text-xs text-gray-500 mt-2">Official administrative boundaries</div>
               </div>
@@ -1039,7 +1041,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -1049,8 +1051,8 @@ Hooks.TeamMap = {
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': color,
-          'fill-opacity': 0.8
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.3
         },
         layout: {
           'visibility': 'none' // Initially hidden
@@ -1064,8 +1066,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': '#ffffff',
-          'line-width': 3,
-          'line-opacity': 0.8
+          'line-width': 1,
+          'line-opacity': 0.35
         }
       })
       
@@ -1076,35 +1078,12 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': '#000000',
-          'line-width': 1,
-          'line-opacity': 0.6
+          'line-width': 0.6,
+          'line-opacity': 0.25
         }
       })
       
-      // Add timezone offset label directly on the fill layer
-      const labelLayerId = `static-timezone-label-${index}`
-      
-      map.addLayer({
-        id: labelLayerId,
-        type: 'symbol',
-        source: sourceId,
-        layout: {
-          'text-field': region.offset >= 0 ? `+${region.offset}` : `${region.offset}`,
-          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          'text-size': 16,
-          'text-anchor': 'top',
-          'text-offset': [0, 0.5],
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'symbol-placement': 'point'
-        },
-        paint: {
-          'text-color': '#1a1a1a',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2,
-          'text-opacity': 1.0
-        }
-      })
+      // Timezone offset labels removed for cleaner display
       
       // Add hover effects
       map.on('mouseenter', layerId, () => {
@@ -1138,7 +1117,6 @@ Hooks.TeamMap = {
           .setHTML(`
             <div class="p-3">
               <div class="font-semibold text-gray-900">${region.name}</div>
-              <div class="text-xs text-gray-600 mt-1">UTC ${region.offset >= 0 ? '+' : ''}${region.offset}</div>
               <div class="text-xs text-gray-500 mt-1">${region.timezone}</div>
               <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
               <div class="text-xs text-gray-500 mt-2">Static fallback regions</div>
@@ -1372,7 +1350,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -1382,8 +1360,8 @@ Hooks.TeamMap = {
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': color,
-          'fill-opacity': 0.8
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.3
         },
         layout: {
           'visibility': 'none' // Initially hidden
@@ -1397,8 +1375,8 @@ Hooks.TeamMap = {
               source: sourceId,
               paint: {
                 'line-color': '#ffffff',
-                'line-width': 3,
-                'line-opacity': 0.8
+                'line-width': 1,
+                'line-opacity': 0.35
               }
             })
             
@@ -1409,35 +1387,12 @@ Hooks.TeamMap = {
               source: sourceId,
               paint: {
                 'line-color': '#000000',
-                'line-width': 1,
-                'line-opacity': 0.6
+                'line-width': 0.6,
+                'line-opacity': 0.25
               }
             })
             
-            // Add timezone offset label directly on the fill layer
-            const labelLayerId = `timezone-region-label-${index}`
-            
-            map.addLayer({
-              id: labelLayerId,
-              type: 'symbol',
-              source: sourceId,
-              layout: {
-                'text-field': region.offset >= 0 ? `+${region.offset}` : `${region.offset}`,
-                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                'text-size': 16,
-                'text-anchor': 'top',
-                'text-offset': [0, 0.5],
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
-                'symbol-placement': 'point'
-              },
-              paint: {
-                'text-color': '#1a1a1a',
-                'text-halo-color': '#ffffff',
-                'text-halo-width': 2,
-                'text-opacity': 1.0
-              }
-            })
+            // Timezone offset labels removed for cleaner display
             
             // Add hover effects - highlight entire timezone region
             map.on('mouseenter', layerId, () => {
@@ -1475,7 +1430,6 @@ Hooks.TeamMap = {
             .setHTML(`
               <div class="p-3">
                 <div class="font-semibold text-gray-900">${region.name}</div>
-                <div class="text-xs text-gray-600 mt-1">UTC ${region.offset >= 0 ? '+' : ''}${region.offset}</div>
                 <div class="text-xs text-gray-500 mt-1">${region.timezone}</div>
                 <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
                 <div class="text-xs text-gray-500 mt-2">Country: ${countryName}</div>
@@ -1526,7 +1480,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.3
+          'fill-opacity': 0.03
         }
       })
       
@@ -1536,8 +1490,8 @@ Hooks.TeamMap = {
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': color,
-          'fill-opacity': 0.65
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.35
         },
         layout: {
           'visibility': 'none' // Initially hidden
@@ -1551,8 +1505,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': color.replace('0.3', '0.9'),
-          'line-width': 1.5,
-          'line-opacity': 0.8
+          'line-width': 0.8,
+          'line-opacity': 0.35
         }
       })
       
@@ -1691,7 +1645,7 @@ Hooks.TeamMap = {
           source: sourceId,
           paint: {
             'fill-color': color,
-            'fill-opacity': 0.3
+            'fill-opacity': 0.03
           }
         })
         
@@ -1703,7 +1657,7 @@ Hooks.TeamMap = {
           paint: {
             'line-color': color.replace('0.3', '0.8'),
             'line-width': 0.8,
-            'line-opacity': 0.7
+            'line-opacity': 0.3
           }
         })
         
@@ -1726,7 +1680,6 @@ Hooks.TeamMap = {
               .setHTML(`
                 <div class="p-3">
                   <div class="font-semibold text-gray-900">${timezoneName}</div>
-                  <div class="text-xs text-gray-600 mt-1">UTC ${offsetValue >= 0 ? '+' : ''}${offsetValue}</div>
                   <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
                   <div class="text-xs text-gray-500 mt-1">Click for more timezone details</div>
                 </div>
@@ -1786,7 +1739,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.25
+          'fill-opacity': 0.02
         }
       })
       
@@ -1797,8 +1750,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': color.replace('0.3', '0.8'),
-          'line-width': 0.5,
-          'line-opacity': 0.6
+          'line-width': 1,
+          'line-opacity': 0.25
         }
       })
       
@@ -2767,7 +2720,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': region.color,
-          'fill-opacity': 0.3
+          'fill-opacity': 0.03
         }
       })
 
@@ -2778,7 +2731,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': region.color.replace('0.3', '0.8'),
-          'line-width': 1,
+          'line-width': 0.6,
           'line-dasharray': [3, 3]
         }
       })
@@ -3113,7 +3066,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -3124,8 +3077,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': color.replace('0.3', '0.9'),
-          'line-width': 1,
-          'line-opacity': 0.8
+          'line-width': 0.6,
+          'line-opacity': 0.35
         }
       })
       
@@ -3138,7 +3091,6 @@ Hooks.TeamMap = {
           .setHTML(`
             <div class="team-popup p-4">
               <div class="text-sm font-semibold text-gray-900 mb-2">${boundary.name}</div>
-              <div class="text-xs text-gray-600 mb-1">UTC${boundary.offset >= 0 ? '+' : ''}${boundary.offset}</div>
               <div class="text-xs text-gray-600 mb-1">${boundary.timezone}</div>
               <div class="text-xs text-gray-600">Current time: ${currentTime}</div>
             </div>
@@ -3208,7 +3160,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -3219,8 +3171,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': color.replace('0.3', '0.9'),
-          'line-width': 1,
-          'line-opacity': 0.7
+          'line-width': 0.6,
+          'line-opacity': 0.3
         }
       })
       
@@ -3237,7 +3189,6 @@ Hooks.TeamMap = {
             .setHTML(`
               <div class="team-popup p-4">
                 <div class="text-sm font-semibold text-gray-900 mb-2">${regionName}</div>
-                <div class="text-xs text-gray-600 mb-1">UTC${group.offset >= 0 ? '+' : ''}${group.offset}</div>
                 <div class="text-xs text-gray-600 mb-1">${group.timezone}</div>
                 <div class="text-xs text-gray-600">Current time: ${currentTime}</div>
               </div>
@@ -3319,7 +3270,7 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'fill-color': color,
-          'fill-opacity': 0.4
+          'fill-opacity': 0.05
         }
       })
       
@@ -3329,8 +3280,8 @@ Hooks.TeamMap = {
         source: sourceId,
         paint: {
           'line-color': color.replace('0.3', '0.8'),
-          'line-width': 1,
-          'line-opacity': 0.8
+          'line-width': 0.6,
+          'line-opacity': 0.35
         }
       })
       
@@ -3348,7 +3299,6 @@ Hooks.TeamMap = {
           .setHTML(`
             <div class="team-popup p-4">
               <div class="text-sm font-semibold text-gray-900 mb-2">${region.name}</div>
-              <div class="text-xs text-gray-600 mb-1">UTC${region.offset >= 0 ? '+' : ''}${region.offset}</div>
               <div class="text-xs text-gray-600 mb-1">${region.timezone}</div>
               <div class="text-xs text-gray-600">Current time: ${currentTime}</div>
             </div>
@@ -3400,7 +3350,7 @@ Hooks.TeamMap = {
           source: sourceId,
           paint: {
             'fill-color': color,
-            'fill-opacity': 0.4
+            'fill-opacity': 0.05
           }
         })
         
@@ -3411,8 +3361,8 @@ Hooks.TeamMap = {
           source: sourceId,
           paint: {
             'line-color': color.replace('0.3', '0.9'),
-            'line-width': 1,
-            'line-opacity': 0.7
+            'line-width': 0.6,
+            'line-opacity': 0.3
           }
         })
         
@@ -3521,7 +3471,7 @@ Hooks.TeamMap = {
           source: sourceId,
           paint: {
             'fill-color': color,
-            'fill-opacity': 0.4
+            'fill-opacity': 0.05
           }
         })
         
@@ -3531,8 +3481,8 @@ Hooks.TeamMap = {
           type: 'fill',
           source: sourceId,
           paint: {
-            'fill-color': color,
-            'fill-opacity': 0.7
+            'fill-color': '#3b82f6',
+            'fill-opacity': 0.35
           },
           layout: {
             'visibility': 'none' // Initially hidden
@@ -3546,8 +3496,8 @@ Hooks.TeamMap = {
           source: sourceId,
           paint: {
             'line-color': color.replace('0.3', '0.9'),
-            'line-width': 1.2,
-            'line-opacity': 0.8
+            'line-width': 0.8,
+            'line-opacity': 0.35
           }
         })
         
@@ -3569,7 +3519,6 @@ Hooks.TeamMap = {
               .setHTML(`
                 <div class="p-3">
                   <div class="font-semibold text-gray-900">${countryName}</div>
-                  <div class="text-xs text-gray-600 mt-1">UTC ${group.offset >= 0 ? '+' : ''}${group.offset}</div>
                   <div class="text-xs text-gray-500 mt-1">${group.timezone}</div>
                   <div class="text-xs text-gray-700 mt-2">Current time: ${currentTime}</div>
                 </div>
@@ -3859,7 +3808,7 @@ Hooks.TeamMap = {
       type: 'line',
       source: 'night-overlay',
       paint: {
-        'line-color': '#fbbf24',
+        'line-color': '#6b7280',
         'line-width': 1,
         'line-opacity': 0.6,
         'line-blur': 2
