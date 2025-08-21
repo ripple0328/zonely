@@ -8,7 +8,7 @@ defmodule ZonelyWeb.HolidaysLive do
     users = Accounts.list_users()
     countries = users |> Enum.map(& &1.country) |> Enum.uniq()
     holidays = load_holidays_for_countries(countries)
-    
+
     {:ok, assign(socket, users: users, countries: countries, holidays: holidays)}
   end
 
@@ -19,19 +19,19 @@ defmodule ZonelyWeb.HolidaysLive do
 
   defp apply_action(socket, action, _params) when action in [:index, nil] do
     socket
-    |> assign(:page_title, "Holiday Calendar")
+    |> assign(:page_title, "Holiday")
   end
 
   @impl true
   def handle_event("fetch_holidays", %{"country" => country}, socket) do
     current_year = Date.utc_today().year
-    
+
     case Holidays.fetch_and_store_holidays(country, current_year) do
       {:ok, message} ->
         holidays = load_holidays_for_countries(socket.assigns.countries)
         socket = socket |> assign(holidays: holidays) |> put_flash(:info, message)
         {:noreply, socket}
-      
+
       {:error, error} ->
         {:noreply, put_flash(socket, :error, "Failed to fetch holidays: #{error}")}
     end
@@ -39,8 +39,9 @@ defmodule ZonelyWeb.HolidaysLive do
 
   defp load_holidays_for_countries(countries) do
     today = Date.utc_today()
-    end_date = Date.add(today, 90) # Next 3 months
-    
+    # Next 3 months
+    end_date = Date.add(today, 90)
+
     countries
     |> Enum.flat_map(fn country ->
       Holidays.get_holidays_by_country_and_date_range(country, today, end_date)
@@ -64,6 +65,7 @@ defmodule ZonelyWeb.HolidaysLive do
   defp fake_profile_picture(name) do
     # Using DiceBear Avatars API for consistent fake profile pictures
     seed = name |> String.downcase() |> String.replace(" ", "-")
+
     "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=32"
   end
 
@@ -98,7 +100,7 @@ defmodule ZonelyWeb.HolidaysLive do
                 Refresh
               </button>
             </div>
-            
+
             <div class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Team Members</h4>
               <div class="space-y-2">
@@ -108,9 +110,9 @@ defmodule ZonelyWeb.HolidaysLive do
                 >
                   <!-- Avatar -->
                   <div class="flex-shrink-0">
-                    <img 
-                      src={fake_profile_picture(user.name)} 
-                      alt={user.name} 
+                    <img
+                      src={fake_profile_picture(user.name)}
+                      alt={user.name}
                       class="w-6 h-6 rounded-full"
                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                     />
@@ -134,7 +136,7 @@ defmodule ZonelyWeb.HolidaysLive do
       <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">Upcoming Holidays</h3>
-          
+
           <div :if={length(@holidays) == 0} class="text-center py-8">
             <div class="text-gray-500">
               <p>No holidays loaded yet.</p>
@@ -161,7 +163,7 @@ defmodule ZonelyWeb.HolidaysLive do
                 </div>
                 <p class="mt-1 text-sm text-gray-600"><%= format_date(holiday.date) %></p>
               </div>
-              
+
               <div class="flex items-center space-x-4">
                 <!-- Affected users avatars -->
                 <div class="flex -space-x-1">
@@ -169,9 +171,9 @@ defmodule ZonelyWeb.HolidaysLive do
                     :for={user <- get_users_for_country(@users, holiday.country) |> Enum.take(3)}
                     class="flex-shrink-0"
                   >
-                    <img 
-                      src={fake_profile_picture(user.name)} 
-                      alt={user.name} 
+                    <img
+                      src={fake_profile_picture(user.name)}
+                      alt={user.name}
                       class="w-6 h-6 rounded-full border-2 border-white"
                       title={user.name}
                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
@@ -182,8 +184,8 @@ defmodule ZonelyWeb.HolidaysLive do
                       </span>
                     </div>
                   </div>
-                  <div 
-                    :if={length(get_users_for_country(@users, holiday.country)) > 3} 
+                  <div
+                    :if={length(get_users_for_country(@users, holiday.country)) > 3}
                     class="w-6 h-6 bg-gray-300 rounded-full border-2 border-white flex items-center justify-center"
                     title={"#{length(get_users_for_country(@users, holiday.country)) - 3} more"}
                   >
@@ -192,7 +194,7 @@ defmodule ZonelyWeb.HolidaysLive do
                     </span>
                   </div>
                 </div>
-                
+
                 <div class="text-right">
                   <div class={[
                     "text-sm font-medium",
@@ -225,7 +227,7 @@ defmodule ZonelyWeb.HolidaysLive do
       <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">This Week's Impact</h3>
-          
+
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div class="text-center">
               <div class="text-2xl font-bold text-red-600">
@@ -233,14 +235,14 @@ defmodule ZonelyWeb.HolidaysLive do
               </div>
               <div class="text-sm text-gray-500">Holidays this week</div>
             </div>
-            
+
             <div class="text-center">
               <div class="text-2xl font-bold text-yellow-600">
                 <%= @holidays |> Enum.filter(fn h -> days_until(h.date) > 7 && days_until(h.date) <= 30 end) |> length() %>
               </div>
               <div class="text-sm text-gray-500">Next 30 days</div>
             </div>
-            
+
             <div class="text-center">
               <div class="text-2xl font-bold text-blue-600">
                 <%= @countries |> length() %>

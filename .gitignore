@@ -66,3 +66,6 @@ npm-debug.log
 # Temporary development data
 /dev/data/
 .crush
+
+# Audio files
+/priv/static/audio/

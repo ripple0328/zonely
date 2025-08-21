@@ -4,16 +4,18 @@ defmodule ZonelyWeb.MapLive do
   alias Zonely.Accounts
   alias Zonely.TextToSpeech
 
-    @impl true
+  @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_users()
     maptiler_api_key = Application.get_env(:zonely, :maptiler)[:api_key]
 
-    {:ok, assign(socket,
-      users: users,
-      selected_user: nil,
-      maptiler_api_key: maptiler_api_key
-    )}
+    {:ok,
+     assign(socket,
+       users: users,
+       selected_user: nil,
+       maptiler_api_key: maptiler_api_key,
+       expanded_action: nil
+     )}
   end
 
   @impl true
@@ -23,7 +25,7 @@ defmodule ZonelyWeb.MapLive do
 
   defp apply_action(socket, action, _params) when action in [:index, nil] do
     socket
-    |> assign(:page_title, "Team Map")
+    |> assign(:page_title, "Map")
     |> assign(:selected_user, nil)
   end
 
@@ -41,7 +43,7 @@ defmodule ZonelyWeb.MapLive do
   @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    text_to_speak = user.phonetic_native || user.name_native || user.name
+    text_to_speak = user.name_native || user.name
 
     {:noreply,
      socket
@@ -51,12 +53,45 @@ defmodule ZonelyWeb.MapLive do
      })}
   end
 
+  # Quick Actions Event Handlers
+  @impl true
+  def handle_event("toggle_quick_action", %{"action" => action, "user_id" => _user_id}, socket) do
+    current_action = socket.assigns.expanded_action
+    new_action = if current_action == action, do: nil, else: action
+    {:noreply, assign(socket, expanded_action: new_action)}
+  end
 
+  @impl true
+  def handle_event("cancel_quick_action", _params, socket) do
+    {:noreply, assign(socket, expanded_action: nil)}
+  end
+
+  # Quick Actions (Top 3 most frequent)
+  @impl true
+  def handle_event("quick_message", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    IO.puts("📨 Quick message to #{user.name}")
+    {:noreply, socket |> assign(expanded_action: nil) |> put_flash(:info, "Message sent to #{user.name}!")}
+  end
+
+  @impl true
+  def handle_event("quick_meeting", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    IO.puts("📅 Quick meeting with #{user.name}")
+    {:noreply, socket |> assign(expanded_action: nil) |> put_flash(:info, "Meeting proposal sent to #{user.name}!")}
+  end
+
+  @impl true
+  def handle_event("quick_pin", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    IO.puts("📌 Quick pin #{user.name}'s timezone: #{user.timezone}")
+    {:noreply, socket |> assign(expanded_action: nil) |> put_flash(:info, "#{user.name}'s timezone pinned!")}
+  end
 
   # Convert users to JSON for JavaScript
   defp users_to_json(users) do
     users
-    |> Enum.filter(& &1.latitude && &1.longitude)
+    |> Enum.filter(&(&1.latitude && &1.longitude))
     |> Enum.map(fn user ->
       %{
         id: user.id,
@@ -68,9 +103,7 @@ defmodule ZonelyWeb.MapLive do
         latitude: Decimal.to_float(user.latitude),
         longitude: Decimal.to_float(user.longitude),
         pronouns: user.pronouns,
-        phonetic: user.phonetic,
         name_native: user.name_native,
-        phonetic_native: user.phonetic_native,
         native_language: user.native_language,
         work_start: Calendar.strftime(user.work_start, "%I:%M %p"),
         work_end: Calendar.strftime(user.work_end, "%I:%M %p"),
@@ -80,12 +113,11 @@ defmodule ZonelyWeb.MapLive do
     |> Jason.encode!()
   end
 
-
-
   # Generate fake profile pictures using external service
   defp fake_profile_picture(name) do
     # Using DiceBear Avatars API for consistent fake profile pictures
     seed = name |> String.downcase() |> String.replace(" ", "-")
+
     "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
   end
 
@@ -178,26 +210,14 @@ defmodule ZonelyWeb.MapLive do
             </div>
 
             <div class="mt-4 space-y-3">
-              <div :if={@selected_user.phonetic}>
-                <label class="block text-sm font-medium text-gray-700">English Pronunciation</label>
-                <p class="text-sm text-gray-900 font-mono"><%= @selected_user.phonetic %></p>
-                <button
-                  :if={@selected_user.pronunciation_audio_url}
-                  class="mt-1 inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <.icon name="hero-speaker-wave" class="h-4 w-4 mr-1" />
-                  Play Audio
-                </button>
-              </div>
+              <!-- Pronunciation now handled by play buttons -->
 
               <div :if={@selected_user.name_native && @selected_user.name_native != @selected_user.name}>
                 <label class="block text-sm font-medium text-gray-700">
                   Native Name (<%= TextToSpeech.get_native_language_name(@selected_user.country) %>)
                 </label>
                 <p class="text-lg text-gray-900 mb-2"><%= @selected_user.name_native %></p>
-                <div :if={@selected_user.phonetic_native} class="mb-2">
-                  <p class="text-sm text-gray-600 font-mono"><%= @selected_user.phonetic_native %></p>
-                </div>
+
                 <button
                   phx-click="play_native_pronunciation"
                   phx-value-user_id={@selected_user.id}
@@ -230,6 +250,9 @@ defmodule ZonelyWeb.MapLive do
                   <%= Calendar.strftime(@selected_user.work_end, "%I:%M %p") %>
                 </p>
               </div>
+              
+              <!-- Quick Actions Bar -->
+              <.quick_actions_bar user={@selected_user} expanded_action={@expanded_action} />
             </div>
           </div>
         </div>

@@ -31,6 +31,12 @@ config :zonely, ZonelyWeb.Endpoint,
 
 config :zonely, dev_routes: true
 
+# Configure Forvo API for real name pronunciations
+# Get your free API key from: https://api.forvo.com/
+# Set environment variable: export FORVO_API_KEY="your_key_here"
+config :zonely,
+  forvo_api_key: System.get_env("FORVO_API_KEY")
+
 # Tidewave AI assistant configuration
 config :tidewave,
   enabled: true,

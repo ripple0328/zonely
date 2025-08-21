@@ -16,30 +16,25 @@ defmodule ZonelyWeb.WorkHoursLive do
 
   defp apply_action(socket, action, _params) when action in [:index, nil] do
     socket
-    |> assign(:page_title, "Work Hour Overlaps")
+    |> assign(:page_title, "Work Hour")
   end
 
   @impl true
   def handle_event("toggle_user", %{"user_id" => user_id}, socket) do
     selected_users = socket.assigns.selected_users
-    
-    updated_users = 
+
+    updated_users =
       if user_id in selected_users do
         List.delete(selected_users, user_id)
       else
         [user_id | selected_users]
       end
-    
+
     {:noreply, assign(socket, selected_users: updated_users)}
   end
 
   defp get_selected_user_data(users, selected_user_ids) do
     Enum.filter(users, fn user -> user.id in selected_user_ids end)
-  end
-
-  defp format_work_hours_in_timezone(work_start, work_end, user_timezone, display_timezone) do
-    # For now, simplified - would need proper timezone conversion
-    "#{Calendar.strftime(work_start, "%H:%M")} - #{Calendar.strftime(work_end, "%H:%M")}"
   end
 
   defp get_overlap_hours(selected_users) do
@@ -55,6 +50,7 @@ defmodule ZonelyWeb.WorkHoursLive do
   defp fake_profile_picture(name) do
     # Using DiceBear Avatars API for consistent fake profile pictures
     seed = name |> String.downcase() |> String.replace(" ", "-")
+
     "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=48"
   end
 
@@ -87,9 +83,9 @@ defmodule ZonelyWeb.WorkHoursLive do
               </div>
               <!-- Avatar -->
               <div class="ml-3 flex-shrink-0">
-                <img 
-                  src={fake_profile_picture(user.name)} 
-                  alt={user.name} 
+                <img
+                  src={fake_profile_picture(user.name)}
+                  alt={user.name}
                   class="w-10 h-10 rounded-full"
                   onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                 />
@@ -117,7 +113,7 @@ defmodule ZonelyWeb.WorkHoursLive do
       <div :if={length(@selected_users) > 0} class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">Timeline View</h3>
-          
+
           <!-- Hours header -->
           <div class="mb-4">
             <div class="grid grid-cols-24 gap-1 text-xs text-gray-500">
@@ -136,9 +132,9 @@ defmodule ZonelyWeb.WorkHoursLive do
               <div class="flex items-center w-40">
                 <!-- Avatar -->
                 <div class="flex-shrink-0 mr-3">
-                  <img 
-                    src={fake_profile_picture(user.name)} 
-                    alt={user.name} 
+                  <img
+                    src={fake_profile_picture(user.name)}
+                    alt={user.name}
                     class="w-8 h-8 rounded-full"
                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                   />

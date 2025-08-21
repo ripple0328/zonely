@@ -22,9 +22,7 @@ Repo.delete_all(User)
 users = [
   %{
     name: "Alice Chen",
-    phonetic: "AL-iss CHEN",
     name_native: "Alice Chen",
-    phonetic_native: "AL-iss CHEN", 
     native_language: "en-US",
     pronouns: "she/her",
     role: "Frontend Developer",
@@ -36,10 +34,21 @@ users = [
     longitude: -122.4194
   },
   %{
+    name: "Qingbo Zhang",
+    name_native: "张清波",
+    native_language: "zh-CN",
+    pronouns: "he/him",
+    role: "Tech Lead",
+    timezone: "Asia/Shanghai",
+    country: "CN",
+    work_start: ~T[09:00:00],
+    work_end: ~T[18:00:00],
+    latitude: 34.274342,
+    longitude: 108.889191
+  },
+  %{
     name: "Björn Eriksson",
-    phonetic: "bee-YORN air-ick-son",
     name_native: "Björn Eriksson",
-    phonetic_native: "björn eriksson",
     native_language: "sv-SE",
     pronouns: "he/him",
     role: "Backend Engineer",
@@ -52,9 +61,7 @@ users = [
   },
   %{
     name: "Priya Sharma",
-    phonetic: "PREE-ya SHAR-ma",
     name_native: "प्रिया शर्मा",
-    phonetic_native: "priya sharma",
     native_language: "hi-IN",
     pronouns: "she/her",
     role: "Product Manager",
@@ -67,9 +74,7 @@ users = [
   },
   %{
     name: "James Wilson",
-    phonetic: "JAYMZ WIL-son",
     name_native: "James Wilson",
-    phonetic_native: "JAYMZ WIL-son",
     native_language: "en-US",
     pronouns: "he/him",
     role: "DevOps Engineer",
@@ -82,9 +87,7 @@ users = [
   },
   %{
     name: "Yuki Tanaka",
-    phonetic: "YOO-kee ta-NAH-ka",
     name_native: "田中雪",
-    phonetic_native: "tanaka yuki",
     native_language: "ja-JP",
     pronouns: "they/them",
     role: "UX Designer",
@@ -96,10 +99,8 @@ users = [
     longitude: 139.6503
   },
   %{
-    name: "Maria García",
-    phonetic: "ma-REE-a gar-SEE-a",
+    name: "María García",
     name_native: "María García",
-    phonetic_native: "maría garcía",
     native_language: "es-ES",
     pronouns: "she/her",
     role: "Data Scientist",
@@ -112,9 +113,7 @@ users = [
   },
   %{
     name: "David Kim",
-    phonetic: "DAY-vid KIM",
     name_native: "David Kim",
-    phonetic_native: "DAY-vid KIM",
     native_language: "en-AU",
     pronouns: "he/him",
     role: "Engineering Manager",
@@ -127,9 +126,7 @@ users = [
   },
   %{
     name: "Sarah O'Connor",
-    phonetic: "SAIR-a oh-CON-or",
     name_native: "Sarah O'Connor",
-    phonetic_native: "SAIR-a oh-CON-or",
     native_language: "en-GB",
     pronouns: "she/her",
     role: "QA Engineer",
@@ -142,9 +139,7 @@ users = [
   },
   %{
     name: "Ahmed Hassan",
-    phonetic: "AH-med ha-SAHN",
     name_native: "أحمد حسن",
-    phonetic_native: "ahmed hassan",
     native_language: "ar-EG",
     pronouns: "he/him",
     role: "Security Engineer",
@@ -157,9 +152,7 @@ users = [
   },
   %{
     name: "Luiza Santos",
-    phonetic: "loo-EE-za SAHN-tos",
     name_native: "Luiza Santos",
-    phonetic_native: "luiza santos",
     native_language: "pt-BR",
     pronouns: "she/her",
     role: "Full Stack Developer",
@@ -175,10 +168,11 @@ users = [
 IO.puts("Creating users...")
 
 for user_attrs <- users do
-  user = %User{}
-  |> User.changeset(user_attrs)
-  |> Repo.insert!()
-  
+  user =
+    %User{}
+    |> User.changeset(user_attrs)
+    |> Repo.insert!()
+
   IO.puts("  ✓ Created user: #{user.name}")
 end
 
@@ -249,10 +243,11 @@ holidays = [
 IO.puts("Creating holidays...")
 
 for holiday_attrs <- holidays do
-  holiday = %Holiday{}
-  |> Holiday.changeset(holiday_attrs)
-  |> Repo.insert!()
-  
+  holiday =
+    %Holiday{}
+    |> Holiday.changeset(holiday_attrs)
+    |> Repo.insert!()
+
   IO.puts("  ✓ Created holiday: #{holiday.name} (#{holiday.country})")
 end
 
