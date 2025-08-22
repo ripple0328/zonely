@@ -1224,6 +1224,149 @@ defmodule ZonelyWeb.CoreComponents do
   end
 
   @doc """
+  Renders a 24-hour timeline visualization for user work hours.
+  """
+  attr :users, :list, required: true, doc: "List of users to display on timeline"
+  attr :class, :string, default: "", doc: "Additional CSS classes"
+
+  def work_hours_timeline(assigns) do
+    ~H"""
+    <div class={["space-y-3", @class]}>
+      <!-- Hours header -->
+      <div class="mb-4">
+        <div class="grid grid-cols-24 gap-1 text-xs text-gray-500">
+          <div :for={hour <- 0..23} class="text-center">
+            <%= String.pad_leading(to_string(hour), 2, "0") %>
+          </div>
+        </div>
+      </div>
+
+      <!-- User timelines -->
+      <div
+        :for={user <- @users}
+        class="flex items-center"
+      >
+        <div class="flex items-center w-40">
+          <div class="flex-shrink-0 mr-3">
+            <.user_avatar user={user} size={32} />
+          </div>
+          <div class="text-sm font-medium text-gray-900 truncate">
+            <%= user.name %>
+          </div>
+        </div>
+        <div class="flex-1 grid grid-cols-24 gap-1">
+          <div
+            :for={hour <- 0..23}
+            class={[
+              "h-6 rounded-sm",
+              hour >= user.work_start.hour and hour < user.work_end.hour && "bg-green-200",
+              (hour < user.work_start.hour or hour >= user.work_end.hour) && "bg-gray-100"
+            ]}
+          >
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a holiday card with affected users and time indicators.
+  """
+  attr :holiday, :map, required: true, doc: "Holiday struct with name, date, country"
+  attr :users, :list, required: true, doc: "List of users affected by this holiday"
+  attr :class, :string, default: "", doc: "Additional CSS classes"
+
+  def holiday_card(assigns) do
+    days_until = Zonely.DateUtils.days_until(assigns.holiday.date)
+    assigns = assign(assigns, :days_until, days_until)
+
+    ~H"""
+    <div class={[
+      "flex items-center justify-between p-4 rounded-lg border",
+      @days_until <= 7 && "bg-red-50 border-red-200",
+      @days_until > 7 && @days_until <= 30 && "bg-yellow-50 border-yellow-200",
+      @days_until > 30 && "bg-gray-50 border-gray-200",
+      @class
+    ]}>
+      <div class="flex-1">
+        <div class="flex items-center space-x-3">
+          <.country_badge country={@holiday.country} />
+          <h4 class="text-sm font-medium text-gray-900"><%= @holiday.name %></h4>
+        </div>
+        <p class="mt-1 text-sm text-gray-600"><%= Zonely.DateUtils.format_date(@holiday.date) %></p>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- Affected users avatars -->
+        <div class="flex -space-x-1">
+          <div
+            :for={user <- @users |> Enum.take(3)}
+            class="flex-shrink-0"
+            title={user.name}
+          >
+            <.user_avatar user={user} size={24} class="border-2 border-white" />
+          </div>
+          <div
+            :if={length(@users) > 3}
+            class="w-6 h-6 bg-gray-300 rounded-full border-2 border-white flex items-center justify-center"
+            title={"#{length(@users) - 3} more"}
+          >
+            <span class="text-gray-600 font-medium text-xs">
+              +<%= length(@users) - 3 %>
+            </span>
+          </div>
+        </div>
+
+        <div class="text-right">
+          <div class={[
+            "text-sm font-medium",
+            @days_until <= 7 && "text-red-700",
+            @days_until > 7 && @days_until <= 30 && "text-yellow-700",
+            @days_until > 30 && "text-gray-700"
+          ]}>
+            <%= Zonely.DateUtils.relative_date_text(@holiday.date) %>
+          </div>
+          <div class="text-xs text-gray-500">
+            <%= length(@users) %> members
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a country badge with consistent styling.
+  """
+  attr :country, :string, required: true, doc: "Country code or name to display"
+  attr :size, :atom, default: :normal, values: [:small, :normal, :large], doc: "Size of the badge"
+  attr :variant, :atom, default: :gray, values: [:gray, :blue, :green, :yellow], doc: "Color variant"
+  attr :class, :string, default: "", doc: "Additional CSS classes"
+
+  def country_badge(assigns) do
+    ~H"""
+    <span class={[
+      "inline-flex items-center rounded-full font-medium",
+      badge_size_classes(@size),
+      badge_variant_classes(@variant),
+      @class
+    ]}>
+      <%= @country %>
+    </span>
+    """
+  end
+
+  defp badge_size_classes(:small), do: "px-2 py-0.5 text-xs"
+  defp badge_size_classes(:normal), do: "px-2.5 py-0.5 text-xs"
+  defp badge_size_classes(:large), do: "px-3 py-1 text-sm"
+
+  defp badge_variant_classes(:gray), do: "bg-gray-100 text-gray-800"
+  defp badge_variant_classes(:blue), do: "bg-blue-100 text-blue-800"
+  defp badge_variant_classes(:green), do: "bg-green-100 text-green-800"
+  defp badge_variant_classes(:yellow), do: "bg-yellow-100 text-yellow-800"
+
+  @doc """
   Renders a comprehensive user profile card with all key information.
   
   This is a composite component that uses other components for consistency.

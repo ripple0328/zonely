@@ -1,7 +1,7 @@
 defmodule ZonelyWeb.WorkHoursLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.Accounts
+  alias Zonely.{Accounts, DateUtils}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -46,13 +46,6 @@ defmodule ZonelyWeb.WorkHoursLive do
     end
   end
 
-  # Generate fake profile pictures using external service
-  defp fake_profile_picture(name) do
-    # Using DiceBear Avatars API for consistent fake profile pictures
-    seed = name |> String.downcase() |> String.replace(" ", "-")
-
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=48"
-  end
 
   @impl true
   def render(assigns) do
@@ -81,19 +74,8 @@ defmodule ZonelyWeb.WorkHoursLive do
                   class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                 />
               </div>
-              <!-- Avatar -->
               <div class="ml-3 flex-shrink-0">
-                <img
-                  src={fake_profile_picture(user.name)}
-                  alt={user.name}
-                  class="w-10 h-10 rounded-full"
-                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                />
-                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center" style="display: none;">
-                  <span class="text-white font-medium text-sm">
-                    <%= String.first(user.name) %>
-                  </span>
-                </div>
+                <.user_avatar user={user} size={40} />
               </div>
               <div class="ml-3 text-sm flex-1 min-w-0">
                 <div class="font-medium text-gray-700 truncate"><%= user.name %></div>
@@ -101,7 +83,7 @@ defmodule ZonelyWeb.WorkHoursLive do
                   <%= user.timezone %>
                 </div>
                 <div class="text-gray-400 text-xs">
-                  <%= Calendar.strftime(user.work_start, "%H:%M") %> - <%= Calendar.strftime(user.work_end, "%H:%M") %>
+                  <%= DateUtils.format_working_hours(user.work_start, user.work_end) %>
                 </div>
               </div>
             </label>
@@ -114,53 +96,7 @@ defmodule ZonelyWeb.WorkHoursLive do
         <div class="px-4 py-5 sm:p-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">Timeline View</h3>
 
-          <!-- Hours header -->
-          <div class="mb-4">
-            <div class="grid grid-cols-24 gap-1 text-xs text-gray-500">
-              <div :for={hour <- 0..23} class="text-center">
-                <%= String.pad_leading(to_string(hour), 2, "0") %>
-              </div>
-            </div>
-          </div>
-
-          <!-- User timelines -->
-          <div class="space-y-3">
-            <div
-              :for={user <- get_selected_user_data(@users, @selected_users)}
-              class="flex items-center"
-            >
-              <div class="flex items-center w-40">
-                <!-- Avatar -->
-                <div class="flex-shrink-0 mr-3">
-                  <img
-                    src={fake_profile_picture(user.name)}
-                    alt={user.name}
-                    class="w-8 h-8 rounded-full"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                  />
-                  <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center" style="display: none;">
-                    <span class="text-white font-medium text-xs">
-                      <%= String.first(user.name) %>
-                    </span>
-                  </div>
-                </div>
-                <div class="text-sm font-medium text-gray-900 truncate">
-                  <%= user.name %>
-                </div>
-              </div>
-              <div class="flex-1 grid grid-cols-24 gap-1">
-                <div
-                  :for={hour <- 0..23}
-                  class={[
-                    "h-6 rounded-sm",
-                    hour >= user.work_start.hour and hour < user.work_end.hour && "bg-green-200",
-                    (hour < user.work_start.hour or hour >= user.work_end.hour) && "bg-gray-100"
-                  ]}
-                >
-                </div>
-              </div>
-            </div>
-          </div>
+          <.work_hours_timeline users={get_selected_user_data(@users, @selected_users)} />
 
           <!-- Overlap Summary -->
           <div class="mt-6 p-4 bg-blue-50 rounded-lg">

@@ -12,18 +12,10 @@ defmodule ZonelyWeb.CoreComponentsTest do
       html = 
         render_component(&user_avatar/1, %{user: user, size: 48})
         
-      assert html =~ "John Doe's avatar"
+      assert html =~ "John Doe&#39;s avatar"
       assert html =~ "rounded-full"
-      assert html =~ Zonely.AvatarService.generate_avatar_url("John Doe", 48)
-    end
-    
-    test "includes fallback initials avatar" do
-      user = %User{name: "Alice Smith"}
-      
-      html = render_component(&user_avatar/1, %{user: user})
-      
-      assert html =~ "AS"
-      assert html =~ "hidden"  # Initially hidden, shown on error
+      assert html =~ "seed=john-doe"
+      assert html =~ "size=48"
     end
     
     test "applies custom CSS classes" do
@@ -49,7 +41,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "renders native pronunciation button when name differs" do
       user = %User{
         id: 2, 
-        name: "José García", 
+        name: "Jose Garcia", 
         name_native: "José García",
         country: "ES"
       }

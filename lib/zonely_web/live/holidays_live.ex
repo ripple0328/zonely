@@ -1,7 +1,7 @@
 defmodule ZonelyWeb.HolidaysLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, Holidays}
+  alias Zonely.{Accounts, DateUtils, Holidays}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -53,21 +53,7 @@ defmodule ZonelyWeb.HolidaysLive do
     Enum.filter(users, fn user -> user.country == country end)
   end
 
-  defp format_date(date) do
-    Calendar.strftime(date, "%B %d, %Y")
-  end
 
-  defp days_until(date) do
-    Date.diff(date, Date.utc_today())
-  end
-
-  # Generate fake profile pictures using external service
-  defp fake_profile_picture(name) do
-    # Using DiceBear Avatars API for consistent fake profile pictures
-    seed = name |> String.downcase() |> String.replace(" ", "-")
-
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=32"
-  end
 
   @impl true
   def render(assigns) do
@@ -108,19 +94,8 @@ defmodule ZonelyWeb.HolidaysLive do
                   :for={user <- get_users_for_country(@users, country)}
                   class="flex items-center space-x-2"
                 >
-                  <!-- Avatar -->
                   <div class="flex-shrink-0">
-                    <img
-                      src={fake_profile_picture(user.name)}
-                      alt={user.name}
-                      class="w-6 h-6 rounded-full"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    />
-                    <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center" style="display: none;">
-                      <span class="text-white font-medium text-xs">
-                        <%= String.first(user.name) %>
-                      </span>
-                    </div>
+                    <.user_avatar user={user} size={24} />
                   </div>
                   <div class="text-sm text-gray-600">
                     <%= user.name %>
@@ -145,80 +120,11 @@ defmodule ZonelyWeb.HolidaysLive do
           </div>
 
           <div :if={length(@holidays) > 0} class="space-y-4">
-            <div
+            <.holiday_card
               :for={holiday <- @holidays}
-              class={[
-                "flex items-center justify-between p-4 rounded-lg border",
-                days_until(holiday.date) <= 7 && "bg-red-50 border-red-200",
-                days_until(holiday.date) > 7 && days_until(holiday.date) <= 30 && "bg-yellow-50 border-yellow-200",
-                days_until(holiday.date) > 30 && "bg-gray-50 border-gray-200"
-              ]}
-            >
-              <div class="flex-1">
-                <div class="flex items-center space-x-3">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    <%= holiday.country %>
-                  </span>
-                  <h4 class="text-sm font-medium text-gray-900"><%= holiday.name %></h4>
-                </div>
-                <p class="mt-1 text-sm text-gray-600"><%= format_date(holiday.date) %></p>
-              </div>
-
-              <div class="flex items-center space-x-4">
-                <!-- Affected users avatars -->
-                <div class="flex -space-x-1">
-                  <div
-                    :for={user <- get_users_for_country(@users, holiday.country) |> Enum.take(3)}
-                    class="flex-shrink-0"
-                  >
-                    <img
-                      src={fake_profile_picture(user.name)}
-                      alt={user.name}
-                      class="w-6 h-6 rounded-full border-2 border-white"
-                      title={user.name}
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    />
-                    <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full border-2 border-white flex items-center justify-center" style="display: none;" title={user.name}>
-                      <span class="text-white font-medium text-xs">
-                        <%= String.first(user.name) %>
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    :if={length(get_users_for_country(@users, holiday.country)) > 3}
-                    class="w-6 h-6 bg-gray-300 rounded-full border-2 border-white flex items-center justify-center"
-                    title={"#{length(get_users_for_country(@users, holiday.country)) - 3} more"}
-                  >
-                    <span class="text-gray-600 font-medium text-xs">
-                      +<%= length(get_users_for_country(@users, holiday.country)) - 3 %>
-                    </span>
-                  </div>
-                </div>
-
-                <div class="text-right">
-                  <div class={[
-                    "text-sm font-medium",
-                    days_until(holiday.date) <= 7 && "text-red-700",
-                    days_until(holiday.date) > 7 && days_until(holiday.date) <= 30 && "text-yellow-700",
-                    days_until(holiday.date) > 30 && "text-gray-700"
-                  ]}>
-                    <%= cond do %>
-                      <% days_until(holiday.date) == 0 -> %>
-                        Today
-                      <% days_until(holiday.date) == 1 -> %>
-                        Tomorrow
-                      <% days_until(holiday.date) > 1 -> %>
-                        In <%= days_until(holiday.date) %> days
-                      <% true -> %>
-                        <%= days_until(holiday.date) %> days ago
-                    <% end %>
-                  </div>
-                  <div class="text-xs text-gray-500">
-                    <%= length(get_users_for_country(@users, holiday.country)) %> members
-                  </div>
-                </div>
-              </div>
-            </div>
+              holiday={holiday}
+              users={get_users_for_country(@users, holiday.country)}
+            />
           </div>
         </div>
       </div>
@@ -231,14 +137,14 @@ defmodule ZonelyWeb.HolidaysLive do
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div class="text-center">
               <div class="text-2xl font-bold text-red-600">
-                <%= @holidays |> Enum.filter(fn h -> days_until(h.date) >= 0 && days_until(h.date) <= 7 end) |> length() %>
+                <%= @holidays |> DateUtils.filter_within_days(:date, 7) |> length() %>
               </div>
               <div class="text-sm text-gray-500">Holidays this week</div>
             </div>
 
             <div class="text-center">
               <div class="text-2xl font-bold text-yellow-600">
-                <%= @holidays |> Enum.filter(fn h -> days_until(h.date) > 7 && days_until(h.date) <= 30 end) |> length() %>
+                <%= @holidays |> DateUtils.filter_within_range(:date, 8, 30) |> length() %>
               </div>
               <div class="text-sm text-gray-500">Next 30 days</div>
             </div>
