@@ -21,8 +21,8 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
-// Import TTS module
-import {tts} from "./tts"
+// Import minimal audio functionality
+import {setupSimpleAudio} from "./simple-audio"
 
 // TeamMap hook for MapLibre GL JS integration
 let Hooks = {}
@@ -4940,28 +4940,13 @@ let liveSocket = new LiveSocket("/live", Socket, {
   hooks: Hooks
 })
 
-// CLEAN: Single event listeners to prevent duplicate audio playback
-window.addEventListener("phx:speak_text", (event) => {
-  console.log('🔊 TTS Event:', event.detail);
-  const { text, lang, rate = 0.8, pitch = 1.0 } = event.detail;
-  tts.speak(text, lang, rate, pitch);
-});
-
-window.addEventListener("phx:play_audio_url", (event) => {
-  console.log('🔊 Audio URL Event:', event.detail);
-  const { url } = event.detail;
-  tts.playAudioUrl(url);
-});
+// Setup simple audio functionality
+setupSimpleAudio()
 
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
-
-// Expose TTS functions to window for debugging
-window.speakText = (text, lang, rate, pitch) => tts.speak(text, lang, rate, pitch);
-window.playAudioUrl = (url) => tts.playAudioUrl(url);
-window.testTTS = () => tts.test();
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()

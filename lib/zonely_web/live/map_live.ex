@@ -2,7 +2,7 @@ defmodule ZonelyWeb.MapLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.Accounts
-  alias Zonely.TextToSpeech
+  alias Zonely.Audio
 
   @topic "users:schedule"
   @edge_minutes 60
@@ -49,64 +49,49 @@ defmodule ZonelyWeb.MapLive do
     {:noreply, assign(socket, selected_user: nil)}
   end
 
-  @impl true
+    @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
 
-    # Get the native language for Forvo API call
-    native_lang = user.native_language || TextToSpeech.get_language_for_country(user.country)
+    IO.puts("🎯 NATIVE: Fetching pronunciation for #{user.name}")
 
-    IO.puts(
-      "🎯 NATIVE: Fetching pronunciation for #{user.name} in native language #{native_lang} (country: #{user.country})"
-    )
-
-    # Use the improved name pronunciation system with explicit native language
-    case TextToSpeech.get_name_pronunciation(user, native_lang) do
+    case Audio.get_native_pronunciation(user) do
       {:audio_url, url} ->
         IO.puts("🔊 AUDIO URL (Native): #{user.name} → #{url}")
-        {:noreply, socket |> push_event("play_audio_url", %{url: url})}
+        {:noreply, 
+         socket
+         |> assign(:current_audio_url, url)
+         |> push_event("play_audio", %{url: url})}
 
-      {:tts, _text, _lang} ->
-        # For native pronunciation, use the native name and language
-        native_text = user.name_native || user.name
-
-        IO.puts("🔊 TTS (Native): #{user.name} → '#{native_text}' (#{native_lang})")
+      {:tts, text, lang} ->
+        IO.puts("🔊 TTS (Native): #{user.name} → '#{text}' (#{lang})")
         {:noreply,
          socket
-         |> push_event("speak_text", %{
-           text: native_text,
-           lang: native_lang,
-           rate: 0.9,
-           pitch: 1.0
-         })}
+         |> assign(:current_tts_text, text)
+         |> push_event("speak_simple", %{text: text, lang: lang})}
     end
   end
 
-  @impl true
+    @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
 
-    IO.puts(
-      "🎯 ENGLISH: Fetching pronunciation for #{user.name} in en-US (country: #{user.country}, native: #{user.native_language})"
-    )
+    IO.puts("🎯 ENGLISH: Fetching pronunciation for #{user.name}")
 
-    # Use the improved name pronunciation system specifically for English
-    case TextToSpeech.get_name_pronunciation(user, "en-US") do
+    case Audio.get_english_pronunciation(user) do
       {:audio_url, url} ->
         IO.puts("🔊 AUDIO URL (English): #{user.name} → #{url}")
-        {:noreply, socket |> push_event("play_audio_url", %{url: url})}
+        {:noreply, 
+         socket
+         |> assign(:current_audio_url, url)
+         |> push_event("play_audio", %{url: url})}
 
-      {:tts, text, _lang} ->
-        IO.puts("🔊 TTS (English): #{user.name} → '#{text}' (en-US)")
-        # Enhanced parameters for better English pronunciation
+      {:tts, text, lang} ->
+        IO.puts("🔊 TTS (English): #{user.name} → '#{text}' (#{lang})")
         {:noreply,
          socket
-         |> push_event("speak_text", %{
-           text: text,
-           lang: "en-US",
-           rate: 0.85,
-           pitch: 1.05
-         })}
+         |> assign(:current_tts_text, text)
+         |> push_event("speak_simple", %{text: text, lang: lang})}
     end
   end
 
@@ -400,7 +385,7 @@ defmodule ZonelyWeb.MapLive do
               <!-- Native name display -->
               <div :if={@selected_user.name_native && @selected_user.name_native != @selected_user.name}>
                 <label class="block text-sm font-medium text-gray-700">
-                  Native Name (<%= TextToSpeech.get_native_language_name(@selected_user.country) %>)
+                  Native Name (<%= Audio.get_native_language_name(@selected_user.country) %>)
                 </label>
                 <p class="text-lg text-gray-900 mb-2"><%= @selected_user.name_native %></p>
               </div>
