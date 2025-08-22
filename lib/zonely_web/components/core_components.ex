@@ -934,4 +934,51 @@ defmodule ZonelyWeb.CoreComponents do
     seed = name |> String.downcase() |> String.replace(" ", "-")
     "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
   end
+ 
+  @doc """
+  Renders the Map Legend used on the map pages.
+  """
+  def map_legend(assigns) do
+    ~H"""
+    <div class="fixed top-20 right-4 z-20 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs">
+      <div class="text-sm font-semibold text-gray-900 mb-2">Map Overlays</div>
+
+      <div class="mb-3 pb-2 border-b border-gray-200">
+        <div class="flex items-center gap-2 mb-1">
+          <div class="w-3 h-3 rounded" style="background-color: #1a1a2e;"></div>
+          <span class="text-xs font-medium text-gray-700">Night Region</span>
+        </div>
+        <div class="text-xs text-gray-500 ml-5">Live day/night boundary</div>
+      </div>
+
+      <div class="text-xs font-semibold text-gray-900 mb-1">Timezone Regions</div>
+      <div class="space-y-1 text-xs">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded" style="background-color: rgba(255, 99, 132, 0.6);"></div>
+          <span class="text-gray-700">Pacific Time (UTC-8)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded" style="background-color: rgba(54, 162, 235, 0.6);"></div>
+          <span class="text-gray-700">Mountain Time (UTC-7)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded" style="background-color: rgba(255, 205, 86, 0.6);"></div>
+          <span class="text-gray-700">Central Time (UTC-6)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded" style="background-color: rgba(75, 192, 192, 0.6);"></div>
+          <span class="text-gray-700">Eastern Time (UTC-5)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded" style="background-color: rgba(153, 102, 255, 0.6);"></div>
+          <span class="text-gray-700">European Time (UTC+0 to +2)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded" style="background-color: rgba(255, 159, 64, 0.6);"></div>
+          <span class="text-gray-700">Asian Time (UTC+3 to +10)</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
 end

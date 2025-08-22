@@ -4,6 +4,10 @@
 
 /* This file is for your main application CSS */
 
+/* Hide horizontal scrollbar for mobile tabs */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Remove all padding and margins for full screen map */
 html, body {
   margin: 0 !important;
@@ -16,6 +20,12 @@ html, body {
   margin: 0 !important;
   padding: 0 !important;
 }
+
+/* Prevent the map from intercepting header clicks */
+header.fixed { position: fixed; z-index: 1000; pointer-events: auto; }
+.maplibregl-map { z-index: 0 !important; }
+.maplibregl-canvas-container { z-index: 0 !important; }
+.maplibregl-control-container { z-index: 1 !important; }
 
 /* Ensure the MapLibre canvas takes full size */
 #map-container .maplibregl-map {

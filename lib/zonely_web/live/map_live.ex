@@ -343,7 +343,7 @@ defmodule ZonelyWeb.MapLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="fixed top-0 left-0 w-full h-screen pt-[4rem] z-10">
+    <div class="fixed left-0 top-16 w-full h-[calc(100vh-4rem)] z-10">
       <!-- MapLibre GL JS Map Container -->
       <div
         id="map-container"
