@@ -160,12 +160,9 @@ defmodule ZonelyWeb.MapLive do
     |> Jason.encode!()
   end
 
-  # Generate fake profile pictures using external service
+  # Generate fake profile pictures using AvatarService for consistency
   defp fake_profile_picture(name) do
-    # Using DiceBear Avatars API for consistent fake profile pictures
-    seed = name |> String.downcase() |> String.replace(" ", "-")
-
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
+    Zonely.AvatarService.generate_avatar_url(name, 64)
   end
 
   # Time classification helper functions
@@ -230,13 +227,6 @@ defmodule ZonelyWeb.MapLive do
   defp status_int(:edge), do: 1
   defp status_int(:off), do: 0
 
-  # Simple debug function for timezone highlighting
-  defp get_debug_timezone_data() do
-    [
-      %{timezone: "America/New_York", coverage: 0.8, local_start: "09:00:00", local_end: "17:00:00"},
-      %{timezone: "Europe/London", coverage: 0.6, local_start: "10:00:00", local_end: "16:00:00"}
-    ]
-  end
 
 
 
@@ -314,69 +304,26 @@ defmodule ZonelyWeb.MapLive do
         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
         phx-click="hide_profile"
       >
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-          <div class="mt-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <h3 class="text-lg font-medium text-gray-900">
-                  <%= @selected_user.name %>
-                </h3>
-                <!-- Play pronunciation button -->
-
-                  <button
-                    phx-click="play_english_pronunciation"
-                    phx-value-user_id={@selected_user.id}
-                    class="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                    title="Play name pronunciation"
-                  >
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
-                    </svg>
-                  </button>
-
-
-
-
-
-
-              </div>
-              <button
-                phx-click="hide_profile"
-                class="text-gray-400 hover:text-gray-600"
-              >
-                <span class="sr-only">Close</span>
-                <.icon name="hero-x-mark" class="h-6 w-6" />
-              </button>
-            </div>
-
-            <div class="mt-4 space-y-3">
-              <!-- Native name display -->
-              <div :if={@selected_user.name_native && @selected_user.name_native != @selected_user.name}>
-                <label class="block text-sm font-medium text-gray-700">
-                  Native Name (<%= PronunceName.get_native_language_name(@selected_user.country) %>)
-                </label>
-                <p class="text-lg text-gray-900 mb-2"><%= @selected_user.name_native %></p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Role</label>
-                <p class="text-sm text-gray-900"><%= @selected_user.role || "Team Member" %></p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Location</label>
-                <p class="text-sm text-gray-900"><%= @selected_user.country %> • <%= @selected_user.timezone %></p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Working Hours</label>
-                <p class="text-sm text-gray-900">
-                  <%= Calendar.strftime(@selected_user.work_start, "%I:%M %p") %> -
-                  <%= Calendar.strftime(@selected_user.work_end, "%I:%M %p") %>
-                </p>
-              </div>
-            </div>
+        <div class="relative top-20 mx-auto p-2 max-w-md">
+          <.profile_card 
+            user={@selected_user} 
+            show_actions={false} 
+            show_local_time={true} 
+            class="relative"
+          />
+          
+          <!-- Quick Actions Bar for Map -->
+          <div class="mt-2">
+            <.quick_actions_bar user={@selected_user} expanded_action={@expanded_action} />
           </div>
+          
+          <button
+            phx-click="hide_profile"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-white rounded-full p-1 shadow-sm"
+          >
+            <span class="sr-only">Close</span>
+            <.icon name="hero-x-mark" class="h-5 w-5" />
+          </button>
         </div>
       </div>
     </div>

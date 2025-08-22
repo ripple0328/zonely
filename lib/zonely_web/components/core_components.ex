@@ -61,6 +61,8 @@ defmodule ZonelyWeb.CoreComponents do
   slot :inner_block, doc: "the optional inner block that renders the flash message"
 
   def flash(assigns) do
+    assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
+    
     ~H"""
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
@@ -1079,5 +1081,295 @@ defmodule ZonelyWeb.CoreComponents do
       </div>
     </div>
     """
+  end
+
+  @doc """
+  Renders a user avatar with consistent styling and fallback handling.
+  
+  Uses AvatarService for avatar generation to maintain consistency across the app.
+  """
+  attr :user, :map, required: true, doc: "User struct with name"
+  attr :size, :integer, default: 64, doc: "Avatar size in pixels"
+  attr :class, :string, default: "", doc: "Additional CSS classes"
+  
+  def user_avatar(assigns) do
+    ~H"""
+    <img 
+      src={Zonely.AvatarService.generate_avatar_url(@user.name, @size)}
+      alt={"#{@user.name}'s avatar"}
+      class={["rounded-full shadow-sm border border-gray-200", @class]}
+      style={"width: #{@size}px; height: #{@size}px"}
+    />
+    """
+  end
+
+  @doc """
+  Renders pronunciation buttons for a user's name.
+  
+  Shows both English and native language pronunciation buttons with proper icons and states.
+  """
+  attr :user, :map, required: true, doc: "User struct with name, native_language, country"
+  attr :size, :atom, default: :normal, values: [:small, :normal, :large], doc: "Button size variant"
+  attr :show_labels, :boolean, default: true, doc: "Whether to show language labels"
+  
+  def pronunciation_buttons(assigns) do
+    # Generate size-specific classes
+    assigns = assign(assigns, :size_classes, size_classes_for_pronunciation(assigns.size))
+    
+    ~H"""
+    <div class="flex items-center gap-1">
+      <!-- English pronunciation button -->
+      <button
+        phx-click="play_english_pronunciation"
+        phx-value-user_id={@user.id}
+        class={[
+          "inline-flex items-center justify-center gap-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors",
+          @size_classes.button
+        ]}
+        title="Play English pronunciation"
+      >
+        <svg class={@size_classes.icon} fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+        </svg>
+        <span :if={@show_labels} class={["font-medium", @size_classes.text]}>EN</span>
+      </button>
+
+      <!-- Native pronunciation button (if different from English) -->
+      <button 
+        :if={@user.name_native && @user.name_native != @user.name}
+        phx-click="play_native_pronunciation"
+        phx-value-user_id={@user.id}
+        class={[
+          "inline-flex items-center justify-center gap-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors",
+          @size_classes.button
+        ]}
+        title={"Play #{Zonely.LanguageService.get_native_language_name(@user.country)} pronunciation"}
+      >
+        <svg class={@size_classes.icon} fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+        </svg>
+        <span :if={@show_labels} class={["font-medium", @size_classes.text]}>
+          <%= String.slice(Zonely.LanguageService.get_native_language_name(@user.country), 0, 2) |> String.upcase() %>
+        </span>
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders timezone and location information for a user.
+  
+  Displays country, timezone, and optional local time in a clean, consistent format.
+  """
+  attr :user, :map, required: true, doc: "User struct with country, timezone"
+  attr :show_local_time, :boolean, default: false, doc: "Whether to calculate and show local time"
+  attr :layout, :atom, default: :horizontal, values: [:horizontal, :vertical], doc: "Layout direction"
+  
+  def timezone_display(assigns) do
+    ~H"""
+    <div class={[
+      "text-sm text-gray-500",
+      @layout == :horizontal && "flex items-center justify-between",
+      @layout == :vertical && "space-y-1"
+    ]}>
+      <div class="flex items-center gap-2">
+        <span><%= @user.timezone %></span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <%= @user.country %>
+        </span>
+      </div>
+      
+      <div :if={@show_local_time} class="text-xs font-medium text-gray-700">
+        <!-- TODO: Calculate actual local time based on timezone -->
+        Local: 2:30 PM
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders working hours information for a user.
+  
+  Shows work start/end times with optional status indicator.
+  """
+  attr :user, :map, required: true, doc: "User struct with work_start, work_end"
+  attr :show_status, :boolean, default: false, doc: "Whether to show current availability status"
+  attr :compact, :boolean, default: false, doc: "Whether to use compact layout"
+  
+  def working_hours(assigns) do
+    ~H"""
+    <div class={[
+      "text-sm",
+      @compact && "text-xs"
+    ]}>
+      <div class="flex items-center gap-2">
+        <div :if={@show_status} class="w-2 h-2 bg-green-400 rounded-full"></div>
+        <span class="text-gray-700">Working Hours:</span>
+      </div>
+      <div class={[
+        "font-medium text-gray-900 mt-1",
+        @compact && "text-xs font-normal"
+      ]}>
+        <%= Calendar.strftime(@user.work_start, "%I:%M %p") %> - 
+        <%= Calendar.strftime(@user.work_end, "%I:%M %p") %>
+      </div>
+      <div :if={@show_status} class={[
+        "text-gray-500 mt-1",
+        @compact && "text-xs"
+      ]}>
+        Available now
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a comprehensive user profile card with all key information.
+  
+  This is a composite component that uses other components for consistency.
+  """
+  attr :user, :map, required: true, doc: "User struct with all user data"
+  attr :show_actions, :boolean, default: false, doc: "Whether to show action buttons"
+  attr :show_local_time, :boolean, default: false, doc: "Whether to show calculated local time"
+  attr :class, :string, default: "", doc: "Additional CSS classes"
+  
+  def profile_card(assigns) do
+    ~H"""
+    <div class={[
+      "bg-white rounded-lg shadow-lg border border-gray-200 p-6 space-y-4",
+      @class
+    ]}>
+      <!-- Header with avatar and name -->
+      <div class="flex items-start gap-4">
+        <.user_avatar user={@user} size={64} />
+        
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-2">
+            <h3 class="text-lg font-semibold text-gray-900 truncate">
+              <%= @user.name %>
+            </h3>
+            <.pronunciation_buttons user={@user} size={:small} />
+          </div>
+          
+          <p class="text-sm text-gray-600 mb-2">
+            <%= @user.role || "Team Member" %>
+          </p>
+          
+          <!-- Native name display -->
+          <div :if={@user.name_native && @user.name_native != @user.name} class="mb-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              Native Name (<%= Zonely.LanguageService.get_native_language_name(@user.country) %>)
+            </label>
+            <p class="text-base font-medium text-gray-900"><%= @user.name_native %></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location and timezone -->
+      <.timezone_display user={@user} show_local_time={@show_local_time} />
+
+      <!-- Working hours -->
+      <.working_hours user={@user} show_status={true} />
+
+      <!-- Actions -->
+      <div :if={@show_actions} class="pt-4 border-t border-gray-100">
+        <div class="flex gap-2">
+          <button
+            phx-click="send_message"
+            phx-value-user_id={@user.id}
+            class="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            Message
+          </button>
+          <button
+            phx-click="propose_meeting"
+            phx-value-user_id={@user.id}
+            class="flex-1 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"
+          >
+            Meeting
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a compact user card suitable for directory listings.
+  
+  Optimized for grid layouts with essential information only.
+  """
+  attr :user, :map, required: true, doc: "User struct"
+  attr :clickable, :boolean, default: true, doc: "Whether the card is clickable"
+  attr :class, :string, default: "", doc: "Additional CSS classes"
+  
+  def user_card(assigns) do
+    ~H"""
+    <div 
+      class={[
+        "bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow p-5",
+        @clickable && "cursor-pointer",
+        @class
+      ]}
+      phx-click={@clickable && "show_profile"}
+      phx-value-user_id={@clickable && @user.id}
+    >
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <.user_avatar user={@user} size={48} />
+        </div>
+        
+        <div class="ml-5 w-0 flex-1">
+          <dl>
+            <dt class="text-sm font-medium text-gray-500 truncate flex items-center gap-2">
+              <span><%= @user.name %></span>
+              <.pronunciation_buttons user={@user} size={:small} show_labels={true} />
+            </dt>
+            <dd class="text-sm text-gray-900 mt-1">
+              <%= @user.role || "Team Member" %>
+            </dd>
+          </dl>
+        </div>
+      </div>
+      
+      <div class="mt-4">
+        <.timezone_display user={@user} layout={:horizontal} />
+        
+        <div :if={@user.name_native && @user.name_native != @user.name} class="mt-2">
+          <div class="text-xs text-gray-500">
+            <%= Zonely.LanguageService.get_native_language_name(@user.country) %>
+          </div>
+          <div class="text-sm font-medium text-gray-800">
+            <%= @user.name_native %>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # Helper function for pronunciation button sizes
+  defp size_classes_for_pronunciation(:small) do
+    %{
+      button: "px-2 py-1 text-xs",
+      icon: "w-3 h-3",
+      text: "text-xs"
+    }
+  end
+  
+  defp size_classes_for_pronunciation(:normal) do
+    %{
+      button: "px-2 py-1 text-sm", 
+      icon: "w-3 h-3",
+      text: "text-xs"
+    }
+  end
+  
+  defp size_classes_for_pronunciation(:large) do
+    %{
+      button: "px-3 py-2 text-base",
+      icon: "w-4 h-4", 
+      text: "text-sm"
+    }
   end
 end

@@ -159,12 +159,6 @@ defmodule ZonelyWeb.DirectoryLive do
     {:noreply, socket}
   end
 
-  defp user_avatar_url(name) do
-    seed = name |> String.downcase() |> String.replace(" ", "-")
-
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -175,94 +169,25 @@ defmodule ZonelyWeb.DirectoryLive do
       </div>
 
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <div
-          :for={user <- @users}
-          class="relative bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
-          phx-click="show_profile"
-          phx-value-user_id={user.id}
-        >
-          <div class="p-5">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <img
-                  src={user_avatar_url(user.name)}
-                  alt={"#{user.name}'s avatar"}
-                  class="h-12 w-12 rounded-full shadow-sm border border-gray-200"
-                />
-              </div>
-              <div class="ml-5 w-0 flex-1">
-                <dl>
-                  <dt class="text-sm font-medium text-gray-500 truncate flex items-center gap-2">
-                    <span><%= user.name %></span>
-                    <div class="flex items-center gap-1">
-                                                                                                              <!-- English pronunciation button -->
-                      <button
-                        phx-click="play_english_pronunciation"
-                        phx-value-user_id={user.id}
-                        onclick="console.log('🔴 Button clicked!', this);"
-                        class="inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors text-xs"
-                        title="Play English pronunciation"
-                      >
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="font-medium">EN</span>
-                      </button>
-
-                      <!-- Native pronunciation button (if different from English) -->
-                      <button
-                        :if={user.name_native && user.name_native != user.name}
-                        phx-click="play_native_pronunciation"
-                        phx-value-user_id={user.id}
-                        onclick="console.log('🔴 Native button clicked!', this);"
-                        class="inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors text-xs"
-                        title={"Play #{PronunceName.get_native_language_name(user.country)} pronunciation"}
-                      >
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="font-medium"><%= String.slice(PronunceName.get_native_language_name(user.country), 0, 2) |> String.upcase() %></span>
-                      </button>
-                    </div>
-                  </dt>
-                  <dd class="text-sm text-gray-900">
-                    <%= user.role || "Team Member" %>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-            <div class="mt-4">
-              <div class="flex items-center justify-between text-sm text-gray-500">
-                <span><%= user.timezone %></span>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                  <%= user.country %>
-                </span>
-              </div>
-
-              <div :if={user.name_native && user.name_native != user.name} class="mt-2">
-                <div class="text-xs text-gray-500"><%= PronunceName.get_native_language_name(user.country) %></div>
-                <div class="text-sm font-medium text-gray-800"><%= user.name_native %></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <.user_card :for={user <- @users} user={user} />
       </div>
 
-      <!-- Inline Actions Popup -->
+      <!-- Profile Modal using new ProfileCard component -->
       <div
         :if={@selected_user}
         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
         phx-click="hide_profile"
       >
-        <div class="relative top-20 mx-auto p-5 border shadow-lg rounded-md bg-white max-w-sm">
-          <.inline_actions_popup
-            user={@selected_user}
-            expanded_action={@expanded_action}
-            class="border-0 shadow-none p-0 w-full"
+        <div class="relative top-20 mx-auto p-2 max-w-md">
+          <.profile_card 
+            user={@selected_user} 
+            show_actions={true} 
+            show_local_time={true} 
+            class="relative"
           />
           <button
             phx-click="hide_profile"
-            class="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-white rounded-full p-1 shadow-sm"
           >
             <span class="sr-only">Close</span>
             <.icon name="hero-x-mark" class="h-5 w-5" />
