@@ -32,34 +32,18 @@ defmodule ZonelyWeb.DirectoryLive do
     {:noreply, assign(socket, selected_user: nil)}
   end
 
-  @impl true
+    @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    
-    case Audio.get_native_pronunciation(user) do
-      {:audio_url, url} ->
-        # Play cached audio file inline
-        {:noreply, push_event(socket, "play_audio", %{url: url})}
-        
-      {:tts, text, lang} ->
-        # Play TTS inline with better voice selection
-        {:noreply, push_event(socket, "play_tts", %{text: text, lang: lang})}
-    end
+    {event_type, event_data} = Audio.play_pronunciation(user.name, user.native_language, user.country)
+    {:noreply, push_event(socket, event_type, event_data)}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    
-    case Audio.get_english_pronunciation(user) do
-      {:audio_url, url} ->
-        # Play cached audio file inline
-        {:noreply, push_event(socket, "play_audio", %{url: url})}
-        
-      {:tts, text, lang} ->
-        # Play TTS inline with better voice selection
-        {:noreply, push_event(socket, "play_tts", %{text: text, lang: lang})}
-    end
+    {event_type, event_data} = Audio.play_pronunciation(user.name, "en-US", user.country)
+    {:noreply, push_event(socket, event_type, event_data)}
   end
 
   # Inline Actions Event Handlers
