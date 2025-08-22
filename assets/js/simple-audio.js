@@ -1,12 +1,12 @@
-// Enhanced audio functionality for Phoenix LiveView
-// Following Phoenix best practices: keep JS minimal, server does the work
+// Simple inline audio functionality for Phoenix LiveView
+// Server handles all the logic, client just plays the audio
 
 export function setupSimpleAudio() {
   let currentAudio = null;
   let availableVoices = [];
   let voicesLoaded = false;
 
-  // Load available voices
+  // Load available voices for TTS
   function loadVoices() {
     availableVoices = speechSynthesis.getVoices();
     voicesLoaded = true;
@@ -19,79 +19,45 @@ export function setupSimpleAudio() {
       return null;
     }
 
-    // Language code mapping for better voice selection
-    const langMap = {
-      'en-US': ['en-US', 'en'],
-      'en-GB': ['en-GB', 'en'],
-      'en-AU': ['en-AU', 'en'],
-      'en-CA': ['en-CA', 'en'],
-      'es-ES': ['es-ES', 'es'],
-      'es-MX': ['es-MX', 'es'],
-      'fr-FR': ['fr-FR', 'fr'],
-      'de-DE': ['de-DE', 'de'],
-      'it-IT': ['it-IT', 'it'],
-      'pt-PT': ['pt-PT', 'pt'],
-      'pt-BR': ['pt-BR', 'pt'],
-      'ja-JP': ['ja-JP', 'ja'],
-      'zh-CN': ['zh-CN', 'zh'],
-      'ko-KR': ['ko-KR', 'ko'],
-      'hi-IN': ['hi-IN', 'hi'],
-      'ar-EG': ['ar-EG', 'ar'],
-      'sv-SE': ['sv-SE', 'sv']
-    };
+    // Prefer local voices, then find best match for language
+    const localVoices = availableVoices.filter(voice => voice.localService);
+    const allVoices = availableVoices;
 
-    const searchLangs = langMap[lang] || [lang, lang.split('-')[0]];
-    
-    // Try to find the best voice for the language
-    for (const searchLang of searchLangs) {
-      // First, try to find a voice that exactly matches the language
-      const exactMatch = availableVoices.find(voice => 
-        voice.lang === searchLang && voice.localService
-      );
-      if (exactMatch) {
-        console.log(`🎯 Found exact local voice for ${lang}: ${exactMatch.name}`);
-        return exactMatch;
-      }
+    // Try local voices first, then all voices
+    for (const voiceSet of [localVoices, allVoices]) {
+      // Exact language match
+      let voice = voiceSet.find(v => v.lang === lang);
+      if (voice) return voice;
 
-      // Then try any voice that matches the language (including cloud voices)
-      const langMatch = availableVoices.find(voice => 
-        voice.lang === searchLang
-      );
-      if (langMatch) {
-        console.log(`🎯 Found voice for ${lang}: ${langMatch.name}`);
-        return langMatch;
-      }
-
-      // Try partial matches (e.g., 'en' for 'en-US')
-      const partialMatch = availableVoices.find(voice => 
-        voice.lang.startsWith(searchLang)
-      );
-      if (partialMatch) {
-        console.log(`🎯 Found partial voice match for ${lang}: ${partialMatch.name}`);
-        return partialMatch;
-      }
+      // Language prefix match (e.g., 'en' for 'en-US')
+      const langPrefix = lang.split('-')[0];
+      voice = voiceSet.find(v => v.lang.startsWith(langPrefix));
+      if (voice) return voice;
     }
 
-    // Fallback to default voice
-    console.log(`⚠️ No specific voice found for ${lang}, using default`);
+    // Fallback to first available voice
     return availableVoices[0] || null;
   }
 
-  // Simple audio playback - just HTML5 audio with better error handling
+  // Play audio file inline
   window.addEventListener("phx:play_audio", (event) => {
-    console.log('🔊 Play Audio Event:', event.detail);
-    const { url } = event.detail;
-
-    // Stop any currently playing audio
+    console.log('🔊 Playing audio file:', event.detail.url);
+    
+    // Stop any current audio
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
     }
 
-    currentAudio = new Audio(url);
+    // Stop any current speech
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+
+    // Play the audio file
+    currentAudio = new Audio(event.detail.url);
     currentAudio.play().catch(error => {
       console.error("Audio playback failed:", error);
-      // Could potentially fall back to TTS here if audio fails
     });
 
     currentAudio.onended = () => {
@@ -99,42 +65,45 @@ export function setupSimpleAudio() {
     };
   });
 
-  // Enhanced TTS with voice selection and better controls
-  window.addEventListener("phx:speak_simple", (event) => {
-    console.log('🔊 Speak Simple Event:', event.detail);
+  // Play TTS inline with enhanced voice selection
+  window.addEventListener("phx:play_tts", (event) => {
     const { text, lang } = event.detail;
+    console.log('🗣️ Playing TTS:', text, 'in', lang);
     
     if ('speechSynthesis' in window) {
-      // Cancel any current speech
+      // Stop any current audio or speech
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
       speechSynthesis.cancel();
       
-      // Create utterance
+      // Create utterance with enhanced settings
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
+      utterance.rate = 0.9;    // Slightly slower for clarity
+      utterance.pitch = 1.0;   // Natural pitch
+      utterance.volume = 0.8;  // Comfortable volume
       
-      // Set voice if available
+      // Select the best voice
       const bestVoice = getBestVoice(lang);
       if (bestVoice) {
         utterance.voice = bestVoice;
-        console.log(`🎤 Using voice: ${bestVoice.name} for language: ${lang}`);
+        console.log(`🎤 Using voice: ${bestVoice.name} (${bestVoice.lang})`);
       }
       
-      // Enhanced speech settings for better quality
-      utterance.rate = 0.9;    // Slightly slower for clarity
-      utterance.pitch = 1.0;   // Normal pitch
-      utterance.volume = 0.8;  // Slightly quieter to be less jarring
-      
-      // Error handling
-      utterance.onerror = (event) => {
-        console.error('TTS Error:', event.error);
-      };
-      
+      // Enhanced event handling
       utterance.onstart = () => {
-        console.log(`🗣️ Started speaking: "${text}" in ${lang}`);
+        console.log(`🗣️ Started speaking: "${text}"`);
       };
       
       utterance.onend = () => {
         console.log(`✅ Finished speaking: "${text}"`);
+      };
+      
+      utterance.onerror = (event) => {
+        console.error('TTS Error:', event.error);
       };
       
       speechSynthesis.speak(utterance);
@@ -145,14 +114,13 @@ export function setupSimpleAudio() {
 
   // Load voices when available
   if ('speechSynthesis' in window) {
-    // Voices might not be loaded immediately
     speechSynthesis.onvoiceschanged = loadVoices;
     
-    // Try to load voices immediately (some browsers have them ready)
+    // Try to load voices immediately
     if (speechSynthesis.getVoices().length > 0) {
       loadVoices();
     }
   }
 
-  console.log('✅ Enhanced audio system initialized');
+  console.log('✅ Simple inline audio system initialized');
 }

@@ -3,7 +3,6 @@ defmodule ZonelyWeb.DirectoryLive do
 
   alias Zonely.Accounts
   alias Zonely.Audio
-  alias ZonelyWeb.Live.PronunciationHandlers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -34,36 +33,32 @@ defmodule ZonelyWeb.DirectoryLive do
   end
 
   @impl true
-  def handle_event("play_native_pronunciation", params, socket) do
-    case PronunciationHandlers.handle_native_pronunciation(params, socket) do
+  def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    
+    case Audio.get_native_pronunciation(user) do
       {:audio_url, url} ->
-        {:noreply,
-         socket
-         |> assign(current_audio_url: url)
-         |> push_event("play_audio", %{url: url})}
-
+        # Play cached audio file inline
+        {:noreply, push_event(socket, "play_audio", %{url: url})}
+        
       {:tts, text, lang} ->
-        {:noreply,
-         socket
-         |> assign(current_tts_text: text)
-         |> push_event("speak_simple", %{text: text, lang: lang})}
+        # Play TTS inline with better voice selection
+        {:noreply, push_event(socket, "play_tts", %{text: text, lang: lang})}
     end
   end
 
   @impl true
-  def handle_event("play_english_pronunciation", params, socket) do
-    case PronunciationHandlers.handle_english_pronunciation(params, socket) do
+  def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    
+    case Audio.get_english_pronunciation(user) do
       {:audio_url, url} ->
-        {:noreply,
-         socket
-         |> assign(current_audio_url: url)
-         |> push_event("play_audio", %{url: url})}
-
+        # Play cached audio file inline
+        {:noreply, push_event(socket, "play_audio", %{url: url})}
+        
       {:tts, text, lang} ->
-        {:noreply,
-         socket
-         |> assign(current_tts_text: text)
-         |> push_event("speak_simple", %{text: text, lang: lang})}
+        # Play TTS inline with better voice selection
+        {:noreply, push_event(socket, "play_tts", %{text: text, lang: lang})}
     end
   end
 

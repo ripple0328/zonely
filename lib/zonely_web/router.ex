@@ -30,7 +30,7 @@ defmodule ZonelyWeb.Router do
     live "/", MapLive
   end
 
-  scope "/", ZonelyWeb do
+    scope "/", ZonelyWeb do
     pipe_through :browser
 
     live "/directory", DirectoryLive
