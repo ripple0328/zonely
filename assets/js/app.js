@@ -29,6 +29,9 @@ Hooks.TeamMap = {
   mounted() {
     console.log('TeamMap hook mounted!')
     const users = JSON.parse(this.el.dataset.users)
+    
+    // Store users globally for timezone highlighting
+    window.teamUsers = users
 
     // Initialize MapLibre GL JS map
     let map
@@ -72,8 +75,9 @@ Hooks.TeamMap = {
       
       console.log('Map initialized successfully:', map)
       
-      // Store map reference for cleanup
+      // Store map reference for cleanup and global access
       this.map = map
+      window.map = map
     } catch (error) {
       console.error('Error initializing map:', error)
       return
@@ -94,6 +98,7 @@ Hooks.TeamMap = {
         // Create custom marker element with avatar pin and city name
         const markerEl = document.createElement('div')
         markerEl.className = 'team-marker-pin'
+        markerEl.setAttribute('data-user-id', user.id)
         markerEl.innerHTML = `
           <div class="relative flex flex-col items-center">
             <!-- Avatar Pin -->
@@ -4442,6 +4447,486 @@ Hooks.TeamMap = {
     // Clean up sunlight overlay interval
     if (this.sunlightInterval) {
       clearInterval(this.sunlightInterval)
+    }
+  }
+}
+
+// TimeScrubber hook for the overlap heatmap time selection
+Hooks.TimeScrubber = {
+  mounted() {
+    console.log('TimeScrubber hook mounted!')
+    
+    this.isDragging = false
+    this.throttleTimeout = null
+    this.dragMode = null // 'new', 'start-handle', 'end-handle', 'middle'
+    this.currentSelection = null // {left: 0.2, width: 0.3}
+    
+    // Store global reference for marker updates
+    if (!window.markersById) {
+      window.markersById = {}
+    }
+    
+    this.handleEvent("overlap_update", ({statuses, highlighted_timezones}) => {
+      // Update marker states
+      for (const [id, state] of Object.entries(statuses)) {
+        const markerEl = document.querySelector(`[data-user-id="${id}"]`)
+        if (!markerEl) continue
+        
+        // Remove existing state classes
+        markerEl.classList.remove('state-working', 'state-edge', 'state-off')
+        
+        // Add new state class
+        if (state === 2) markerEl.classList.add('state-working')
+        else if (state === 1) markerEl.classList.add('state-edge')
+        else markerEl.classList.add('state-off')
+      }
+      
+      // Debug timezone highlighting
+      console.log("Timezone highlighting debug:", {
+        has_highlighted_timezones: !!highlighted_timezones,
+        highlighted_timezones_data: highlighted_timezones,
+        has_window_map: !!window.map,
+        map_loaded: window.map && window.map.loaded()
+      })
+      
+
+    })
+    
+    // Mouse/touch event handlers
+    this.el.addEventListener('mousedown', this.startDrag.bind(this))
+    this.el.addEventListener('mousemove', this.handleMove.bind(this))
+    this.el.addEventListener('mouseup', this.endDrag.bind(this))
+    this.el.addEventListener('mouseleave', this.endDrag.bind(this))
+    
+    // Touch events for mobile
+    this.el.addEventListener('touchstart', this.startDrag.bind(this))
+    this.el.addEventListener('touchmove', this.handleMove.bind(this))
+    this.el.addEventListener('touchend', this.endDrag.bind(this))
+  },
+  
+  startDrag(e) {
+    const relativeX = this.getRelativeX(e)
+    
+    // Determine what we're dragging
+    if (this.currentSelection) {
+      const tolerance = 0.03 // 3% tolerance for handle detection
+      const selectionLeft = this.currentSelection.left
+      const selectionRight = this.currentSelection.left + this.currentSelection.width
+      
+      if (Math.abs(relativeX - selectionLeft) < tolerance) {
+        // Dragging start handle
+        this.dragMode = 'start-handle'
+        this.dragOffset = relativeX - selectionLeft
+      } else if (Math.abs(relativeX - selectionRight) < tolerance) {
+        // Dragging end handle  
+        this.dragMode = 'end-handle'
+        this.dragOffset = relativeX - selectionRight
+      } else if (relativeX >= selectionLeft && relativeX <= selectionRight) {
+        // Dragging middle (move entire selection)
+        this.dragMode = 'middle'
+        this.dragOffset = relativeX - selectionLeft
+      } else {
+        // Create new selection
+        this.dragMode = 'new'
+        this.startX = relativeX
+        this.currentSelection = null
+      }
+    } else {
+      // No existing selection - create new
+      this.dragMode = 'new'
+      this.startX = relativeX
+    }
+    
+    this.isDragging = true
+    e.preventDefault()
+  },
+  
+  handleMove(e) {
+    if (!this.isDragging) return
+    
+    const currentX = this.getRelativeX(e)
+    let newLeft, newWidth
+    
+    switch (this.dragMode) {
+      case 'new':
+        newLeft = Math.min(this.startX, currentX)
+        newWidth = Math.abs(currentX - this.startX)
+        break
+        
+      case 'start-handle':
+        const adjustedStart = currentX - this.dragOffset
+        const originalRight = this.currentSelection.left + this.currentSelection.width
+        newLeft = Math.min(adjustedStart, originalRight - 0.02) // Minimum 2% width
+        newWidth = originalRight - newLeft
+        break
+        
+      case 'end-handle':
+        const adjustedEnd = currentX - this.dragOffset
+        newLeft = this.currentSelection.left
+        newWidth = Math.max(0.02, adjustedEnd - newLeft) // Minimum 2% width
+        break
+        
+      case 'middle':
+        const draggedLeft = currentX - this.dragOffset
+        newLeft = Math.max(0, Math.min(1 - this.currentSelection.width, draggedLeft))
+        newWidth = this.currentSelection.width
+        break
+    }
+    
+    // Update current selection
+    this.currentSelection = { left: newLeft, width: newWidth }
+    this.updateSelectionDisplay(newLeft, newWidth)
+    
+    // Throttle hover_range events
+    if (this.throttleTimeout) return
+    this.throttleTimeout = setTimeout(() => {
+      try {
+        const a_frac = newLeft
+        const b_frac = newLeft + newWidth
+        this.pushEvent("hover_range", {a_frac, b_frac})
+      } catch (error) {
+        console.warn("Failed to push hover_range event:", error)
+      }
+      this.throttleTimeout = null
+    }, 80) // ~12fps throttling
+    
+    e.preventDefault()
+  },
+  
+  endDrag(e) {
+    if (!this.isDragging) return
+    this.isDragging = false
+    
+    if (this.currentSelection) {
+      try {
+        const a_frac = this.currentSelection.left
+        const b_frac = this.currentSelection.left + this.currentSelection.width
+        this.pushEvent("commit_range", {a_frac, b_frac})
+      } catch (error) {
+        console.warn("Failed to push commit_range event:", error)
+      }
+    }
+    
+    e.preventDefault()
+  },
+  
+  getRelativeX(e) {
+    const rect = this.el.getBoundingClientRect()
+    const x = e.type.startsWith('touch') ? e.touches[0]?.clientX || e.changedTouches[0]?.clientX : e.clientX
+    return Math.max(0, Math.min(1, (x - rect.left) / rect.width))
+  },
+  
+  
+  updateSelectionDisplay(left, width) {
+    const selection = document.getElementById('scrubber-selection')
+    const display = document.getElementById('time-display')
+    const durationDisplay = document.getElementById('duration-display')
+    const instruction = document.getElementById('instruction-text')
+    
+    if (width > 0.02) { // Show selection if wide enough (increased threshold)
+      selection.style.left = `${left * 100}%`
+      selection.style.width = `${width * 100}%`
+      selection.classList.remove('hidden')
+      instruction.classList.add('hidden') // Hide instruction when selecting
+      
+      // Update time display with better formatting
+      const startHour = Math.floor(left * 24)
+      const endHour = Math.floor((left + width) * 24)
+      
+      const formatHour = (h) => {
+        if (h >= 24) h = 23 // Cap at 23
+        if (h === 0) return '12:00 AM'
+        if (h < 12) return `${h}:00 AM`
+        if (h === 12) return '12:00 PM'
+        return `${h - 12}:00 PM`
+      }
+      
+      const duration = endHour - startHour
+      const durationText = duration === 1 ? '1 hour window' : `${duration} hour window`
+      
+      display.textContent = `${formatHour(startHour)} - ${formatHour(endHour)}`
+      if (durationDisplay) {
+        durationDisplay.textContent = durationText
+      }
+    } else {
+      selection.classList.add('hidden')
+      instruction.classList.remove('hidden') // Show instruction when not selecting
+      display.textContent = 'No selection'
+      if (durationDisplay) {
+        durationDisplay.textContent = 'Drag to select'
+      }
+    }
+  },
+  
+  updateTimezoneHighlighting(highlighted_timezones) {
+    console.log("updateTimezoneHighlighting called with:", highlighted_timezones)
+    
+    // Check if window.map exists and is loaded
+    if (!window.map) {
+      console.error("window.map is not available")
+      return
+    }
+    
+    if (!window.map.loaded()) {
+      console.log("Map is not loaded yet, waiting for load event")
+      // Queue the highlighting to run when map is loaded
+      window.map.once('load', () => {
+        console.log("Map loaded, retrying timezone highlighting")
+        this.updateTimezoneHighlighting(highlighted_timezones)
+      })
+      return
+    }
+    
+    console.log("Map is loaded, proceeding with timezone highlighting")
+    
+    // Clear any existing highlights
+    this.clearAllHighlights()
+    
+    if (!highlighted_timezones || highlighted_timezones.length === 0) {
+      console.log("No timezone data to highlight")
+      this.showHighlightingStatus("No timezones to highlight")
+      return
+    }
+    
+    // Use the existing hover highlighting mechanism for multiple timezones
+    this.highlightMultipleTimezones(highlighted_timezones)
+    
+    // Add visual feedback to the UI
+    this.showHighlightingStatus(`Highlighting ${highlighted_timezones.length} timezone regions`)
+  },
+  
+  clearAllHighlights() {
+    // Clear any existing timezone highlights
+    if (window.map.getLayer('timezone-highlights-border')) {
+      window.map.removeLayer('timezone-highlights-border')
+    }
+    if (window.map.getLayer('timezone-highlights')) {
+      window.map.removeLayer('timezone-highlights')
+    }
+    if (window.map.getSource('timezone-highlights')) {
+      window.map.removeSource('timezone-highlights')
+    }
+    
+    // Clear the overlay
+    if (window.map.getLayer('timezone-overlay')) {
+      window.map.removeLayer('timezone-overlay')
+    }
+    if (window.map.getSource('timezone-overlay')) {
+      window.map.removeSource('timezone-overlay')
+    }
+    
+    // Also hide all existing hover layers
+    const layers = window.map.getStyle().layers || []
+    for (const layer of layers) {
+      if (layer.id && layer.id.includes('hover') && layer.id !== 'timezone-highlights-border') {
+        try {
+          window.map.setLayoutProperty(layer.id, 'visibility', 'none')
+        } catch (error) {
+          console.warn(`Failed to hide hover layer ${layer.id}:`, error)
+        }
+      }
+    }
+  },
+  
+  highlightMultipleTimezones(highlighted_timezones) {
+    // Find existing hover layers and show them for the highlighted timezones
+    const layers = window.map.getStyle().layers || []
+    const highlightedTimezones = highlighted_timezones.map(tz => tz.timezone)
+    
+    console.log(`Looking for hover layers to highlight ${highlightedTimezones.length} timezones`)
+    console.log(`Available layers:`, layers.map(l => l.id).filter(id => id.includes('hover')))
+    
+    let foundHoverLayers = false
+    
+    // First, try to find and show existing hover layers
+    for (const layer of layers) {
+      if (layer.id && layer.id.includes('hover') && layer.id !== 'timezone-highlights-border') {
+        try {
+          // Check if this layer's source has features for our highlighted timezones
+          const source = window.map.getSource(layer.source)
+          if (source && source._data && source._data.features) {
+            console.log(`Checking layer ${layer.id} with ${source._data.features.length} features`)
+            
+            const hasHighlightedTimezone = source._data.features.some(feature => {
+              if (feature.properties) {
+                const props = feature.properties
+                const matches = highlightedTimezones.some(tz => 
+                  props.timezone === tz || 
+                  props.name === tz || 
+                  props.NAME === tz ||
+                  props.timezone_name === tz ||
+                  props.tz_name === tz
+                )
+                if (matches) {
+                  console.log(`Found match in layer ${layer.id}:`, props)
+                }
+                return matches
+              }
+              return false
+            })
+            
+            if (hasHighlightedTimezone) {
+              console.log(`Showing hover layer ${layer.id} for highlighted timezones`)
+              window.map.setLayoutProperty(layer.id, 'visibility', 'visible')
+              foundHoverLayers = true
+            }
+          }
+        } catch (error) {
+          console.warn(`Error checking hover layer ${layer.id}:`, error)
+        }
+      }
+    }
+    
+    // If no hover layers were found, try to find the actual timezone boundary layers
+    if (!foundHoverLayers) {
+      console.log("No hover layers found, looking for actual timezone boundary layers")
+      this.highlightActualTimezoneBoundaries(highlighted_timezones)
+    }
+  },
+  
+  highlightActualTimezoneBoundaries(highlighted_timezones) {
+    // Look for the actual timezone boundary layers (not hover layers)
+    const layers = window.map.getStyle().layers || []
+    const highlightedTimezones = highlighted_timezones.map(tz => tz.timezone)
+    
+    console.log(`Looking for actual timezone boundary layers`)
+    console.log(`Available layers:`, layers.map(l => l.id))
+    
+    // Find layers that contain timezone data
+    const timezoneLayers = layers.filter(layer => 
+      layer.id && 
+      !layer.id.includes('hover') && 
+      !layer.id.includes('highlights') &&
+      !layer.id.includes('border')
+    )
+    
+    console.log(`Found ${timezoneLayers.length} potential timezone layers:`, timezoneLayers.map(l => l.id))
+    
+    for (const layer of timezoneLayers) {
+      try {
+        const source = window.map.getSource(layer.source)
+        if (source && source._data && source._data.features) {
+          console.log(`Checking layer ${layer.id} with ${source._data.features.length} features`)
+          
+          // Look for features that match our highlighted timezones
+          const matchingFeatures = source._data.features.filter(feature => {
+            if (feature.properties) {
+              const props = feature.properties
+              return highlightedTimezones.some(tz => 
+                props.timezone === tz || 
+                props.name === tz || 
+                props.NAME === tz ||
+                props.timezone_name === tz ||
+                props.tz_name === tz ||
+                props.tzid === tz
+              )
+            }
+            return false
+          })
+          
+          if (matchingFeatures.length > 0) {
+            console.log(`Found ${matchingFeatures.length} matching features in layer ${layer.id}`)
+            // Create a highlight layer for these features
+            this.createHighlightFromFeatures(matchingFeatures, layer.id)
+            return
+          }
+        }
+      } catch (error) {
+        console.warn(`Error checking layer ${layer.id}:`, error)
+      }
+    }
+    
+    // If still no matches, create a simple overlay as last resort
+    console.log("No timezone boundaries found, creating simple overlay")
+    this.createSimpleOverlay(highlighted_timezones)
+  },
+  
+  createHighlightFromFeatures(features, sourceLayerId) {
+    try {
+      // Create a highlight layer using the actual timezone boundaries
+      window.map.addSource('timezone-highlights', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: features
+        }
+      })
+      
+      window.map.addLayer({
+        id: 'timezone-highlights',
+        type: 'fill',
+        source: 'timezone-highlights',
+        paint: {
+          'fill-color': 'rgba(59, 130, 246, 0.3)',
+          'fill-outline-color': 'rgba(59, 130, 246, 0.6)'
+        }
+      })
+      
+      console.log(`Created highlight layer from ${features.length} features in ${sourceLayerId}`)
+    } catch (error) {
+      console.error("Error creating highlight from features:", error)
+    }
+  },
+  
+  createSimpleOverlay(highlighted_timezones) {
+    // Create a simple overlay using the existing timezone polygons
+    const regions = []
+    
+    for (const tzInfo of highlighted_timezones) {
+      if (tzInfo.coverage > 0.1) {
+        const polygon = this.getTimezonePolygon(tzInfo.timezone)
+        if (polygon) {
+          regions.push({
+            type: 'Feature',
+            properties: { coverage: tzInfo.coverage },
+            geometry: polygon
+          })
+        }
+      }
+    }
+    
+    if (regions.length > 0) {
+      try {
+        window.map.addSource('timezone-overlay', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: regions
+          }
+        })
+        
+        window.map.addLayer({
+          id: 'timezone-overlay',
+          type: 'fill',
+          source: 'timezone-overlay',
+          paint: {
+            'fill-color': 'rgba(59, 130, 246, 0.3)',
+            'fill-outline-color': 'rgba(59, 130, 246, 0.6)'
+          }
+        })
+        
+        console.log("Created simple timezone overlay")
+      } catch (error) {
+        console.error("Error creating simple overlay:", error)
+      }
+    }
+  },
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+
+  destroyed() {
+    if (this.throttleTimeout) {
+      clearTimeout(this.throttleTimeout)
     }
   }
 }

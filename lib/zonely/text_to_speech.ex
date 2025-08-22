@@ -75,12 +75,19 @@ defmodule Zonely.TextToSpeech do
             end
             local_url
           {:error, _reason} ->
-            IO.puts("⚠️ Cache failed, using original URL: #{audio_url}")
-            # Only cache original URL if it's the user's native language
-            if target_language == (user.native_language || get_language_for_country(user.country)) do
-              update_forvo_cache(user, audio_url)
+            IO.puts("⚠️ Cache failed for URL: #{audio_url}")
+            # If this is a fake test URL, return nil to fall back to TTS
+            if String.contains?(audio_url, "/audios/mp3/") and not String.contains?(audio_url, "/audio/") do
+              IO.puts("🔄 Fake test URL detected, falling back to TTS")
+              nil
+            else
+              IO.puts("⚠️ Real URL failed to cache, using original: #{audio_url}")
+              # Only cache original URL if it's the user's native language
+              if target_language == (user.native_language || get_language_for_country(user.country)) do
+                update_forvo_cache(user, audio_url)
+              end
+              audio_url
             end
-            audio_url
         end
 
       {:error, reason} ->
@@ -410,11 +417,12 @@ defmodule Zonely.TextToSpeech do
     case String.upcase(country_code) do
       "US" -> "English"
       "GB" -> "English"
+      "AU" -> "English"
+      "CN" -> "Chinese"
       "SE" -> "Svenska"
       "JP" -> "Japanese"
       "IN" -> "Hindi"
       "ES" -> "Spanish"
-      "AU" -> "English"
       "EG" -> "Arabic"
       "BR" -> "Portuguese"
       _ -> "English"
@@ -430,6 +438,7 @@ defmodule Zonely.TextToSpeech do
       "US" -> nil  # Don't show text for English
       "GB" -> nil  # Don't show text for English
       "AU" -> nil  # Don't show text for English
+      "CN" -> "中文"
       "SE" -> "Svenska"
       "JP" -> "日本語"
       "IN" -> "हिन्दी"

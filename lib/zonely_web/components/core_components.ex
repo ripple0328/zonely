@@ -306,29 +306,29 @@ defmodule ZonelyWeb.CoreComponents do
       <!-- Phase 1 Actions -->
       <div class="space-y-2 mb-4">
         <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide">Quick Actions</h4>
-        
+
         <!-- Message Action -->
-        <.action_pill 
-          icon="💬" 
-          label="Message" 
+        <.action_pill
+          icon="💬"
+          label="Message"
           action="message"
           expanded={@expanded_action == "message"}
           user={@user}
         />
 
         <!-- Propose Meeting Action -->
-        <.action_pill 
-          icon="📅" 
-          label="Propose Meeting" 
+        <.action_pill
+          icon="📅"
+          label="Propose Meeting"
           action="propose_meeting"
           expanded={@expanded_action == "propose_meeting"}
           user={@user}
         />
 
         <!-- Pin Timezone Action -->
-        <.action_pill 
-          icon="📌" 
-          label="Pin Timezone" 
+        <.action_pill
+          icon="📌"
+          label="Pin Timezone"
           action="pin_timezone"
           expanded={@expanded_action == "pin_timezone"}
           user={@user}
@@ -338,29 +338,29 @@ defmodule ZonelyWeb.CoreComponents do
       <!-- Phase 2 Actions -->
       <div class="space-y-2 mb-4">
         <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide">Schedule</h4>
-        
+
         <!-- Reminder Action -->
-        <.action_pill 
-          icon="⏰" 
-          label="Set Reminder" 
+        <.action_pill
+          icon="⏰"
+          label="Set Reminder"
           action="reminder"
           expanded={@expanded_action == "reminder"}
           user={@user}
         />
 
         <!-- Notify Team Action -->
-        <.action_pill 
-          icon="🔔" 
-          label="Notify Team" 
+        <.action_pill
+          icon="🔔"
+          label="Notify Team"
           action="notify_team"
           expanded={@expanded_action == "notify_team"}
           user={@user}
         />
 
         <!-- Quick Status Action -->
-        <.action_pill 
-          icon="✅" 
-          label="Update Status" 
+        <.action_pill
+          icon="✅"
+          label="Update Status"
           action="quick_status"
           expanded={@expanded_action == "quick_status"}
           user={@user}
@@ -370,29 +370,29 @@ defmodule ZonelyWeb.CoreComponents do
       <!-- Phase 3 Actions -->
       <div class="space-y-2">
         <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide">Collaborate</h4>
-        
+
         <!-- Whiteboard Action -->
-        <.action_pill 
-          icon="🎨" 
-          label="Share Whiteboard" 
+        <.action_pill
+          icon="🎨"
+          label="Share Whiteboard"
           action="whiteboard"
           expanded={@expanded_action == "whiteboard"}
           user={@user}
         />
 
         <!-- Quick Poll Action -->
-        <.action_pill 
-          icon="📊" 
-          label="Quick Poll" 
+        <.action_pill
+          icon="📊"
+          label="Quick Poll"
           action="quick_poll"
           expanded={@expanded_action == "quick_poll"}
           user={@user}
         />
 
         <!-- Share Doc Action -->
-        <.action_pill 
-          icon="📄" 
-          label="Share Document" 
+        <.action_pill
+          icon="📄"
+          label="Share Document"
           action="share_doc"
           expanded={@expanded_action == "share_doc"}
           user={@user}
@@ -428,9 +428,9 @@ defmodule ZonelyWeb.CoreComponents do
       >
         <span class="text-base"><%= @icon %></span>
         <span class="text-sm font-medium flex-1 text-left"><%= @label %></span>
-        <.icon 
-          name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-right"} 
-          class="w-4 h-4 transition-transform duration-200" 
+        <.icon
+          name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-right"}
+          class="w-4 h-4 transition-transform duration-200"
         />
       </button>
 
@@ -809,7 +809,7 @@ defmodule ZonelyWeb.CoreComponents do
           >
             💬
           </button>
-          
+
           <!-- Meeting -->
           <button
             phx-click="toggle_quick_action"
@@ -824,7 +824,7 @@ defmodule ZonelyWeb.CoreComponents do
           >
             📅
           </button>
-          
+
           <!-- Pin Timezone -->
           <button
             phx-click="quick_pin"
@@ -836,7 +836,7 @@ defmodule ZonelyWeb.CoreComponents do
           </button>
         </div>
       </div>
-      
+
       <!-- Expanded Quick Forms -->
       <div :if={@expanded_action} class="mt-2">
         <.quick_action_form action={@expanded_action} user={@user} />

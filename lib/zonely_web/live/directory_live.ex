@@ -248,12 +248,13 @@ defmodule ZonelyWeb.DirectoryLive do
                         phx-click="play_english_pronunciation"
                         phx-value-user_id={user.id}
                         onclick="console.log('🔴 Button clicked!', this);"
-                        class="inline-flex items-center justify-center w-6 h-6 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                        class="inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors text-xs"
                         title="Play English pronunciation"
                       >
                         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
                         </svg>
+                        <span class="font-medium">EN</span>
                       </button>
 
                       <!-- Native pronunciation button (if different from English) -->

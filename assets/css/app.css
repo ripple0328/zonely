@@ -49,6 +49,26 @@ html, body {
   border-top-color: white;
 }
 
+/* Overlap Heatmap Marker States */
+.team-marker-pin.state-working .relative > img,
+.team-marker-pin.state-working .relative > div {
+  border-color: #22c55e !important; /* green */
+  box-shadow: 0 0 0 2px #22c55e;
+}
+
+.team-marker-pin.state-edge .relative > img,
+.team-marker-pin.state-edge .relative > div {
+  border-color: #eab308 !important; /* yellow */
+  box-shadow: 0 0 0 2px #eab308;
+}
+
+.team-marker-pin.state-off .relative > img,
+.team-marker-pin.state-off .relative > div {
+  border-color: #9ca3af !important; /* grey */
+  box-shadow: 0 0 0 2px #9ca3af;
+  opacity: 0.7;
+}
+
 .team-popup {
   border-radius: 8px;
 }
@@ -258,4 +278,43 @@ html, body {
   border-radius: 50%;
   flex-shrink: 0;
   margin-top: -0.0625rem; /* Slight upward adjustment for perfect center */
+}
+
+/* Collapsible overlap panel animations */
+.overlap-panel-toggle {
+  transform: translateY(0);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.overlap-panel-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.overlap-panel-content {
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: bottom center;
+}
+
+.overlap-panel-collapsed {
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  opacity: 0;
+}
+
+.overlap-panel-expanded {
+  max-height: 500px !important;
+  opacity: 1;
+}
+
+/* Smooth icon rotation */
+.toggle-icon {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-icon.rotated {
+  transform: rotate(180deg);
 }
