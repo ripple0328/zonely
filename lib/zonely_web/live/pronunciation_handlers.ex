@@ -26,16 +26,14 @@ defmodule ZonelyWeb.Live.PronunciationHandlers do
     case Audio.get_native_pronunciation(user) do
       {:audio_url, url} ->
         IO.puts("🔊 AUDIO URL (Native): #{user.name} → #{url}")
-        {:noreply, 
-         socket
-         |> Phoenix.LiveView.assign(:current_audio_url, url)
+        {:noreply,
+         Phoenix.Socket.assign(socket, current_audio_url: url)
          |> Phoenix.LiveView.push_event("play_audio", %{url: url})}
 
       {:tts, text, lang} ->
         IO.puts("🔊 TTS (Native): #{user.name} → '#{text}' (#{lang})")
         {:noreply,
-         socket
-         |> Phoenix.LiveView.assign(:current_tts_text, text)
+         Phoenix.Socket.assign(socket, current_tts_text: text)
          |> Phoenix.LiveView.push_event("speak_simple", %{text: text, lang: lang})}
     end
   end
@@ -57,16 +55,14 @@ defmodule ZonelyWeb.Live.PronunciationHandlers do
     case Audio.get_english_pronunciation(user) do
       {:audio_url, url} ->
         IO.puts("🔊 AUDIO URL (English): #{user.name} → #{url}")
-        {:noreply, 
-         socket
-         |> Phoenix.LiveView.assign(:current_audio_url, url)
+        {:noreply,
+         Phoenix.Socket.assign(socket, current_audio_url: url)
          |> Phoenix.LiveView.push_event("play_audio", %{url: url})}
 
       {:tts, text, lang} ->
         IO.puts("🔊 TTS (English): #{user.name} → '#{text}' (#{lang})")
         {:noreply,
-         socket
-         |> Phoenix.LiveView.assign(:current_tts_text, text)
+         Phoenix.Socket.assign(socket, current_tts_text: text)
          |> Phoenix.LiveView.push_event("speak_simple", %{text: text, lang: lang})}
     end
   end
