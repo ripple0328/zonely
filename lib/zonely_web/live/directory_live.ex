@@ -2,7 +2,7 @@ defmodule ZonelyWeb.DirectoryLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.Accounts
-  alias Zonely.Audio
+  alias Zonely.PronunceName
 
   @impl true
   def mount(_params, _session, socket) do
@@ -35,14 +35,14 @@ defmodule ZonelyWeb.DirectoryLive do
     @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = Audio.play_pronunciation(user.name, user.native_language, user.country)
+    {event_type, event_data} = PronunceName.play(user.name, user.native_language, user.country)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = Audio.play_pronunciation(user.name, "en-US", user.country)
+    {event_type, event_data} = PronunceName.play(user.name, "en-US", user.country)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
@@ -216,12 +216,12 @@ defmodule ZonelyWeb.DirectoryLive do
                         phx-value-user_id={user.id}
                         onclick="console.log('🔴 Native button clicked!', this);"
                         class="inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors text-xs"
-                        title={"Play #{Audio.get_native_language_name(user.country)} pronunciation"}
+                        title={"Play #{PronunceName.get_native_language_name(user.country)} pronunciation"}
                       >
                         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
                         </svg>
-                        <span class="font-medium"><%= String.slice(Audio.get_native_language_name(user.country), 0, 2) |> String.upcase() %></span>
+                        <span class="font-medium"><%= String.slice(PronunceName.get_native_language_name(user.country), 0, 2) |> String.upcase() %></span>
                       </button>
                     </div>
                   </dt>
@@ -240,7 +240,7 @@ defmodule ZonelyWeb.DirectoryLive do
               </div>
 
               <div :if={user.name_native && user.name_native != user.name} class="mt-2">
-                <div class="text-xs text-gray-500"><%= Audio.get_native_language_name(user.country) %></div>
+                <div class="text-xs text-gray-500"><%= PronunceName.get_native_language_name(user.country) %></div>
                 <div class="text-sm font-medium text-gray-800"><%= user.name_native %></div>
               </div>
             </div>

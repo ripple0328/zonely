@@ -2,7 +2,7 @@ defmodule ZonelyWeb.MapLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.Accounts
-  alias Zonely.Audio
+  alias Zonely.PronunceName
 
   @topic "users:schedule"
   @edge_minutes 60
@@ -52,14 +52,14 @@ defmodule ZonelyWeb.MapLive do
         @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = Audio.play_pronunciation(user.name, user.native_language, user.country)
+    {event_type, event_data} = PronunceName.play(user.name, user.native_language, user.country)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = Audio.play_pronunciation(user.name, "en-US", user.country)
+    {event_type, event_data} = PronunceName.play(user.name, "en-US", user.country)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
@@ -353,7 +353,7 @@ defmodule ZonelyWeb.MapLive do
               <!-- Native name display -->
               <div :if={@selected_user.name_native && @selected_user.name_native != @selected_user.name}>
                 <label class="block text-sm font-medium text-gray-700">
-                  Native Name (<%= Audio.get_native_language_name(@selected_user.country) %>)
+                  Native Name (<%= PronunceName.get_native_language_name(@selected_user.country) %>)
                 </label>
                 <p class="text-lg text-gray-900 mb-2"><%= @selected_user.name_native %></p>
               </div>
