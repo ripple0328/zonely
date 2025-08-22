@@ -420,11 +420,6 @@ defmodule ZonelyWeb.MapLive do
                 <p class="text-lg text-gray-900 mb-2"><%= @selected_user.name_native %></p>
               </div>
 
-              <div :if={@selected_user.pronouns}>
-                <label class="block text-sm font-medium text-gray-700">Pronouns</label>
-                <p class="text-sm text-gray-900"><%= @selected_user.pronouns %></p>
-              </div>
-
               <div>
                 <label class="block text-sm font-medium text-gray-700">Role</label>
                 <p class="text-sm text-gray-900"><%= @selected_user.role || "Team Member" %></p>

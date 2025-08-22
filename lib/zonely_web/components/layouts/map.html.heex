@@ -3,10 +3,44 @@
   <div class="flex items-center justify-between px-4 py-3">
     <div class="flex items-center gap-4">
       <.logo_link class="flex items-center gap-2" />
-      <h1 class="text-lg font-semibold text-gray-700">Global Team Map</h1>
+      <h1 class="text-lg font-semibold text-gray-700 hidden sm:block">Global Team Map</h1>
     </div>
     
-    <nav class="flex items-center gap-1">
+    <!-- Desktop Navigation -->
+    <nav class="hidden md:flex items-center gap-1">
+      <.link navigate="/" class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-md">
+        Map
+      </.link>
+      <.link navigate="/directory" class="px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
+        Directory
+      </.link>
+      <.link navigate="/work-hours" class="px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
+        Work Hours
+      </.link>
+      <.link navigate="/holidays" class="px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
+        Holidays
+      </.link>
+    </nav>
+
+    <!-- Mobile Burger Menu Button -->
+    <button
+      id="mobile-menu-button"
+      class="md:hidden p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+      phx-click={JS.toggle(to: "#mobile-menu")}
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile Navigation Menu -->
+  <div
+    id="mobile-menu"
+    class="md:hidden hidden bg-white border-t border-gray-200"
+    phx-click-away={JS.hide(to: "#mobile-menu")}
+  >
+    <nav class="flex flex-col space-y-1 px-4 py-2">
       <.link navigate="/" class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-md">
         Map
       </.link>

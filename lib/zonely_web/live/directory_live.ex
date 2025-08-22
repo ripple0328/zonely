@@ -290,9 +290,7 @@ defmodule ZonelyWeb.DirectoryLive do
                   <%= user.country %>
                 </span>
               </div>
-              <div :if={user.pronouns} class="mt-2 text-sm text-gray-600">
-                <%= user.pronouns %>
-              </div>
+
               <div :if={user.name_native && user.name_native != user.name} class="mt-2">
                 <div class="text-xs text-gray-500"><%= TextToSpeech.get_native_language_name(user.country) %></div>
                 <div class="text-sm font-medium text-gray-800"><%= user.name_native %></div>
