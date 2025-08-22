@@ -1,7 +1,7 @@
 defmodule ZonelyWeb.Live.PronunciationHandlers do
   @moduledoc """
   Shared pronunciation logic for LiveViews.
-  
+
   This module provides common functionality for handling pronunciation
   events across different LiveView modules. It returns data that the
   calling LiveView can use to update its socket and push events.
@@ -12,7 +12,7 @@ defmodule ZonelyWeb.Live.PronunciationHandlers do
 
   @doc """
   Processes native pronunciation request and returns LiveView response data.
-  
+
   Returns a tuple that can be used directly in a LiveView handle_event:
   - {:noreply, socket} with appropriate assigns and push_event calls
   """
@@ -34,7 +34,7 @@ defmodule ZonelyWeb.Live.PronunciationHandlers do
 
   @doc """
   Processes English pronunciation request and returns LiveView response data.
-  
+
   Returns a tuple that can be used directly in a LiveView handle_event:
   - {:noreply, socket} with appropriate assigns and push_event calls
   """
