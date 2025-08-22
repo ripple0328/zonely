@@ -52,12 +52,36 @@ defmodule ZonelyWeb.MapLive do
 
       @impl true
   def handle_event("play_native_pronunciation", params, socket) do
-    PronunciationHandlers.handle_native_pronunciation(params, socket)
+    case PronunciationHandlers.handle_native_pronunciation(params, socket) do
+      {:audio_url, url} ->
+        {:noreply,
+         socket
+         |> assign(current_audio_url: url)
+         |> push_event("play_audio", %{url: url})}
+
+      {:tts, text, lang} ->
+        {:noreply,
+         socket
+         |> assign(current_tts_text: text)
+         |> push_event("speak_simple", %{text: text, lang: lang})}
+    end
   end
 
   @impl true
   def handle_event("play_english_pronunciation", params, socket) do
-    PronunciationHandlers.handle_english_pronunciation(params, socket)
+    case PronunciationHandlers.handle_english_pronunciation(params, socket) do
+      {:audio_url, url} ->
+        {:noreply,
+         socket
+         |> assign(current_audio_url: url)
+         |> push_event("play_audio", %{url: url})}
+
+      {:tts, text, lang} ->
+        {:noreply,
+         socket
+         |> assign(current_tts_text: text)
+         |> push_event("speak_simple", %{text: text, lang: lang})}
+    end
   end
 
   # Quick Actions Event Handlers
