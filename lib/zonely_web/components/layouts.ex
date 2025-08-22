@@ -9,6 +9,7 @@ defmodule ZonelyWeb.Layouts do
   the content for a specific page.
   """
   use ZonelyWeb, :html
+  alias Phoenix.LiveView.JS
 
   embed_templates "layouts/*"
 end
