@@ -1,47 +1,4 @@
-<!-- Top Navigation Bar -->
-<header class="fixed top-0 left-0 right-0 z-[1000] pointer-events-auto bg-white/95 backdrop-blur-sm border-b border-gray-200">
-  <div class="flex items-center justify-between px-4 py-3">
-    <div class="flex items-center gap-4">
-      <.logo_link class="flex items-center gap-2" />
-      <h1 class="text-lg font-semibold text-gray-700 hidden sm:block">Global Team Map</h1>
-    </div>
-    
-    <!-- Desktop Navigation -->
-    <nav class="hidden lg:flex items-center gap-1">
-      <.link navigate="/" class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-md">Map</.link>
-      <.link navigate="/directory" class="px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">Directory</.link>
-      <.link navigate="/work-hours" class="px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">Work Hours</.link>
-      <.link navigate="/holidays" class="px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">Holidays</.link>
-    </nav>
-
-    <!-- Mobile Burger Menu Button -->
-    <button
-      id="mobile-menu-button"
-      class="lg:hidden p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-      phx-click={JS.toggle(to: "#mobile-menu", display: "block")}
-      aria-controls="mobile-menu"
-      aria-expanded="false"
-    >
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-      </svg>
-    </button>
-  </div>
-
-  <!-- Mobile Navigation Menu -->
-  <div
-    id="mobile-menu"
-    class="lg:hidden block absolute left-0 right-0 top-full mt-1 bg-white border-t border-gray-200 shadow-sm z-[1100]"
-    phx-click-away={JS.hide(to: "#mobile-menu")}
-  >
-    <nav class="flex flex-col space-y-1 px-4 py-2">
-      <.link navigate="/" phx-click={JS.hide(to: "#mobile-menu")} class="px-3 py-3 text-base font-medium text-gray-800 rounded-md hover:bg-gray-100">Map</.link>
-      <.link navigate="/directory" phx-click={JS.hide(to: "#mobile-menu")} class="px-3 py-3 text-base font-medium text-gray-800 rounded-md hover:bg-gray-100">Directory</.link>
-      <.link navigate="/work-hours" phx-click={JS.hide(to: "#mobile-menu")} class="px-3 py-3 text-base font-medium text-gray-800 rounded-md hover:bg-gray-100">Work Hours</.link>
-      <.link navigate="/holidays" phx-click={JS.hide(to: "#mobile-menu")} class="px-3 py-3 text-base font-medium text-gray-800 rounded-md hover:bg-gray-100">Holidays</.link>
-    </nav>
-  </div>
-</header>
+<.navbar current_page="map" page_title="Global Team Map" />
 
 <!-- Map Legend -->
 <.map_legend />

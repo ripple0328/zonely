@@ -934,7 +934,106 @@ defmodule ZonelyWeb.CoreComponents do
     seed = name |> String.downcase() |> String.replace(" ", "-")
     "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
   end
- 
+
+  @doc """
+  Renders the main navigation bar with mobile support.
+  """
+  attr :current_page, :string, default: "map", doc: "the currently active page"
+  attr :page_title, :string, default: "Global Team Map", doc: "the page title to display"
+
+  def navbar(assigns) do
+    ~H"""
+    <header class="fixed top-0 left-0 right-0 z-[1000] pointer-events-auto bg-white/95 backdrop-blur-sm border-b border-gray-200">
+      <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-4">
+          <.logo_link class="flex items-center gap-2" />
+          <h1 class="text-lg font-semibold text-gray-700 hidden sm:block"><%= @page_title %></h1>
+        </div>
+        
+        <!-- Desktop Navigation -->
+        <nav class="hidden lg:flex items-center gap-1">
+          <.nav_link navigate="/" current={@current_page == "map"}>Map</.nav_link>
+          <.nav_link navigate="/directory" current={@current_page == "directory"}>Directory</.nav_link>
+          <.nav_link navigate="/work-hours" current={@current_page == "work-hours"}>Work Hours</.nav_link>
+          <.nav_link navigate="/holidays" current={@current_page == "holidays"}>Holidays</.nav_link>
+        </nav>
+
+        <!-- Mobile Burger Menu Button -->
+        <button
+          id="mobile-menu-button"
+          class="lg:hidden p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          phx-click={JS.toggle(to: "#mobile-menu", display: "block")}
+          aria-controls="mobile-menu"
+          aria-expanded="false"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mobile Navigation Menu -->
+      <div
+        id="mobile-menu"
+        class="lg:hidden block absolute left-0 right-0 top-full mt-1 bg-white border-t border-gray-200 shadow-sm z-[1100]"
+        phx-click-away={JS.hide(to: "#mobile-menu")}
+      >
+        <nav class="flex flex-col space-y-1 px-4 py-2">
+          <.mobile_nav_link navigate="/" current={@current_page == "map"}>Map</.mobile_nav_link>
+          <.mobile_nav_link navigate="/directory" current={@current_page == "directory"}>Directory</.mobile_nav_link>
+          <.mobile_nav_link navigate="/work-hours" current={@current_page == "work-hours"}>Work Hours</.mobile_nav_link>
+          <.mobile_nav_link navigate="/holidays" current={@current_page == "holidays"}>Holidays</.mobile_nav_link>
+        </nav>
+      </div>
+    </header>
+    """
+  end
+
+  @doc """
+  Renders a desktop navigation link.
+  """
+  attr :navigate, :string, required: true
+  attr :current, :boolean, default: false
+  slot :inner_block, required: true
+
+  def nav_link(assigns) do
+    ~H"""
+    <.link 
+      navigate={@navigate} 
+      class={[
+        "px-3 py-2 text-sm font-medium rounded-md transition-colors",
+        @current && "text-blue-700 bg-blue-50",
+        !@current && "text-gray-700 hover:bg-gray-100"
+      ]}
+    >
+      <%= render_slot(@inner_block) %>
+    </.link>
+    """
+  end
+
+  @doc """
+  Renders a mobile navigation link.
+  """
+  attr :navigate, :string, required: true
+  attr :current, :boolean, default: false
+  slot :inner_block, required: true
+
+  def mobile_nav_link(assigns) do
+    ~H"""
+    <.link 
+      navigate={@navigate} 
+      phx-click={JS.hide(to: "#mobile-menu")} 
+      class={[
+        "px-3 py-3 text-base font-medium rounded-md transition-colors",
+        @current && "text-blue-800 bg-blue-50",
+        !@current && "text-gray-800 hover:bg-gray-100"
+      ]}
+    >
+      <%= render_slot(@inner_block) %>
+    </.link>
+    """
+  end
+
   @doc """
   Renders the Map Legend used on the map pages.
   """
