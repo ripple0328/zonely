@@ -1,6 +1,6 @@
 defmodule Zonely.Audio.PronunciationServiceTest do
   use ExUnit.Case, async: true
-  
+
   alias Zonely.Audio.PronunciationService
   alias Zonely.Accounts.User
 

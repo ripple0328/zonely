@@ -2,7 +2,8 @@ defmodule ZonelyWeb.DirectoryLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.Accounts
-  alias Zonely.TextToSpeech
+  alias Zonely.Audio
+  alias ZonelyWeb.Live.PronunciationHandlers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -33,70 +34,18 @@ defmodule ZonelyWeb.DirectoryLive do
   end
 
   @impl true
-  def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-
-    # Get the native language for Forvo API call
-    native_lang = user.native_language || TextToSpeech.get_language_for_country(user.country)
-
-    IO.puts(
-      "🎯 NATIVE: Fetching pronunciation for #{user.name} in native language #{native_lang} (country: #{user.country})"
-    )
-
-    # Use the improved name pronunciation system with explicit native language
-    case TextToSpeech.get_name_pronunciation(user, native_lang) do
-      {:audio_url, url} ->
-        IO.puts("🔊 AUDIO URL (Native): #{user.name} → #{url}")
-        {:noreply, socket |> push_event("play_audio_url", %{url: url})}
-
-      {:tts, _text, _lang} ->
-        # For native pronunciation, use the native name and language
-        native_text = user.name_native || user.name
-
-        IO.puts("🔊 TTS (Native): #{user.name} → '#{native_text}' (#{native_lang})")
-
-        {:noreply,
-         socket
-         |> push_event("speak_text", %{
-           text: native_text,
-           lang: native_lang,
-           rate: 0.9,
-           pitch: 1.0
-         })}
-    end
+  def handle_event("play_native_pronunciation", params, socket) do
+    PronunciationHandlers.handle_native_pronunciation(params, socket)
   end
 
   @impl true
-  def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-
-    IO.puts(
-      "🎯 ENGLISH: Fetching pronunciation for #{user.name} in en-US (country: #{user.country}, native: #{user.native_language})"
-    )
-
-    # Use the improved name pronunciation system specifically for English
-    case TextToSpeech.get_name_pronunciation(user, "en-US") do
-      {:audio_url, url} ->
-        IO.puts("🔊 AUDIO URL (English): #{user.name} → #{url}")
-        {:noreply, socket |> push_event("play_audio_url", %{url: url})}
-
-      {:tts, text, _lang} ->
-        IO.puts("🔊 TTS (English): #{user.name} → '#{text}' (en-US)")
-        # Enhanced parameters for better English pronunciation
-        {:noreply,
-         socket
-         |> push_event("speak_text", %{
-           text: text,
-           lang: "en-US",
-           rate: 0.85,
-           pitch: 1.05
-         })}
-    end
+  def handle_event("play_english_pronunciation", params, socket) do
+    PronunciationHandlers.handle_english_pronunciation(params, socket)
   end
 
   # Inline Actions Event Handlers
   @impl true
-  def handle_event("toggle_action", %{"action" => action, "user_id" => user_id}, socket) do
+  def handle_event("toggle_action", %{"action" => action, "user_id" => _user_id}, socket) do
     current_action = socket.assigns.expanded_action
     new_action = if current_action == action, do: nil, else: action
     {:noreply, assign(socket, expanded_action: new_action)}
@@ -263,17 +212,13 @@ defmodule ZonelyWeb.DirectoryLive do
                         phx-click="play_native_pronunciation"
                         phx-value-user_id={user.id}
                         onclick="console.log('🔴 Native button clicked!', this);"
-                        class={if TextToSpeech.get_native_language_display_name(user.country) do
-                          "inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors text-xs"
-                        else
-                          "inline-flex items-center justify-center w-6 h-6 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
-                        end}
-                        title={"Play #{TextToSpeech.get_native_language_name(user.country)} pronunciation"}
+                        class="inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors text-xs"
+                        title={"Play #{Audio.get_native_language_name(user.country)} pronunciation"}
                       >
                         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
                         </svg>
-                        <span :if={TextToSpeech.get_native_language_display_name(user.country)} class="font-medium"><%= TextToSpeech.get_native_language_display_name(user.country) %></span>
+                        <span class="font-medium"><%= String.slice(Audio.get_native_language_name(user.country), 0, 2) |> String.upcase() %></span>
                       </button>
                     </div>
                   </dt>
@@ -292,7 +237,7 @@ defmodule ZonelyWeb.DirectoryLive do
               </div>
 
               <div :if={user.name_native && user.name_native != user.name} class="mt-2">
-                <div class="text-xs text-gray-500"><%= TextToSpeech.get_native_language_name(user.country) %></div>
+                <div class="text-xs text-gray-500"><%= Audio.get_native_language_name(user.country) %></div>
                 <div class="text-sm font-medium text-gray-800"><%= user.name_native %></div>
               </div>
             </div>

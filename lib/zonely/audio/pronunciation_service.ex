@@ -1,7 +1,7 @@
 defmodule Zonely.Audio.PronunciationService do
   @moduledoc """
   Service for handling pronunciation data retrieval.
-  
+
   This module encapsulates the logic for getting pronunciation data,
   including integration with external services like Forvo and fallback
   to text-to-speech.
@@ -12,10 +12,10 @@ defmodule Zonely.Audio.PronunciationService do
 
   @doc """
   Gets pronunciation data for a user in the specified language.
-  
+
   First attempts to get a pre-recorded audio URL, then falls back to TTS.
   """
-  @spec get_pronunciation(User.t(), String.t()) :: 
+  @spec get_pronunciation(User.t(), String.t()) ::
     {:audio_url, String.t()} | {:tts, String.t(), String.t()}
   def get_pronunciation(%User{} = user, language) do
     # Try to get pre-recorded pronunciation first
@@ -34,11 +34,11 @@ defmodule Zonely.Audio.PronunciationService do
       # Use native name if available and language matches user's native language
       user.name_native && language == user.native_language ->
         user.name_native
-      
+
       # Use native name if available and it's not English
       user.name_native && !String.starts_with?(language, "en") ->
         user.name_native
-      
+
       # Default to regular name
       true ->
         user.name

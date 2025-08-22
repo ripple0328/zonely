@@ -1,6 +1,6 @@
 defmodule Zonely.AudioTest do
   use ExUnit.Case, async: true
-  
+
   alias Zonely.Audio
   alias Zonely.Accounts.User
 

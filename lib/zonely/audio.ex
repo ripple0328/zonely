@@ -1,7 +1,7 @@
 defmodule Zonely.Audio do
   @moduledoc """
   The Audio context for handling pronunciation and audio playback functionality.
-  
+
   This module provides functions for:
   - Getting pronunciation data for user names
   - Handling text-to-speech requests
@@ -13,19 +13,19 @@ defmodule Zonely.Audio do
 
   @doc """
   Gets pronunciation data for a user in the specified language.
-  
+
   Returns either an audio URL for pre-recorded pronunciation or
   text data for text-to-speech synthesis.
-  
+
   ## Examples
-  
+
       iex> get_user_pronunciation(%User{name: "José"}, "es-ES")
       {:audio_url, "https://forvo.com/..."}
-      
+
       iex> get_user_pronunciation(%User{name: "John"}, "en-US")
       {:tts, "John", "en-US"}
   """
-  @spec get_user_pronunciation(User.t(), String.t()) :: 
+  @spec get_user_pronunciation(User.t(), String.t()) ::
     {:audio_url, String.t()} | {:tts, String.t(), String.t()}
   def get_user_pronunciation(%User{} = user, language) do
     PronunciationService.get_pronunciation(user, language)
@@ -33,10 +33,10 @@ defmodule Zonely.Audio do
 
   @doc """
   Gets the native language pronunciation for a user.
-  
+
   Uses the user's native_language field or derives it from their country.
   """
-  @spec get_native_pronunciation(User.t()) :: 
+  @spec get_native_pronunciation(User.t()) ::
     {:audio_url, String.t()} | {:tts, String.t(), String.t()}
   def get_native_pronunciation(%User{} = user) do
     native_lang = user.native_language || derive_language_from_country(user.country)
@@ -46,7 +46,7 @@ defmodule Zonely.Audio do
   @doc """
   Gets English pronunciation for a user.
   """
-  @spec get_english_pronunciation(User.t()) :: 
+  @spec get_english_pronunciation(User.t()) ::
     {:audio_url, String.t()} | {:tts, String.t(), String.t()}
   def get_english_pronunciation(%User{} = user) do
     get_user_pronunciation(user, "en-US")
@@ -54,12 +54,12 @@ defmodule Zonely.Audio do
 
   @doc """
   Gets the native language name for display purposes.
-  
+
   ## Examples
-  
+
       iex> Zonely.Audio.get_native_language_name("ES")
       "Spanish"
-      
+
       iex> Zonely.Audio.get_native_language_name("US")
       "English"
   """
@@ -117,12 +117,12 @@ defmodule Zonely.Audio do
 
   @doc """
   Derives a language code from a country code.
-  
+
   ## Examples
-  
+
       iex> Zonely.Audio.derive_language_from_country("ES")
       "es-ES"
-      
+
       iex> Zonely.Audio.derive_language_from_country("US")
       "en-US"
   """

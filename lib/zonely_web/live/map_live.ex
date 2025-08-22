@@ -3,6 +3,7 @@ defmodule ZonelyWeb.MapLive do
 
   alias Zonely.Accounts
   alias Zonely.Audio
+  alias ZonelyWeb.Live.PronunciationHandlers
 
   @topic "users:schedule"
   @edge_minutes 60
@@ -49,50 +50,14 @@ defmodule ZonelyWeb.MapLive do
     {:noreply, assign(socket, selected_user: nil)}
   end
 
-    @impl true
-  def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-
-    IO.puts("🎯 NATIVE: Fetching pronunciation for #{user.name}")
-
-    case Audio.get_native_pronunciation(user) do
-      {:audio_url, url} ->
-        IO.puts("🔊 AUDIO URL (Native): #{user.name} → #{url}")
-        {:noreply, 
-         socket
-         |> assign(:current_audio_url, url)
-         |> push_event("play_audio", %{url: url})}
-
-      {:tts, text, lang} ->
-        IO.puts("🔊 TTS (Native): #{user.name} → '#{text}' (#{lang})")
-        {:noreply,
-         socket
-         |> assign(:current_tts_text, text)
-         |> push_event("speak_simple", %{text: text, lang: lang})}
-    end
+      @impl true
+  def handle_event("play_native_pronunciation", params, socket) do
+    PronunciationHandlers.handle_native_pronunciation(params, socket)
   end
 
-    @impl true
-  def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-
-    IO.puts("🎯 ENGLISH: Fetching pronunciation for #{user.name}")
-
-    case Audio.get_english_pronunciation(user) do
-      {:audio_url, url} ->
-        IO.puts("🔊 AUDIO URL (English): #{user.name} → #{url}")
-        {:noreply, 
-         socket
-         |> assign(:current_audio_url, url)
-         |> push_event("play_audio", %{url: url})}
-
-      {:tts, text, lang} ->
-        IO.puts("🔊 TTS (English): #{user.name} → '#{text}' (#{lang})")
-        {:noreply,
-         socket
-         |> assign(:current_tts_text, text)
-         |> push_event("speak_simple", %{text: text, lang: lang})}
-    end
+  @impl true
+  def handle_event("play_english_pronunciation", params, socket) do
+    PronunciationHandlers.handle_english_pronunciation(params, socket)
   end
 
   # Quick Actions Event Handlers
