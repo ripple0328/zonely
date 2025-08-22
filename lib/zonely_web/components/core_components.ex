@@ -949,7 +949,7 @@ defmodule ZonelyWeb.CoreComponents do
           <.logo_link class="flex items-center gap-2" />
           <h1 class="text-lg font-semibold text-gray-700 hidden sm:block"><%= @page_title %></h1>
         </div>
-        
+
         <!-- Desktop Navigation -->
         <nav class="hidden lg:flex items-center gap-1">
           <.nav_link navigate="/" current={@current_page == "map"}>Map</.nav_link>
@@ -998,8 +998,8 @@ defmodule ZonelyWeb.CoreComponents do
 
   def nav_link(assigns) do
     ~H"""
-    <.link 
-      navigate={@navigate} 
+    <.link
+      navigate={@navigate}
       class={[
         "px-3 py-2 text-sm font-medium rounded-md transition-colors",
         @current && "text-blue-700 bg-blue-50",
@@ -1020,9 +1020,9 @@ defmodule ZonelyWeb.CoreComponents do
 
   def mobile_nav_link(assigns) do
     ~H"""
-    <.link 
-      navigate={@navigate} 
-      phx-click={JS.hide(to: "#mobile-menu")} 
+    <.link
+      navigate={@navigate}
+      phx-click={JS.hide(to: "#mobile-menu")}
       class={[
         "px-3 py-3 text-base font-medium rounded-md transition-colors",
         @current && "text-blue-800 bg-blue-50",
