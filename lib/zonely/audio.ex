@@ -54,14 +54,14 @@ defmodule Zonely.Audio do
 
       @doc """
   Plays pronunciation for a name in the specified language.
-  
+
   Handles the complete flow internally:
   1. Check cache
   2. Fetch from remote if needed
   3. Fall back to TTS if no audio available
-  
+
   Returns a single event type that LiveView can push directly.
-  
+
   ## Parameters
   - name: The name to pronounce (e.g., "María García")
   - language: Language code (e.g., "es-ES", "en-US", nil)
@@ -71,11 +71,11 @@ defmodule Zonely.Audio do
   def play_pronunciation(name, language, country) when is_binary(name) and is_binary(country) do
     # Use the language directly, or derive from country if needed
     target_lang = if language && language != "", do: language, else: derive_language_from_country(country)
-    
+
     case get_name_pronunciation(name, target_lang) do
       {:audio_url, url} ->
         {:play_audio, %{url: url}}
-        
+
       {:tts, text, lang} ->
         {:play_tts, %{text: text, lang: lang}}
     end
@@ -83,7 +83,7 @@ defmodule Zonely.Audio do
 
     @doc """
   Gets pronunciation for a name in the specified language.
-  
+
   ## Parameters
   - name: The name to get pronunciation for
   - language: Target language code
@@ -92,11 +92,21 @@ defmodule Zonely.Audio do
   def get_name_pronunciation(name, language) do
     # Create a minimal user-like struct for the PronunciationService
     # TODO: Refactor PronunciationService to not depend on User struct
+    # Use a default country to avoid nil issues
+    default_country = case language do
+      "en-US" -> "US"
+      "en-GB" -> "GB"
+      "es-ES" -> "ES"
+      "de-DE" -> "DE"
+      "fr-FR" -> "FR"
+      _ -> "US"  # Default fallback
+    end
+    
     user_like = %User{
       name: name,
       id: nil,
-      country: nil,
-      native_language: nil,
+      country: default_country,
+      native_language: language,
       forvo_audio_url: nil,
       forvo_last_checked: nil
     }
