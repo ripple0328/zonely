@@ -22,7 +22,6 @@ defmodule Zonely.PronunceName do
   """
 
   require Logger
-  alias Countries
 
   @doc """
   Plays pronunciation for a name.

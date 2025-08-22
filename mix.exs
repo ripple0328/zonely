@@ -50,6 +50,7 @@ defmodule Zonely.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
+      {:countries, "~> 1.6"},
       {:req, "~> 0.5"},
       {:tidewave, "~> 0.4", only: :dev}
     ]

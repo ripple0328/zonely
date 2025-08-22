@@ -13,29 +13,52 @@ export function setupSimpleAudio() {
     console.log('🎤 Available TTS voices:', availableVoices.length);
   }
 
-  // Get the best voice for a given language
+  // Get the best voice for a given language, prioritizing natural-sounding voices
   function getBestVoice(lang) {
     if (!voicesLoaded || availableVoices.length === 0) {
       return null;
     }
 
-    // Prefer local voices, then find best match for language
+    const langPrefix = lang.split('-')[0];
+    
+    // Prefer local voices for better quality and responsiveness
     const localVoices = availableVoices.filter(voice => voice.localService);
-    const allVoices = availableVoices;
+    
+    // Look for high-quality voice names (these tend to sound more natural)
+    const preferredVoiceNames = [
+      'Samantha', 'Alex', 'Victoria', 'Daniel', 'Karen', 'Moira', 'Tessa',
+      'Ava', 'Allison', 'Susan', 'Vicki', 'Princess', 'Veena', 'Fiona'
+    ];
 
-    // Try local voices first, then all voices
-    for (const voiceSet of [localVoices, allVoices]) {
-      // Exact language match
-      let voice = voiceSet.find(v => v.lang === lang);
-      if (voice) return voice;
-
-      // Language prefix match (e.g., 'en' for 'en-US')
-      const langPrefix = lang.split('-')[0];
-      voice = voiceSet.find(v => v.lang.startsWith(langPrefix));
-      if (voice) return voice;
+    // Try to find preferred voices first (local)
+    for (const voiceName of preferredVoiceNames) {
+      const voice = localVoices.find(v => 
+        v.name.includes(voiceName) && 
+        (v.lang === lang || v.lang.startsWith(langPrefix))
+      );
+      if (voice) {
+        console.log(`🎤 Found preferred local voice: ${voice.name} (${voice.lang})`);
+        return voice;
+      }
     }
 
-    // Fallback to first available voice
+    // Try local voices with exact language match
+    let voice = localVoices.find(v => v.lang === lang);
+    if (voice) return voice;
+
+    // Try local voices with language prefix match
+    voice = localVoices.find(v => v.lang.startsWith(langPrefix));
+    if (voice) return voice;
+
+    // Fallback to any voice with exact language match
+    voice = availableVoices.find(v => v.lang === lang);
+    if (voice) return voice;
+
+    // Fallback to any voice with language prefix match
+    voice = availableVoices.find(v => v.lang.startsWith(langPrefix));
+    if (voice) return voice;
+
+    // Final fallback to first available voice
     return availableVoices[0] || null;
   }
 
@@ -79,12 +102,12 @@ export function setupSimpleAudio() {
       }
       speechSynthesis.cancel();
       
-      // Create utterance with enhanced settings
+      // Create utterance with friendly, natural settings
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
-      utterance.rate = 0.9;    // Slightly slower for clarity
-      utterance.pitch = 1.0;   // Natural pitch
-      utterance.volume = 0.8;  // Comfortable volume
+      utterance.rate = 0.85;   // Slightly slower for warmth and clarity
+      utterance.pitch = 1.1;   // Slightly higher pitch for friendliness
+      utterance.volume = 0.9;  // Clear, confident volume
       
       // Select the best voice
       const bestVoice = getBestVoice(lang);
