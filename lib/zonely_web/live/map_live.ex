@@ -368,39 +368,24 @@ defmodule ZonelyWeb.MapLive do
                 <h3 class="text-lg font-medium text-gray-900">
                   <%= @selected_user.name %>
                 </h3>
-                <!-- Pronunciation buttons -->
-                <div class="flex items-center gap-1">
-                  <!-- English pronunciation button -->
+                <!-- Play pronunciation button -->
+
                   <button
                     phx-click="play_english_pronunciation"
                     phx-value-user_id={@selected_user.id}
-                    class="inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors text-xs"
-                    title="Play English pronunciation"
+                    class="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="Play name pronunciation"
                   >
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
                     </svg>
-                    <span class="font-medium">EN</span>
                   </button>
 
-                  <!-- Native pronunciation button (if different from English) -->
-                  <button
-                    :if={@selected_user.name_native && @selected_user.name_native != @selected_user.name}
-                    phx-click="play_native_pronunciation"
-                    phx-value-user_id={@selected_user.id}
-                    class={if TextToSpeech.get_native_language_display_name(@selected_user.country) do
-                      "inline-flex items-center justify-center gap-1 px-2 py-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors text-xs"
-                    else
-                      "inline-flex items-center justify-center w-6 h-6 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
-                    end}
-                    title={"Play #{TextToSpeech.get_native_language_name(@selected_user.country)} pronunciation"}
-                  >
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span :if={TextToSpeech.get_native_language_display_name(@selected_user.country)} class="font-medium"><%= TextToSpeech.get_native_language_display_name(@selected_user.country) %></span>
-                  </button>
-                </div>
+
+
+
+
+
               </div>
               <button
                 phx-click="hide_profile"
