@@ -1,12 +1,12 @@
 defmodule ZonelyWeb.HolidaysLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, DateUtils, Holidays}
+  alias Zonely.{Accounts, DateUtils, Geography, Holidays}
 
   @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_users()
-    countries = users |> Enum.map(& &1.country) |> Enum.uniq()
+    countries = Geography.unique_countries(users)
     holidays = load_holidays_for_countries(countries)
 
     {:ok, assign(socket, users: users, countries: countries, holidays: holidays)}
@@ -50,7 +50,7 @@ defmodule ZonelyWeb.HolidaysLive do
   end
 
   defp get_users_for_country(users, country) do
-    Enum.filter(users, fn user -> user.country == country end)
+    Geography.users_by_country(users, country)
   end
 
 

@@ -18,8 +18,8 @@ defmodule ZonelyWeb.ComponentCase do
       # The default endpoint for testing
       @endpoint ZonelyWeb.Endpoint
       
-      # Helper function to render a component
-      defp render_component(component, assigns) do
+      # Helper function to render a component (avoid import conflict)
+      defp render_component_test(component, assigns) do
         component
         |> Phoenix.LiveViewTest.render_component(assigns)
       end

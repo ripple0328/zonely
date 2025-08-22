@@ -1,7 +1,7 @@
 defmodule ZonelyWeb.WorkHoursLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, DateUtils}
+  alias Zonely.{Accounts, DateUtils, WorkingHours}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -38,12 +38,7 @@ defmodule ZonelyWeb.WorkHoursLive do
   end
 
   defp get_overlap_hours(selected_users) do
-    # Simplified overlap calculation - would need proper timezone math
-    if length(selected_users) >= 2 do
-      "09:00 - 17:00 UTC (overlap detected)"
-    else
-      "Select at least 2 users to see overlaps"
-    end
+    WorkingHours.calculate_overlap_hours(selected_users)
   end
 
 

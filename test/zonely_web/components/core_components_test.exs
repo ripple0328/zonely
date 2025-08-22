@@ -10,7 +10,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
       user = %User{name: "John Doe"}
       
       html = 
-        render_component(&user_avatar/1, %{user: user, size: 48})
+        render_component_test(&user_avatar/1, %{user: user, size: 48})
         
       assert html =~ "John Doe&#39;s avatar"
       assert html =~ "rounded-full"
@@ -21,7 +21,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "applies custom CSS classes" do
       user = %User{name: "Test User"}
       
-      html = render_component(&user_avatar/1, %{user: user, class: "custom-class"})
+      html = render_component_test(&user_avatar/1, %{user: user, class: "custom-class"})
       
       assert html =~ "custom-class"
     end
@@ -31,7 +31,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "renders English pronunciation button" do
       user = %User{id: 1, name: "John Doe", country: "US"}
       
-      html = render_component(&pronunciation_buttons/1, %{user: user})
+      html = render_component_test(&pronunciation_buttons/1, %{user: user})
       
       assert html =~ "play_english_pronunciation"
       assert html =~ "phx-value-user_id=\"1\""
@@ -46,7 +46,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         country: "ES"
       }
       
-      html = render_component(&pronunciation_buttons/1, %{user: user})
+      html = render_component_test(&pronunciation_buttons/1, %{user: user})
       
       assert html =~ "play_native_pronunciation"
       assert html =~ "SP"  # Spanish abbreviation
@@ -60,7 +60,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         country: "US"
       }
       
-      html = render_component(&pronunciation_buttons/1, %{user: user})
+      html = render_component_test(&pronunciation_buttons/1, %{user: user})
       
       assert html =~ "play_english_pronunciation"
       refute html =~ "play_native_pronunciation"
@@ -69,8 +69,8 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "applies different sizes correctly" do
       user = %User{id: 1, name: "Test", country: "US"}
       
-      small_html = render_component(&pronunciation_buttons/1, %{user: user, size: :small})
-      large_html = render_component(&pronunciation_buttons/1, %{user: user, size: :large})
+      small_html = render_component_test(&pronunciation_buttons/1, %{user: user, size: :small})
+      large_html = render_component_test(&pronunciation_buttons/1, %{user: user, size: :large})
       
       assert small_html =~ "w-3 h-3"
       assert large_html =~ "w-4 h-4"
@@ -79,7 +79,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "can hide labels" do
       user = %User{id: 1, name: "Test", country: "US"}
       
-      html = render_component(&pronunciation_buttons/1, %{user: user, show_labels: false})
+      html = render_component_test(&pronunciation_buttons/1, %{user: user, show_labels: false})
       
       refute html =~ "EN"
     end
@@ -89,7 +89,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "renders timezone and country information" do
       user = %User{timezone: "America/New_York", country: "US"}
       
-      html = render_component(&timezone_display/1, %{user: user})
+      html = render_component_test(&timezone_display/1, %{user: user})
       
       assert html =~ "America/New_York"
       assert html =~ "US"
@@ -98,7 +98,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "shows local time when requested" do
       user = %User{timezone: "Europe/London", country: "GB"}
       
-      html = render_component(&timezone_display/1, %{user: user, show_local_time: true})
+      html = render_component_test(&timezone_display/1, %{user: user, show_local_time: true})
       
       assert html =~ "Local:"
     end
@@ -106,7 +106,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "applies vertical layout" do
       user = %User{timezone: "Asia/Tokyo", country: "JP"}
       
-      html = render_component(&timezone_display/1, %{user: user, layout: :vertical})
+      html = render_component_test(&timezone_display/1, %{user: user, layout: :vertical})
       
       assert html =~ "space-y-1"
       refute html =~ "justify-between"
@@ -120,7 +120,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[17:00:00]
       }
       
-      html = render_component(&working_hours/1, %{user: user})
+      html = render_component_test(&working_hours/1, %{user: user})
       
       assert html =~ "Working Hours:"
       assert html =~ "09:00 AM"
@@ -133,7 +133,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[17:00:00]
       }
       
-      html = render_component(&working_hours/1, %{user: user, show_status: true})
+      html = render_component_test(&working_hours/1, %{user: user, show_status: true})
       
       assert html =~ "bg-green-400 rounded-full"
       assert html =~ "Available now"
@@ -145,7 +145,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[18:00:00]
       }
       
-      html = render_component(&working_hours/1, %{user: user, compact: true})
+      html = render_component_test(&working_hours/1, %{user: user, compact: true})
       
       assert html =~ "text-xs"
     end
@@ -163,7 +163,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[17:00:00]
       }
       
-      html = render_component(&profile_card/1, %{user: user})
+      html = render_component_test(&profile_card/1, %{user: user})
       
       assert html =~ "Alice Johnson"
       assert html =~ "Software Engineer"
@@ -180,7 +180,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[16:00:00]
       }
       
-      html = render_component(&profile_card/1, %{user: user, show_actions: true})
+      html = render_component_test(&profile_card/1, %{user: user, show_actions: true})
       
       assert html =~ "Message"
       assert html =~ "Meeting"
@@ -198,7 +198,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[17:00:00]
       }
       
-      html = render_component(&profile_card/1, %{user: user})
+      html = render_component_test(&profile_card/1, %{user: user})
       
       assert html =~ "Native Name"
       assert html =~ "María García"
@@ -213,7 +213,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         work_end: ~T[17:00:00]
       }
       
-      html = render_component(&profile_card/1, %{user: user, class: "custom-profile"})
+      html = render_component_test(&profile_card/1, %{user: user, class: "custom-profile"})
       
       assert html =~ "custom-profile"
     end
@@ -229,7 +229,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         country: "US"
       }
       
-      html = render_component(&user_card/1, %{user: user})
+      html = render_component_test(&user_card/1, %{user: user})
       
       assert html =~ "Charlie Brown"
       assert html =~ "Designer"
@@ -240,7 +240,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "makes card clickable by default" do
       user = %User{id: 6, name: "David Wilson"}
       
-      html = render_component(&user_card/1, %{user: user})
+      html = render_component_test(&user_card/1, %{user: user})
       
       assert html =~ "cursor-pointer"
       assert html =~ "show_profile"
@@ -250,7 +250,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "can disable clickable behavior" do
       user = %User{id: 7, name: "Eve Adams"}
       
-      html = render_component(&user_card/1, %{user: user, clickable: false})
+      html = render_component_test(&user_card/1, %{user: user, clickable: false})
       
       refute html =~ "cursor-pointer"
       refute html =~ "show_profile"
@@ -265,7 +265,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         timezone: "Asia/Tokyo"
       }
       
-      html = render_component(&user_card/1, %{user: user})
+      html = render_component_test(&user_card/1, %{user: user})
       
       assert html =~ "Japanese"
       assert html =~ "田中 寛"
@@ -276,7 +276,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "renders info flash message" do
       flash = %{"info" => "Success message"}
       
-      html = render_component(&flash/1, %{kind: :info, flash: flash})
+      html = render_component_test(&flash/1, %{kind: :info, flash: flash})
       
       assert html =~ "Success message"
       assert html =~ "bg-emerald-50"
@@ -286,7 +286,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "renders error flash message" do
       flash = %{"error" => "Error occurred"}
       
-      html = render_component(&flash/1, %{kind: :error, flash: flash})
+      html = render_component_test(&flash/1, %{kind: :error, flash: flash})
       
       assert html =~ "Error occurred"
       assert html =~ "bg-rose-50"
@@ -296,7 +296,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "includes custom title when provided" do
       flash = %{"info" => "Test message"}
       
-      html = render_component(&flash/1, %{kind: :info, flash: flash, title: "Custom Title"})
+      html = render_component_test(&flash/1, %{kind: :info, flash: flash, title: "Custom Title"})
       
       assert html =~ "Custom Title"
     end
@@ -304,7 +304,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "navbar/1" do
     test "renders navigation with logo and links" do
-      html = render_component(&navbar/1, %{current_page: "map", page_title: "Team Map"})
+      html = render_component_test(&navbar/1, %{current_page: "map", page_title: "Team Map"})
       
       assert html =~ "Zonely"
       assert html =~ "Team Map"
@@ -315,14 +315,14 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
     
     test "marks current page as active" do
-      html = render_component(&navbar/1, %{current_page: "directory"})
+      html = render_component_test(&navbar/1, %{current_page: "directory"})
       
       # Should contain active styling for directory link
       assert html =~ "text-blue-700 bg-blue-50"
     end
     
     test "includes mobile menu button" do
-      html = render_component(&navbar/1, %{current_page: "map"})
+      html = render_component_test(&navbar/1, %{current_page: "map"})
       
       assert html =~ "mobile-menu-button"
       assert html =~ "lg:hidden"
@@ -331,7 +331,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "map_legend/1" do
     test "renders map legend with overlays" do
-      html = render_component(&map_legend/1, %{})
+      html = render_component_test(&map_legend/1, %{})
       
       assert html =~ "Map Overlays"
       assert html =~ "Night Region"
@@ -341,7 +341,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
     
     test "includes proper positioning and styling" do
-      html = render_component(&map_legend/1, %{})
+      html = render_component_test(&map_legend/1, %{})
       
       assert html =~ "fixed top-20 right-4"
       assert html =~ "bg-white/90 backdrop-blur-sm"
@@ -351,7 +351,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "logo/1" do
     test "renders Zonely logo with clock design" do
-      html = render_component(&logo/1, %{})
+      html = render_component_test(&logo/1, %{})
       
       assert html =~ "Zonely"
       assert html =~ "rounded-full"  # Clock face
@@ -360,7 +360,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
     
     test "applies custom CSS classes" do
-      html = render_component(&logo/1, %{class: "custom-logo"})
+      html = render_component_test(&logo/1, %{class: "custom-logo"})
       
       assert html =~ "custom-logo"
     end

@@ -1,8 +1,7 @@
 defmodule ZonelyWeb.DirectoryLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.Accounts
-  alias Zonely.PronunceName
+  alias Zonely.{Accounts, Audio}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -35,14 +34,14 @@ defmodule ZonelyWeb.DirectoryLive do
     @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = PronunceName.play(user.name, user.native_language, user.country)
+    {event_type, event_data} = Audio.play_native_pronunciation(user)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = PronunceName.play(user.name, "en-US", user.country)
+    {event_type, event_data} = Audio.play_english_pronunciation(user)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
