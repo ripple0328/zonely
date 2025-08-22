@@ -369,23 +369,16 @@ defmodule ZonelyWeb.MapLive do
                   <%= @selected_user.name %>
                 </h3>
                 <!-- Play pronunciation button -->
-
-                  <button
-                    phx-click="play_english_pronunciation"
-                    phx-value-user_id={@selected_user.id}
-                    class="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                    title="Play name pronunciation"
-                  >
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
-                    </svg>
-                  </button>
-
-
-
-
-
-
+                <button
+                  phx-click="play_english_pronunciation"
+                  phx-value-user_id={@selected_user.id}
+                  class="inline-flex items-center justify-center w-8 h-8 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors border border-blue-200"
+                  title="Play name pronunciation"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+                  </svg>
+                </button>
               </div>
               <button
                 phx-click="hide_profile"
