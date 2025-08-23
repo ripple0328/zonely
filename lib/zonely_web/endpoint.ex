@@ -48,5 +48,8 @@ defmodule ZonelyWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  if Application.compile_env(:zonely, :sql_sandbox) do
+    plug Phoenix.Ecto.SQL.Sandbox
+  end
   plug ZonelyWeb.Router
 end

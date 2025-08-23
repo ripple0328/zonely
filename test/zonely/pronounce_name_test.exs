@@ -1,5 +1,5 @@
 defmodule Zonely.PronunceNameTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Zonely.PronunceName
 
@@ -34,12 +34,22 @@ defmodule Zonely.PronunceNameTest do
   end
 
   describe "play/3" do
+    setup do
+      Application.put_env(:zonely, :http_client, Zonely.HttpClient.Fake)
+      on_exit(fn -> Application.delete_env(:zonely, :http_client) end)
+      # Clear cache directory before each test to avoid cross-test interference
+      cache_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
+      File.mkdir_p!(cache_dir)
+      for f <- File.ls!(cache_dir), do: File.rm!(Path.join(cache_dir, f))
+      :ok
+    end
+
     test "returns play_tts for names without API key" do
       # Without FORVO_API_KEY, should fallback to TTS
       System.delete_env("FORVO_API_KEY")
 
-      result = PronunceName.play("Test Name", "en-US", "US")
-      assert {:play_tts, %{text: "Test Name", lang: "en-US"}} = result
+      result = PronunceName.play("TTS Only Name", "en-US", "US")
+      assert {:play_tts, %{text: "TTS Only Name", lang: "en-US"}} = result
     end
 
     test "derives language from country when language is nil" do
@@ -61,6 +71,44 @@ defmodule Zonely.PronunceNameTest do
 
       result_jp = PronunceName.play("Yuki", nil, "JP")
       assert {:play_tts, %{text: "Yuki", lang: "ja-JP"}} = result_jp
+    end
+
+    test "cache hit returns cached audio without external calls" do
+      cache_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
+      File.mkdir_p!(cache_dir)
+      filename = "Test_Name_en-US_12345.mp3"
+      File.write!(Path.join(cache_dir, filename), "FAKE")
+
+      result = PronunceName.play("Test Name", "en-US", "US")
+      assert {:play_audio, %{url: "/audio/cache/" <> ^filename}} = result
+    end
+
+    test "nameshouts success returns audio and caches mp3" do
+      System.put_env("NS_API_KEY", "test")
+      Application.put_env(:zonely, :http_fake_scenario, :nameshouts_success)
+      on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
+
+      {:play_audio, %{url: url}} = PronunceName.play("Alice", "en-US", "US")
+      assert String.ends_with?(url, ".mp3")
+    end
+
+    test "forvo success when nameshouts fails" do
+      System.put_env("NS_API_KEY", "test")
+      System.put_env("FORVO_API_KEY", "forvo")
+      Application.put_env(:zonely, :http_fake_scenario, :forvo_success)
+      on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
+
+      {:play_audio, %{url: url}} = PronunceName.play("Bob", "en-US", "US")
+      assert url =~ "/audio/cache/"
+    end
+
+    test "falls back to TTS when both services unavailable" do
+      System.put_env("NS_API_KEY", "test")
+      System.put_env("FORVO_API_KEY", "forvo")
+      Application.put_env(:zonely, :http_fake_scenario, :all_fail)
+      on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
+
+      assert {:play_tts, %{text: "Charlie Unique", lang: "en-US"}} = PronunceName.play("Charlie Unique", "en-US", "US")
     end
   end
 end

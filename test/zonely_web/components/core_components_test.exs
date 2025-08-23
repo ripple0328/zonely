@@ -365,4 +365,142 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "custom-logo"
     end
   end
+  
+  describe "quick_actions_bar/1" do
+    test "renders quick actions for user" do
+      user = %User{id: 1, name: "John Doe"}
+      
+      html = render_component_test(&quick_actions_bar/1, %{user: user})
+      
+      assert html =~ "Quick Actions"
+      assert html =~ "for John Doe"
+      assert html =~ "phx-click=\"quick_message\""
+      assert html =~ "phx-click=\"quick_meeting\""
+      assert html =~ "phx-click=\"quick_pin\""
+      assert html =~ "phx-value-user_id=\"1\""
+    end
+    
+    test "applies custom CSS classes" do
+      user = %User{id: 1, name: "Test User"}
+      
+      html = render_component_test(&quick_actions_bar/1, %{user: user, class: "custom-actions"})
+      
+      assert html =~ "custom-actions"
+    end
+    
+    test "includes action icons and labels" do
+      user = %User{id: 1, name: "Test User"}
+      
+      html = render_component_test(&quick_actions_bar/1, %{user: user})
+      
+      assert html =~ "hero-chat-bubble-left-ellipsis"
+      assert html =~ "hero-calendar-days"
+      assert html =~ "hero-map-pin"
+      assert html =~ "Message"
+      assert html =~ "Meeting"
+      assert html =~ "Pin TZ"
+    end
+  end
+  
+  describe "time_range_selector/1" do
+    test "renders expanded time range selector" do
+      html = render_component_test(&time_range_selector/1, %{expanded: true})
+      
+      assert html =~ "Working Hours Overlap"
+      assert html =~ "Drag to select a time range"
+      assert html =~ "time-scrubber"
+      assert html =~ "phx-hook=\"TimeScrubber\""
+      assert html =~ "opacity-100 scale-100"
+    end
+    
+    test "renders collapsed time range selector" do
+      html = render_component_test(&time_range_selector/1, %{expanded: false})
+      
+      assert html =~ "opacity-0 scale-95 h-0 overflow-hidden p-0"
+    end
+    
+    test "includes hour labels and markers" do
+      html = render_component_test(&time_range_selector/1, %{expanded: true})
+      
+      assert html =~ "Midnight"
+      assert html =~ "Noon"
+      assert html =~ "6AM"
+      assert html =~ "6PM"
+    end
+    
+    test "includes status legend" do
+      html = render_component_test(&time_range_selector/1, %{expanded: true})
+      
+      assert html =~ "Working"
+      assert html =~ "Flexible Hours"
+      assert html =~ "Off Work"
+      assert html =~ "bg-green-500"
+      assert html =~ "bg-yellow-500"
+      assert html =~ "bg-gray-400"
+    end
+    
+    test "applies custom CSS classes" do
+      html = render_component_test(&time_range_selector/1, %{expanded: true, class: "custom-selector"})
+      
+      assert html =~ "custom-selector"
+    end
+  end
+  
+  describe "panel_toggle/1" do
+    test "renders expanded panel toggle" do
+      html = render_component_test(&panel_toggle/1, %{
+        expanded: true,
+        label: "Hide Panel",
+        click_event: "toggle_panel"
+      })
+      
+      assert html =~ "Hide Panel"
+      assert html =~ "phx-click=\"toggle_panel\""
+      assert html =~ "rotate-180"
+    end
+    
+    test "renders collapsed panel toggle" do
+      html = render_component_test(&panel_toggle/1, %{
+        expanded: false,
+        label: "Show Panel",
+        collapsed_label: "Working Hours",
+        click_event: "toggle_panel"
+      })
+      
+      assert html =~ "Working Hours"
+      refute html =~ "Show Panel"
+      refute html =~ "rotate-180"
+    end
+    
+    test "uses label when no collapsed_label provided" do
+      html = render_component_test(&panel_toggle/1, %{
+        expanded: false,
+        label: "Panel Label",
+        click_event: "toggle_panel"
+      })
+      
+      assert html =~ "Panel Label"
+    end
+    
+    test "applies custom CSS classes" do
+      html = render_component_test(&panel_toggle/1, %{
+        expanded: true,
+        label: "Toggle",
+        click_event: "toggle",
+        class: "custom-toggle"
+      })
+      
+      assert html =~ "custom-toggle"
+    end
+    
+    test "includes chevron icon" do
+      html = render_component_test(&panel_toggle/1, %{
+        expanded: true,
+        label: "Toggle",
+        click_event: "toggle"
+      })
+      
+      assert html =~ "hero-chevron-down"
+    end
+  end
 end

@@ -785,67 +785,6 @@ defmodule ZonelyWeb.CoreComponents do
     """
   end
 
-  @doc """
-  Renders compact quick action icons for map popup.
-  """
-  attr :user, :map, required: true
-  attr :expanded_action, :string, default: nil
-
-  def quick_actions_bar(assigns) do
-    ~H"""
-    <div class="border-t border-gray-100 pt-3 mt-3">
-      <div class="flex items-center justify-between mb-2">
-        <h4 class="text-sm font-medium text-gray-700">Quick Actions</h4>
-        <div class="flex gap-1">
-          <!-- Message -->
-          <button
-            phx-click="toggle_quick_action"
-            phx-value-action="message"
-            phx-value-user_id={@user.id}
-            class={[
-              "p-2 rounded-md transition-colors text-sm",
-              @expanded_action == "message" && "bg-blue-100 text-blue-700",
-              @expanded_action != "message" && "hover:bg-gray-100 text-gray-600"
-            ]}
-            title="Send message"
-          >
-            💬
-          </button>
-
-          <!-- Meeting -->
-          <button
-            phx-click="toggle_quick_action"
-            phx-value-action="meeting"
-            phx-value-user_id={@user.id}
-            class={[
-              "p-2 rounded-md transition-colors text-sm",
-              @expanded_action == "meeting" && "bg-green-100 text-green-700",
-              @expanded_action != "meeting" && "hover:bg-gray-100 text-gray-600"
-            ]}
-            title="Propose meeting"
-          >
-            📅
-          </button>
-
-          <!-- Pin Timezone -->
-          <button
-            phx-click="quick_pin"
-            phx-value-user_id={@user.id}
-            class="p-2 rounded-md hover:bg-yellow-100 text-gray-600 hover:text-yellow-700 transition-colors text-sm"
-            title="Pin timezone"
-          >
-            📌
-          </button>
-        </div>
-      </div>
-
-      <!-- Expanded Quick Forms -->
-      <div :if={@expanded_action} class="mt-2">
-        <.quick_action_form action={@expanded_action} user={@user} />
-      </div>
-    </div>
-    """
-  end
 
   @doc """
   Renders compact inline forms for quick actions.
@@ -1127,6 +1066,7 @@ defmodule ZonelyWeb.CoreComponents do
           @size_classes.button
         ]}
         title="Play English pronunciation"
+        data-testid="pronunciation-english"
       >
         <svg class={@size_classes.icon} fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
@@ -1144,6 +1084,7 @@ defmodule ZonelyWeb.CoreComponents do
           @size_classes.button
         ]}
         title={"Play #{Zonely.LanguageService.get_native_language_name(@user.country)} pronunciation"}
+        data-testid="pronunciation-native"
       >
         <svg class={@size_classes.icon} fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
@@ -1514,5 +1455,201 @@ defmodule ZonelyWeb.CoreComponents do
       icon: "w-4 h-4", 
       text: "text-sm"
     }
+  end
+
+  @doc """
+  Renders a quick actions bar for user interactions.
+  
+  Provides common quick actions like messaging, scheduling meetings, and timezone pinning.
+  """
+  attr :user, :map, required: true, doc: "user struct"
+  attr :expanded_action, :string, default: nil, doc: "currently expanded action"
+  attr :class, :string, default: "", doc: "additional CSS classes"
+
+  def quick_actions_bar(assigns) do
+    ~H"""
+    <div class={["bg-white rounded-lg shadow-lg border border-gray-200 p-4", @class]} data-testid="quick-actions-bar">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-medium text-gray-800">Quick Actions</h3>
+        <span class="text-xs text-gray-500">for <%= @user.name %></span>
+      </div>
+      
+      <div class="grid grid-cols-3 gap-2">
+        <!-- Message Action -->
+        <button
+          phx-click="quick_message"
+          phx-value-user_id={@user.id}
+          class="group flex flex-col items-center p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
+          data-testid="quick-action-message"
+        >
+          <.icon name="hero-chat-bubble-left-ellipsis" class="h-5 w-5 text-gray-600 group-hover:text-blue-600 mb-1" />
+          <span class="text-xs text-gray-600 group-hover:text-blue-600 font-medium">Message</span>
+        </button>
+
+        <!-- Meeting Action -->
+        <button
+          phx-click="quick_meeting"
+          phx-value-user_id={@user.id}
+          class="group flex flex-col items-center p-3 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50/50 transition-all duration-200"
+          data-testid="quick-action-meeting"
+        >
+          <.icon name="hero-calendar-days" class="h-5 w-5 text-gray-600 group-hover:text-green-600 mb-1" />
+          <span class="text-xs text-gray-600 group-hover:text-green-600 font-medium">Meeting</span>
+        </button>
+
+        <!-- Pin Timezone Action -->
+        <button
+          phx-click="quick_pin"
+          phx-value-user_id={@user.id}
+          class="group flex flex-col items-center p-3 rounded-lg border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all duration-200"
+          data-testid="quick-action-pin"
+        >
+          <.icon name="hero-map-pin" class="h-5 w-5 text-gray-600 group-hover:text-orange-600 mb-1" />
+          <span class="text-xs text-gray-600 group-hover:text-orange-600 font-medium">Pin TZ</span>
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a time range selector with drag functionality.
+  
+  This component provides a visual time selector for working hours overlap analysis.
+  """
+  attr :expanded, :boolean, default: true, doc: "whether the panel is expanded"
+  attr :class, :string, default: "", doc: "additional CSS classes"
+
+  def time_range_selector(assigns) do
+    ~H"""
+    <div class={[
+      "bg-white rounded-xl shadow-xl border border-gray-200 max-w-4xl w-full p-6 transition-all duration-300",
+      if(@expanded, do: "opacity-100 scale-100", else: "opacity-0 scale-95 h-0 overflow-hidden p-0"),
+      @class
+    ]}>
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800">Working Hours Overlap</h3>
+          <p class="text-sm text-gray-500">Drag to select a time range and see team availability</p>
+        </div>
+        <div class="text-right">
+          <div class="text-sm font-medium text-gray-700" id="time-display">No selection</div>
+          <div class="text-xs text-gray-500" id="duration-display">Drag to select</div>
+        </div>
+      </div>
+
+      <!-- Time Slider -->
+      <div class="relative">
+        <!-- Hour labels (top) -->
+        <div class="flex justify-between mb-2 text-xs font-medium text-gray-600">
+          <%= for hour <- [0, 6, 12, 18] do %>
+            <span class="transform -translate-x-1/2">
+              <%= if hour == 0, do: "Midnight", else: (if hour == 12, do: "Noon", else: (if hour > 12, do: "#{hour-12}PM", else: "#{hour}AM")) %>
+            </span>
+          <% end %>
+        </div>
+
+        <!-- Main slider area with clear drag target -->
+        <div
+          id="time-scrubber"
+          phx-hook="TimeScrubber"
+          class="relative h-16 bg-white rounded-lg border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-200 cursor-grab active:cursor-grabbing"
+        >
+          <!-- Hour grid -->
+          <div class="absolute inset-2 flex">
+            <%= for hour <- 0..23 do %>
+              <div class="flex-1 relative">
+                <%= if rem(hour, 6) == 0 do %>
+                  <div class="absolute top-0 bottom-0 left-0 w-px bg-blue-300"></div>
+                <% else %>
+                  <div class="absolute top-0 bottom-0 left-0 w-px bg-gray-200"></div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+
+          <!-- Drag instruction -->
+          <div class="absolute inset-0 flex items-center justify-center" id="instruction-text">
+            <div class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg border border-blue-200 flex items-center gap-2">
+              <.icon name="hero-cursor-arrow-rays" class="w-5 h-5" />
+              <span class="font-medium">Click and drag across hours</span>
+            </div>
+          </div>
+
+          <!-- Selection highlight -->
+          <div id="scrubber-selection" class="absolute inset-y-0 bg-blue-200/60 border-l-2 border-r-2 border-blue-500 hidden">
+            <!-- Start handle (draggable) -->
+            <div class="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-3 w-6 h-10 bg-blue-500 rounded-lg shadow-lg flex items-center justify-center cursor-ew-resize hover:bg-blue-600 transition-colors">
+              <div class="w-1 h-4 bg-white rounded"></div>
+            </div>
+            <!-- End handle (draggable) -->
+            <div class="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-3 w-6 h-10 bg-blue-500 rounded-lg shadow-lg flex items-center justify-center cursor-ew-resize hover:bg-blue-600 transition-colors">
+              <div class="w-1 h-4 bg-white rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed hour markers -->
+        <div class="flex justify-between mt-2 text-xs text-gray-400">
+          <%= for hour <- 0..23 do %>
+            <%= if rem(hour, 3) == 0 do %>
+              <span class="text-center w-0">
+                <%= "#{hour}" %>
+              </span>
+            <% else %>
+              <span class="w-0"></span>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="mt-4 flex items-center justify-center gap-8 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
+          <span class="text-gray-600">Working</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 bg-yellow-500 rounded-full shadow-sm"></div>
+          <span class="text-gray-600">Flexible Hours</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 bg-gray-400 rounded-full shadow-sm"></div>
+          <span class="text-gray-600">Off Work</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a collapsible panel toggle button.
+  """
+  attr :expanded, :boolean, required: true, doc: "whether the panel is expanded"
+  attr :label, :string, required: true, doc: "button label"
+  attr :collapsed_label, :string, default: nil, doc: "label when collapsed"
+  attr :click_event, :string, required: true, doc: "Phoenix event to trigger"
+  attr :class, :string, default: "", doc: "additional CSS classes"
+
+  def panel_toggle(assigns) do
+    assigns = assign(assigns, collapsed_label: assigns.collapsed_label || assigns.label)
+    
+    ~H"""
+    <button
+      phx-click={@click_event}
+      class={[
+        "bg-white rounded-full shadow-lg border border-gray-200 p-3 hover:shadow-xl",
+        "flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-all duration-200",
+        @class
+      ]}
+      data-testid="panel-toggle"
+    >
+      <.icon name="hero-chevron-down" class={"w-5 h-5 transition-transform duration-200 #{if @expanded, do: "rotate-180", else: ""}"} />
+      <span class="text-sm font-medium">
+        <%= if @expanded, do: @label, else: @collapsed_label %>
+      </span>
+    </button>
+    """
   end
 end

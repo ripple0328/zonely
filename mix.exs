@@ -15,6 +15,12 @@ defmodule Zonely.MixProject do
     ]
   end
 
+  def cli do
+    [
+      preferred_envs: ["test.browser": :test]
+    ]
+  end
+
   def application do
     [
       mod: {Zonely.Application, []},
@@ -52,7 +58,8 @@ defmodule Zonely.MixProject do
       {:bandit, "~> 1.5"},
       {:countries, "~> 1.6"},
       {:req, "~> 0.5"},
-      {:tidewave, "~> 0.4", only: :dev}
+      {:tidewave, "~> 0.4", only: :dev},
+      {:wallaby, "~> 0.30", runtime: false, only: :test}
     ]
   end
 

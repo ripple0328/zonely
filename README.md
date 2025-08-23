@@ -14,6 +14,7 @@ A web app that helps distributed teams connect better by showing name pronunciat
 - **Database**: PostgreSQL with Ecto
 - **Frontend**: TailwindCSS + Heroicons
 - **API Integration**: Nager.Date for holiday data
+- **Testing**: Wallaby for browser automation and user journey testing
 - **Development Tools**: Tidewave for AI-powered development assistance
 
 ## Getting Started
@@ -74,6 +75,35 @@ The project includes [Tidewave](https://github.com/tidewave-ai/tidewave_phoenix)
 - **Compatible Editors**: Claude Code, VS Code (GitHub Copilot), Cursor, Zed, Neovim
 
 To connect your editor to Tidewave, follow the [editor-specific setup guides](https://github.com/tidewave-ai/tidewave_phoenix/tree/main/pages/editors).
+
+## Testing
+
+The project includes comprehensive browser testing with Wallaby for user journey validation.
+
+### Run Browser Tests
+
+```bash
+# Run all feature tests (headless)
+mix test.browser
+
+# Run with visible browser for debugging
+mix test.browser --show --max-failures=1
+
+# Run specific test file
+mix test.browser test/zonely_web/features/team_map_test.exs
+```
+
+For detailed testing documentation, see [BROWSER_TESTING.md](BROWSER_TESTING.md).
+
+### Run Unit Tests
+
+```bash
+# Run all unit tests
+mix test
+
+# Run tests with coverage
+mix test --cover
+```
 
 ## Features
 

@@ -1,22 +1,22 @@
-<header class={if @socket.view == ZonelyWeb.MapLive, do: "px-4 sm:px-6 lg:px-8 relative z-10", else: "px-4 sm:px-6 lg:px-8"}>
+<header class={if @socket.view == ZonelyWeb.MapLive, do: "px-4 sm:px-6 lg:px-8 relative z-10", else: "px-4 sm:px-6 lg:px-8"} data-testid="main-header">
   <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
     <div class="flex items-center gap-4">
       <.logo_link />
     </div>
-    <div class="flex items-center gap-4 font-semibold leading-6 text-zinc-900">
-      <a href={~p"/"} class="hover:text-zinc-700">
+    <nav class="flex items-center gap-4 font-semibold leading-6 text-zinc-900" data-testid="main-navigation">
+      <a href={~p"/"} class="hover:text-zinc-700" data-testid="nav-map">
         Map
       </a>
-      <a href={~p"/directory"} class="hover:text-zinc-700">
+      <a href={~p"/directory"} class="hover:text-zinc-700" data-testid="nav-directory">
         Directory
       </a>
-      <a href={~p"/work-hours"} class="hover:text-zinc-700">
+      <a href={~p"/work-hours"} class="hover:text-zinc-700" data-testid="nav-work-hours">
         Work Hours
       </a>
-      <a href={~p"/holidays"} class="hover:text-zinc-700">
+      <a href={~p"/holidays"} class="hover:text-zinc-700" data-testid="nav-holidays">
         Holidays
       </a>
-    </div>
+    </nav>
   </div>
 </header>
 <main class={if @socket.view == ZonelyWeb.MapLive, do: "", else: "px-4 sm:px-6 lg:px-8"}>

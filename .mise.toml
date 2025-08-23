@@ -1,0 +1,9 @@
+[tools]
+# Using system Erlang/Elixir for compatibility
+# erlang = "28.0.2"
+# elixir = "1.18.0"
+nodejs = "20.18.1"
+chromedriver = "139.0.7258.138"
+
+[env]
+MIX_ENV = "dev"

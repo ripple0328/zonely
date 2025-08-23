@@ -32,7 +32,7 @@ defmodule Zonely.LanguageService do
 
         [] ->
           get_language_name_from_country_code(country_code)
-          
+
         nil ->
           get_language_name_from_country_code(country_code)
       end
@@ -190,4 +190,3 @@ defmodule Zonely.LanguageService do
     end
   end
 end
-

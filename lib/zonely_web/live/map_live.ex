@@ -1,11 +1,9 @@
 defmodule ZonelyWeb.MapLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.Accounts
-  alias Zonely.PronunceName
+  alias Zonely.{Accounts, Audio, Geography, TimeUtils}
 
   @topic "users:schedule"
-  @edge_minutes 60
 
   @impl true
   def mount(_params, _session, socket) do
@@ -49,17 +47,17 @@ defmodule ZonelyWeb.MapLive do
     {:noreply, assign(socket, selected_user: nil)}
   end
 
-        @impl true
+  @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = PronunceName.play(user.name, user.native_language, user.country)
+    {event_type, event_data} = Audio.play_native_pronunciation(user)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = PronunceName.play(user.name, "en-US", user.country)
+    {event_type, event_data} = Audio.play_english_pronunciation(user)
     {:noreply, push_event(socket, event_type, event_data)}
   end
 
@@ -101,17 +99,17 @@ defmodule ZonelyWeb.MapLive do
   # Time Scrubber Event Handlers
   @impl true
   def handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket) do
-    {from_utc, to_utc} = frac_to_utc(a, b, socket.assigns.viewer_tz, socket.assigns.base_date)
+    {from_utc, to_utc} = TimeUtils.frac_to_utc(a, b, socket.assigns.viewer_tz, socket.assigns.base_date)
 
     statuses =
       socket.assigns.users
-      |> Task.async_stream(fn u -> {u.id, classify_user(u, from_utc, to_utc)} end,
+      |> Task.async_stream(fn u -> {u.id, TimeUtils.classify_user(u, from_utc, to_utc)} end,
            max_concurrency: 8, timeout: 200)
       |> Enum.map(fn {:ok, kv} -> kv end)
       |> Map.new()
 
     # Convert atoms to tiny ints for payload efficiency
-    payload = for {id, st} <- statuses, into: %{}, do: {id, status_int(st)}
+    payload = for {id, st} <- statuses, into: %{}, do: {id, TimeUtils.status_to_int(st)}
 
     {:noreply, push_event(socket, "overlap_update", %{statuses: payload})}
   end
@@ -144,7 +142,7 @@ defmodule ZonelyWeb.MapLive do
         id: user.id,
         name: user.name,
         role: user.role || "Team Member",
-        country: country_name(user.country),
+        country: Geography.country_name(user.country),
         country_code: user.country,
         timezone: user.timezone,
         latitude: Decimal.to_float(user.latitude),
@@ -152,8 +150,8 @@ defmodule ZonelyWeb.MapLive do
         pronouns: user.pronouns,
         name_native: user.name_native,
         native_language: user.native_language,
-        work_start: Calendar.strftime(user.work_start, "%I:%M %p"),
-        work_end: Calendar.strftime(user.work_end, "%I:%M %p"),
+        work_start: TimeUtils.format_time(user.work_start),
+        work_end: TimeUtils.format_time(user.work_end),
         profile_picture: fake_profile_picture(user.name)
       }
     end)
@@ -165,123 +163,8 @@ defmodule ZonelyWeb.MapLive do
     Zonely.AvatarService.generate_avatar_url(name, 64)
   end
 
-  # Time classification helper functions
-  defp frac_to_utc(a, b, _viewer_tz, date) do
-    {a, b} = if a <= b, do: {a, b}, else: {b, a}
-    minutes = fn f -> round(f * 24 * 60) end
-
-    # Use naive datetime for now since timezone data may not be available
-    start_naive = NaiveDateTime.new!(date, ~T[00:00:00])
-
-    from_naive = NaiveDateTime.add(start_naive, minutes.(a) * 60, :second)
-    to_naive = NaiveDateTime.add(start_naive, minutes.(b) * 60, :second)
-
-    # Convert to UTC DateTime (assuming viewer is in UTC for MVP)
-    from_utc = DateTime.from_naive!(from_naive, "Etc/UTC")
-    to_utc = DateTime.from_naive!(to_naive, "Etc/UTC")
-
-    {from_utc, to_utc}
-  end
-
-  defp classify_user(user, from_utc, to_utc) do
-    # For MVP, assume all times are in UTC and compare directly
-    # This is a simplified version until timezone data is available
-
-    # Convert UTC times to minutes since midnight
-    fmin = from_utc.hour * 60 + from_utc.minute
-    tmin = to_utc.hour * 60 + to_utc.minute
-
-    ws = time_to_minutes(user.work_start)
-    we = time_to_minutes(user.work_end)
-
-    # Simple overlap check (not timezone-aware for MVP)
-    in_work = overlap?(fmin, tmin, ws, we)
-    near_edge = within_edge?(fmin, tmin, ws, we, @edge_minutes)
-
-    cond do
-      in_work -> :working
-      near_edge -> :edge
-      true -> :off
-    end
-  end
-
-  defp overlap?(a1, a2, b1, b2), do: max(a1, b1) < min(a2, b2)
-
-  defp within_edge?(a1, a2, ws, we, edge) do
-    # any part of [a1,a2) within edge minutes of ws or we
-    near_start = (ws - edge)..(ws + edge)
-    near_end = (we - edge)..(we + edge)
-    any_in?(a1, a2, near_start) or any_in?(a1, a2, near_end)
-  end
-
-  defp any_in?(a1, a2, range) do
-    # Handle the case where a2 might be less than a1
-    start_range = min(a1, a2 - 1)
-    end_range = max(a1, a2 - 1)
-    Enum.any?(start_range..end_range, &(&1 in range))
-  end
-
-  defp time_to_minutes(%Time{hour: h, minute: m}), do: h * 60 + m
-
-  defp status_int(:working), do: 2
-  defp status_int(:edge), do: 1
-  defp status_int(:off), do: 0
 
 
-
-
-  # Helper function to convert country codes to names
-  defp country_name(country_code) do
-    case country_code do
-      "US" -> "United States"
-      "GB" -> "United Kingdom"
-      "JP" -> "Japan"
-      "IN" -> "India"
-      "SE" -> "Sweden"
-      "ES" -> "Spain"
-      "AU" -> "Australia"
-      "EG" -> "Egypt"
-      "BR" -> "Brazil"
-      "DE" -> "Germany"
-      "FR" -> "France"
-      "CA" -> "Canada"
-      "MX" -> "Mexico"
-      "IT" -> "Italy"
-      "NL" -> "Netherlands"
-      "CH" -> "Switzerland"
-      "AT" -> "Austria"
-      "BE" -> "Belgium"
-      "DK" -> "Denmark"
-      "FI" -> "Finland"
-      "NO" -> "Norway"
-      "PT" -> "Portugal"
-      "IE" -> "Ireland"
-      "PL" -> "Poland"
-      "CZ" -> "Czech Republic"
-      "HU" -> "Hungary"
-      "GR" -> "Greece"
-      "TR" -> "Turkey"
-      "RU" -> "Russia"
-      "CN" -> "China"
-      "KR" -> "South Korea"
-      "TH" -> "Thailand"
-      "VN" -> "Vietnam"
-      "ID" -> "Indonesia"
-      "MY" -> "Malaysia"
-      "SG" -> "Singapore"
-      "PH" -> "Philippines"
-      "TW" -> "Taiwan"
-      "HK" -> "Hong Kong"
-      "NZ" -> "New Zealand"
-      "ZA" -> "South Africa"
-      "AR" -> "Argentina"
-      "CL" -> "Chile"
-      "CO" -> "Colombia"
-      "PE" -> "Peru"
-      "VE" -> "Venezuela"
-      _ -> country_code
-    end
-  end
 
   @impl true
   def render(assigns) do
@@ -295,6 +178,7 @@ defmodule ZonelyWeb.MapLive do
         phx-update="ignore"
         data-api-key={@maptiler_api_key}
         data-users={users_to_json(@users)}
+        data-testid="team-map"
       >
       </div>
 
@@ -303,6 +187,7 @@ defmodule ZonelyWeb.MapLive do
         :if={@selected_user}
         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
         phx-click="hide_profile"
+        data-testid="profile-modal"
       >
         <div class="relative top-20 mx-auto p-2 max-w-md">
           <.profile_card 
@@ -332,127 +217,16 @@ defmodule ZonelyWeb.MapLive do
     <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40 px-4">
       <!-- Toggle Button (always visible) -->
       <div class="flex justify-center mb-2">
-        <button
-          phx-click="toggle_overlap_panel"
-          class={[
-            "overlap-panel-toggle bg-white rounded-full shadow-lg border border-gray-200 p-3 hover:shadow-xl",
-            "flex items-center gap-2 text-gray-700 hover:text-blue-600"
-          ]}
-        >
-          <svg class={[
-            "w-5 h-5 toggle-icon",
-            if(@overlap_panel_expanded, do: "rotated", else: "")
-          ]} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-          <span class="text-sm font-medium">
-            <%= if @overlap_panel_expanded, do: "Hide Panel", else: "Working Hours Overlap" %>
-          </span>
-        </button>
+        <.panel_toggle 
+          expanded={@overlap_panel_expanded}
+          label="Hide Panel"
+          collapsed_label="Working Hours Overlap"
+          click_event="toggle_overlap_panel"
+        />
       </div>
 
       <!-- Panel Content -->
-      <div class={[
-        "bg-white rounded-xl shadow-xl border border-gray-200 max-w-4xl w-full p-6 transition-all duration-300",
-        if(@overlap_panel_expanded, do: "opacity-100 scale-100", else: "opacity-0 scale-95 h-0 overflow-hidden p-0")
-      ]}>
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-800">Working Hours Overlap</h3>
-            <p class="text-sm text-gray-500">Drag to select a time range and see team availability</p>
-          </div>
-          <div class="text-right">
-            <div class="text-sm font-medium text-gray-700" id="time-display">No selection</div>
-            <div class="text-xs text-gray-500" id="duration-display">Drag to select</div>
-          </div>
-        </div>
-
-
-
-        <!-- Time Slider -->
-        <div class="relative">
-          <!-- Hour labels (top) -->
-          <div class="flex justify-between mb-2 text-xs font-medium text-gray-600">
-            <%= for hour <- [0, 6, 12, 18] do %>
-              <span class="transform -translate-x-1/2">
-                <%= if hour == 0, do: "Midnight", else: (if hour == 12, do: "Noon", else: (if hour > 12, do: "#{hour-12}PM", else: "#{hour}AM")) %>
-              </span>
-            <% end %>
-          </div>
-
-          <!-- Main slider area with clear drag target -->
-          <div
-            id="time-scrubber"
-            phx-hook="TimeScrubber"
-            class="relative h-16 bg-white rounded-lg border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-200 cursor-grab active:cursor-grabbing"
-          >
-            <!-- Hour grid -->
-            <div class="absolute inset-2 flex">
-              <%= for hour <- 0..23 do %>
-                <div class="flex-1 relative">
-                  <%= if rem(hour, 6) == 0 do %>
-                    <div class="absolute top-0 bottom-0 left-0 w-px bg-blue-300"></div>
-                  <% else %>
-                    <div class="absolute top-0 bottom-0 left-0 w-px bg-gray-200"></div>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-
-            <!-- Drag instruction -->
-            <div class="absolute inset-0 flex items-center justify-center" id="instruction-text">
-              <div class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg border border-blue-200 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-                </svg>
-                <span class="font-medium">Click and drag across hours</span>
-              </div>
-            </div>
-
-            <!-- Selection highlight -->
-            <div id="scrubber-selection" class="absolute inset-y-0 bg-blue-200/60 border-l-2 border-r-2 border-blue-500 hidden">
-              <!-- Start handle (draggable) -->
-              <div class="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-3 w-6 h-10 bg-blue-500 rounded-lg shadow-lg flex items-center justify-center cursor-ew-resize hover:bg-blue-600 transition-colors">
-                <div class="w-1 h-4 bg-white rounded"></div>
-              </div>
-              <!-- End handle (draggable) -->
-              <div class="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-3 w-6 h-10 bg-blue-500 rounded-lg shadow-lg flex items-center justify-center cursor-ew-resize hover:bg-blue-600 transition-colors">
-                <div class="w-1 h-4 bg-white rounded"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Detailed hour markers -->
-          <div class="flex justify-between mt-2 text-xs text-gray-400">
-            <%= for hour <- 0..23 do %>
-              <%= if rem(hour, 3) == 0 do %>
-                <span class="text-center w-0">
-                  <%= "#{hour}" %>
-                </span>
-              <% else %>
-                <span class="w-0"></span>
-              <% end %>
-            <% end %>
-          </div>
-        </div>
-
-        <!-- Legend -->
-        <div class="mt-4 flex items-center justify-center gap-8 text-sm">
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
-            <span class="text-gray-600">Working</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-yellow-500 rounded-full shadow-sm"></div>
-            <span class="text-gray-600">Flexible Hours</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-gray-400 rounded-full shadow-sm"></div>
-            <span class="text-gray-600">Off Work</span>
-          </div>
-        </div>
-      </div>
+      <.time_range_selector expanded={@overlap_panel_expanded} />
     </div>
     """
   end
