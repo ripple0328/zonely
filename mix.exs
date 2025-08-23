@@ -58,6 +58,7 @@ defmodule Zonely.MixProject do
       {:bandit, "~> 1.5"},
       {:countries, "~> 1.6"},
       {:req, "~> 0.5"},
+      {:tzdata, "~> 1.1"},
       {:tidewave, "~> 0.4", only: :dev},
       {:wallaby, "~> 0.30", runtime: false, only: :test}
     ]

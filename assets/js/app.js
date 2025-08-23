@@ -30,6 +30,13 @@ let Hooks = {}
 Hooks.TeamMap = {
   mounted() {
     console.log('TeamMap hook mounted!')
+    // Inform LiveView of the viewer's IANA timezone for correct overlap calculations
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Etc/UTC'
+      this.pushEvent('set_viewer_tz', { tz })
+    } catch (e) {
+      this.pushEvent('set_viewer_tz', { tz: 'Etc/UTC' })
+    }
     const users = JSON.parse(this.el.dataset.users)
     
     // Store users globally for timezone highlighting
@@ -308,6 +315,19 @@ Hooks.TeamMap = {
     window.addEventListener('phx:show-profile', (event) => {
       this.pushEvent('show_profile', { user_id: event.detail.userId })
     })
+  },
+
+  updated() {
+    // Re-apply selection from updated data attributes when DOM patches
+    const aAttr = parseFloat(this.el.dataset.selectedA)
+    const bAttr = parseFloat(this.el.dataset.selectedB)
+    if (!Number.isNaN(aAttr) && !Number.isNaN(bAttr)) {
+      const left = Math.max(0, Math.min(1, aAttr))
+      const width = Math.max(0.02, Math.min(1, bAttr) - left)
+      this.currentSelection = { left, width }
+      this.updateSelectionDisplay(left, width)
+      try { this.pushEvent('hover_range', { a_frac: left, b_frac: left + width }) } catch {}
+    }
   },
   
   showToast(message) {
@@ -4469,15 +4489,16 @@ Hooks.TimeScrubber = {
     }
     
     this.handleEvent("overlap_update", ({statuses, highlighted_timezones}) => {
+      // Reset all when requested
+      if (this.el && statuses && Object.keys(statuses).length === 0) {
+        document.querySelectorAll('[data-user-id]')
+          .forEach(el => el.classList.remove('state-working', 'state-edge', 'state-off'))
+      }
       // Update marker states
-      for (const [id, state] of Object.entries(statuses)) {
+      for (const [id, state] of Object.entries(statuses || {})) {
         const markerEl = document.querySelector(`[data-user-id="${id}"]`)
         if (!markerEl) continue
-        
-        // Remove existing state classes
         markerEl.classList.remove('state-working', 'state-edge', 'state-off')
-        
-        // Add new state class
         if (state === 2) markerEl.classList.add('state-working')
         else if (state === 1) markerEl.classList.add('state-edge')
         else markerEl.classList.add('state-off')
@@ -4493,6 +4514,34 @@ Hooks.TimeScrubber = {
       
 
     })
+
+    // Rehydrate selection when server instructs
+    this.handleEvent("time_selection_set", (payload) => {
+      console.log('TimeScrubber: time_selection_set', payload)
+      const selection = document.getElementById('scrubber-selection')
+      const display = document.getElementById('time-display')
+      const durationDisplay = document.getElementById('duration-display')
+      const instruction = document.getElementById('instruction-text')
+
+      if (payload.clear) {
+        this.currentSelection = null
+        if (selection) selection.classList.add('hidden')
+        if (instruction) instruction.classList.remove('hidden')
+        if (display) display.textContent = 'No selection'
+        if (durationDisplay) durationDisplay.textContent = 'Drag to select'
+        return
+      }
+
+      const { a_frac, b_frac } = payload
+      if (typeof a_frac === 'number' && typeof b_frac === 'number') {
+        const left = Math.max(0, Math.min(1, a_frac))
+        const width = Math.max(0.02, Math.min(1, b_frac) - left)
+        this.currentSelection = { left, width }
+        this.updateSelectionDisplay(left, width)
+        // Also push a hover update to refresh avatars immediately
+        try { this.pushEvent('hover_range', { a_frac: left, b_frac: left + width }) } catch {}
+      }
+    })
     
     // Mouse/touch event handlers
     this.el.addEventListener('mousedown', this.startDrag.bind(this))
@@ -4504,6 +4553,8 @@ Hooks.TimeScrubber = {
     this.el.addEventListener('touchstart', this.startDrag.bind(this))
     this.el.addEventListener('touchmove', this.handleMove.bind(this))
     this.el.addEventListener('touchend', this.endDrag.bind(this))
+
+    // No-op: server persistence disabled per user request
   },
   
   startDrag(e) {

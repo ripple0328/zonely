@@ -62,7 +62,7 @@ defmodule ZonelyWeb.CoreComponents do
 
   def flash(assigns) do
     assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
-    
+
     ~H"""
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
@@ -1024,16 +1024,16 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders a user avatar with consistent styling and fallback handling.
-  
+
   Uses AvatarService for avatar generation to maintain consistency across the app.
   """
   attr :user, :map, required: true, doc: "User struct with name"
   attr :size, :integer, default: 64, doc: "Avatar size in pixels"
   attr :class, :string, default: "", doc: "Additional CSS classes"
-  
+
   def user_avatar(assigns) do
     ~H"""
-    <img 
+    <img
       src={Zonely.AvatarService.generate_avatar_url(@user.name, @size)}
       alt={"#{@user.name}'s avatar"}
       class={["rounded-full shadow-sm border border-gray-200", @class]}
@@ -1044,17 +1044,17 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders pronunciation buttons for a user's name.
-  
+
   Shows both English and native language pronunciation buttons with proper icons and states.
   """
   attr :user, :map, required: true, doc: "User struct with name, native_language, country"
   attr :size, :atom, default: :normal, values: [:small, :normal, :large], doc: "Button size variant"
   attr :show_labels, :boolean, default: true, doc: "Whether to show language labels"
-  
+
   def pronunciation_buttons(assigns) do
     # Generate size-specific classes
     assigns = assign(assigns, :size_classes, size_classes_for_pronunciation(assigns.size))
-    
+
     ~H"""
     <div class="flex items-center gap-1">
       <!-- English pronunciation button -->
@@ -1075,7 +1075,7 @@ defmodule ZonelyWeb.CoreComponents do
       </button>
 
       <!-- Native pronunciation button (if different from English) -->
-      <button 
+      <button
         :if={@user.name_native && @user.name_native != @user.name}
         phx-click="play_native_pronunciation"
         phx-value-user_id={@user.id}
@@ -1099,13 +1099,13 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders timezone and location information for a user.
-  
+
   Displays country, timezone, and optional local time in a clean, consistent format.
   """
   attr :user, :map, required: true, doc: "User struct with country, timezone"
   attr :show_local_time, :boolean, default: false, doc: "Whether to calculate and show local time"
   attr :layout, :atom, default: :horizontal, values: [:horizontal, :vertical], doc: "Layout direction"
-  
+
   def timezone_display(assigns) do
     ~H"""
     <div class={[
@@ -1119,7 +1119,7 @@ defmodule ZonelyWeb.CoreComponents do
           <%= @user.country %>
         </span>
       </div>
-      
+
       <div :if={@show_local_time} class="text-xs font-medium text-gray-700">
         <!-- TODO: Calculate actual local time based on timezone -->
         Local: 2:30 PM
@@ -1130,13 +1130,13 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders working hours information for a user.
-  
+
   Shows work start/end times with optional status indicator.
   """
   attr :user, :map, required: true, doc: "User struct with work_start, work_end"
   attr :show_status, :boolean, default: false, doc: "Whether to show current availability status"
   attr :compact, :boolean, default: false, doc: "Whether to use compact layout"
-  
+
   def working_hours(assigns) do
     ~H"""
     <div class={[
@@ -1151,7 +1151,7 @@ defmodule ZonelyWeb.CoreComponents do
         "font-medium text-gray-900 mt-1",
         @compact && "text-xs font-normal"
       ]}>
-        <%= Calendar.strftime(@user.work_start, "%I:%M %p") %> - 
+        <%= Calendar.strftime(@user.work_start, "%I:%M %p") %> -
         <%= Calendar.strftime(@user.work_end, "%I:%M %p") %>
       </div>
       <div :if={@show_status} class={[
@@ -1309,14 +1309,14 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders a comprehensive user profile card with all key information.
-  
+
   This is a composite component that uses other components for consistency.
   """
   attr :user, :map, required: true, doc: "User struct with all user data"
   attr :show_actions, :boolean, default: false, doc: "Whether to show action buttons"
   attr :show_local_time, :boolean, default: false, doc: "Whether to show calculated local time"
   attr :class, :string, default: "", doc: "Additional CSS classes"
-  
+
   def profile_card(assigns) do
     ~H"""
     <div class={[
@@ -1326,7 +1326,7 @@ defmodule ZonelyWeb.CoreComponents do
       <!-- Header with avatar and name -->
       <div class="flex items-start gap-4">
         <.user_avatar user={@user} size={64} />
-        
+
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-2">
             <h3 class="text-lg font-semibold text-gray-900 truncate">
@@ -1334,11 +1334,11 @@ defmodule ZonelyWeb.CoreComponents do
             </h3>
             <.pronunciation_buttons user={@user} size={:small} />
           </div>
-          
+
           <p class="text-sm text-gray-600 mb-2">
             <%= @user.role || "Team Member" %>
           </p>
-          
+
           <!-- Native name display -->
           <div :if={@user.name_native && @user.name_native != @user.name} class="mb-3">
             <label class="block text-xs font-medium text-gray-500 mb-1">
@@ -1380,16 +1380,16 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders a compact user card suitable for directory listings.
-  
+
   Optimized for grid layouts with essential information only.
   """
   attr :user, :map, required: true, doc: "User struct"
   attr :clickable, :boolean, default: true, doc: "Whether the card is clickable"
   attr :class, :string, default: "", doc: "Additional CSS classes"
-  
+
   def user_card(assigns) do
     ~H"""
-    <div 
+    <div
       class={[
         "bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow p-5",
         @clickable && "cursor-pointer",
@@ -1402,7 +1402,7 @@ defmodule ZonelyWeb.CoreComponents do
         <div class="flex-shrink-0">
           <.user_avatar user={@user} size={48} />
         </div>
-        
+
         <div class="ml-5 w-0 flex-1">
           <dl>
             <dt class="text-sm font-medium text-gray-500 truncate flex items-center gap-2">
@@ -1415,10 +1415,10 @@ defmodule ZonelyWeb.CoreComponents do
           </dl>
         </div>
       </div>
-      
+
       <div class="mt-4">
         <.timezone_display user={@user} layout={:horizontal} />
-        
+
         <div :if={@user.name_native && @user.name_native != @user.name} class="mt-2">
           <div class="text-xs text-gray-500">
             <%= Zonely.LanguageService.get_native_language_name(@user.country) %>
@@ -1440,26 +1440,26 @@ defmodule ZonelyWeb.CoreComponents do
       text: "text-xs"
     }
   end
-  
+
   defp size_classes_for_pronunciation(:normal) do
     %{
-      button: "px-2 py-1 text-sm", 
+      button: "px-2 py-1 text-sm",
       icon: "w-3 h-3",
       text: "text-xs"
     }
   end
-  
+
   defp size_classes_for_pronunciation(:large) do
     %{
       button: "px-3 py-2 text-base",
-      icon: "w-4 h-4", 
+      icon: "w-4 h-4",
       text: "text-sm"
     }
   end
 
   @doc """
   Renders a quick actions bar for user interactions.
-  
+
   Provides common quick actions like messaging, scheduling meetings, and timezone pinning.
   """
   attr :user, :map, required: true, doc: "user struct"
@@ -1473,7 +1473,7 @@ defmodule ZonelyWeb.CoreComponents do
         <h3 class="text-sm font-medium text-gray-800">Quick Actions</h3>
         <span class="text-xs text-gray-500">for <%= @user.name %></span>
       </div>
-      
+
       <div class="grid grid-cols-3 gap-2">
         <!-- Message Action -->
         <button
@@ -1514,11 +1514,12 @@ defmodule ZonelyWeb.CoreComponents do
 
   @doc """
   Renders a time range selector with drag functionality.
-  
+
   This component provides a visual time selector for working hours overlap analysis.
   """
   attr :expanded, :boolean, default: true, doc: "whether the panel is expanded"
   attr :class, :string, default: "", doc: "additional CSS classes"
+  # Removed server persistence wiring for selection
 
   def time_range_selector(assigns) do
     ~H"""
@@ -1604,7 +1605,7 @@ defmodule ZonelyWeb.CoreComponents do
         </div>
       </div>
 
-      <!-- Legend -->
+      <!-- Legend / Actions -->
       <div class="mt-4 flex items-center justify-center gap-8 text-sm">
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
@@ -1618,6 +1619,7 @@ defmodule ZonelyWeb.CoreComponents do
           <div class="w-3 h-3 bg-gray-400 rounded-full shadow-sm"></div>
           <span class="text-gray-600">Off Work</span>
         </div>
+        <!-- Clear Selection button removed while server persistence is disabled -->
       </div>
     </div>
     """
@@ -1634,7 +1636,7 @@ defmodule ZonelyWeb.CoreComponents do
 
   def panel_toggle(assigns) do
     assigns = assign(assigns, collapsed_label: assigns.collapsed_label || assigns.label)
-    
+
     ~H"""
     <button
       phx-click={@click_event}

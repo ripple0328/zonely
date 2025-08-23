@@ -2,6 +2,7 @@ defmodule ZonelyWeb.MapLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.{Accounts, Audio, Geography, TimeUtils}
+  require Logger
 
   @topic "users:schedule"
 
@@ -110,14 +111,24 @@ defmodule ZonelyWeb.MapLive do
 
     # Convert atoms to tiny ints for payload efficiency
     payload = for {id, st} <- statuses, into: %{}, do: {id, TimeUtils.status_to_int(st)}
-
     {:noreply, push_event(socket, "overlap_update", %{statuses: payload})}
   end
 
   @impl true
   def handle_event("commit_range", %{"a_frac" => a, "b_frac" => b}, socket) do
-    # For now, just handle the same as hover - could store selected range later
+    # For now, handle the same as hover (no server persistence of the selection)
     handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket)
+  end
+
+  @impl true
+  def handle_event("set_viewer_tz", %{"tz" => tz}, socket) when is_binary(tz) do
+    # Update viewer timezone and base_date based on viewer's local date
+    base_date =
+      case DateTime.now(tz) do
+        {:ok, dt} -> DateTime.to_date(dt)
+        _ -> Date.utc_today()
+      end
+    {:noreply, assign(socket, viewer_tz: tz, base_date: base_date)}
   end
 
   @impl true
@@ -190,18 +201,18 @@ defmodule ZonelyWeb.MapLive do
         data-testid="profile-modal"
       >
         <div class="relative top-20 mx-auto p-2 max-w-md">
-          <.profile_card 
-            user={@selected_user} 
-            show_actions={false} 
-            show_local_time={true} 
+          <.profile_card
+            user={@selected_user}
+            show_actions={false}
+            show_local_time={true}
             class="relative"
           />
-          
+
           <!-- Quick Actions Bar for Map -->
           <div class="mt-2">
             <.quick_actions_bar user={@selected_user} expanded_action={@expanded_action} />
           </div>
-          
+
           <button
             phx-click="hide_profile"
             class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-white rounded-full p-1 shadow-sm"
@@ -217,7 +228,7 @@ defmodule ZonelyWeb.MapLive do
     <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40 px-4">
       <!-- Toggle Button (always visible) -->
       <div class="flex justify-center mb-2">
-        <.panel_toggle 
+        <.panel_toggle
           expanded={@overlap_panel_expanded}
           label="Hide Panel"
           collapsed_label="Working Hours Overlap"
@@ -226,7 +237,7 @@ defmodule ZonelyWeb.MapLive do
       </div>
 
       <!-- Panel Content -->
-      <.time_range_selector expanded={@overlap_panel_expanded} />
+      <.time_range_selector expanded={@overlap_panel_expanded} selected_a_frac={@selected_a_frac} selected_b_frac={@selected_b_frac} />
     </div>
     """
   end

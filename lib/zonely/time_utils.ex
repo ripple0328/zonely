@@ -1,7 +1,7 @@
 defmodule Zonely.TimeUtils do
   @moduledoc """
   Utility functions for time calculations and conversions using Elixir's standard library.
-  
+
   This module focuses on leveraging built-in Elixir/Erlang functionality for time operations
   without requiring external dependencies.
   """
@@ -10,35 +10,33 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Converts fraction of day to UTC DateTime range using Elixir's standard library.
-  
+
   ## Examples
-  
+
       iex> Zonely.TimeUtils.frac_to_utc(0.5, 0.75, "UTC", ~D[2023-12-01])
       {~U[2023-12-01 12:00:00Z], ~U[2023-12-01 18:00:00Z]}
   """
   @spec frac_to_utc(float(), float(), String.t(), Date.t()) :: {DateTime.t(), DateTime.t()}
-  def frac_to_utc(a, b, _viewer_tz, date) do
+  def frac_to_utc(a, b, viewer_tz, date) do
     {a, b} = if a <= b, do: {a, b}, else: {b, a}
     minutes = fn f -> round(f * 24 * 60) end
 
-    # Use NaiveDateTime and convert to UTC using standard library
-    start_naive = NaiveDateTime.new!(date, ~T[00:00:00])
-    
-    from_naive = NaiveDateTime.add(start_naive, minutes.(a) * 60, :second)
-    to_naive = NaiveDateTime.add(start_naive, minutes.(b) * 60, :second)
+    # Build at viewer timezone and convert to UTC
+    {:ok, start_local} = DateTime.new(date, ~T[00:00:00], viewer_tz)
+    from_local = DateTime.add(start_local, minutes.(a) * 60, :second)
+    to_local = DateTime.add(start_local, minutes.(b) * 60, :second)
 
-    # Convert to UTC DateTime using standard library
-    from_utc = DateTime.from_naive!(from_naive, "Etc/UTC")
-    to_utc = DateTime.from_naive!(to_naive, "Etc/UTC")
+    {:ok, from_utc} = DateTime.shift_zone(from_local, "Etc/UTC")
+    {:ok, to_utc} = DateTime.shift_zone(to_local, "Etc/UTC")
 
     {from_utc, to_utc}
   end
 
   @doc """
   Classifies user availability during a time period.
-  
+
   ## Examples
-  
+
       iex> user = %{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       iex> from_utc = ~U[2023-12-01 10:00:00Z]
       iex> to_utc = ~U[2023-12-01 11:00:00Z]
@@ -46,30 +44,73 @@ defmodule Zonely.TimeUtils do
       :working
   """
   @spec classify_user(map(), DateTime.t(), DateTime.t()) :: :working | :edge | :off
-  def classify_user(user, from_utc, to_utc) do
-    # Convert UTC times to minutes since midnight
-    fmin = from_utc.hour * 60 + from_utc.minute
-    tmin = to_utc.hour * 60 + to_utc.minute
+  def classify_user(%{timezone: tz, work_start: ws_t, work_end: we_t}, from_utc, to_utc) do
+    {:ok, from_local} = DateTime.shift_zone(from_utc, tz)
+    {:ok, to_local} = DateTime.shift_zone(to_utc, tz)
 
-    ws = time_to_minutes(user.work_start)
-    we = time_to_minutes(user.work_end)
+    fmin = from_local.hour * 60 + from_local.minute
+    tmin = to_local.hour * 60 + to_local.minute
 
-    # Simple overlap check (not timezone-aware for MVP)
-    in_work = overlap?(fmin, tmin, ws, we)
-    near_edge = within_edge?(fmin, tmin, ws, we, @edge_minutes)
+    ws = time_to_minutes(ws_t)
+    we = time_to_minutes(we_t)
+
+    {user_start, user_end} = normalize_range(ws, we)
+    {win_start, win_end} = normalize_range(fmin, tmin)
+
+    overlap_min = overlap_minutes(win_start, win_end, user_start, user_end)
+    window_min = max(1, win_end - win_start)
+    coverage = overlap_min / window_min
+
+    min_minutes = working_min_minutes()
+    min_coverage = working_min_coverage()
+    edge_min = edge_minutes()
+
+    # Thresholds: require meaningful overlap for "working"
+    working = overlap_min >= min_minutes and coverage >= min_coverage
+    near_edge = overlap_min > 0 or within_edge?(win_start, win_end, user_start, user_end, edge_min)
 
     cond do
-      in_work -> :working
+      working -> :working
       near_edge -> :edge
       true -> :off
     end
   end
 
+  # Normalize ranges crossing midnight to a comparable linear range of minutes
+  defp normalize_range(start_min, end_min) do
+    if end_min >= start_min do
+      {start_min, end_min}
+    else
+      # Wrap across midnight: map end forward by 24h
+      {start_min, end_min + 1440}
+    end
+  end
+
+  defp overlap_minutes(a1, a2, b1, b2) do
+    max(0, min(a2, b2) - max(a1, b1))
+  end
+
+  # Config accessors with sensible defaults
+  defp edge_minutes do
+    Application.get_env(:zonely, :overlap, [])
+    |> Keyword.get(:edge_minutes, @edge_minutes)
+  end
+
+  defp working_min_minutes do
+    Application.get_env(:zonely, :overlap, [])
+    |> Keyword.get(:working_min_minutes, 60)
+  end
+
+  defp working_min_coverage do
+    Application.get_env(:zonely, :overlap, [])
+    |> Keyword.get(:working_min_coverage, 0.5)
+  end
+
   @doc """
   Converts status atom to integer for efficient JSON payload.
-  
+
   ## Examples
-  
+
       iex> Zonely.TimeUtils.status_to_int(:working)
       2
       iex> Zonely.TimeUtils.status_to_int(:edge)
@@ -84,9 +125,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Converts Time struct to minutes since midnight using standard library.
-  
+
   ## Examples
-  
+
       iex> Zonely.TimeUtils.time_to_minutes(~T[09:30:00])
       570
       iex> Zonely.TimeUtils.time_to_minutes(~T[00:00:00])
@@ -99,9 +140,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Checks if two time ranges overlap using Erlang's min/max functions.
-  
+
   ## Examples
-  
+
       iex> Zonely.TimeUtils.overlap?(540, 600, 570, 630)
       true
       iex> Zonely.TimeUtils.overlap?(540, 570, 600, 630)
@@ -112,9 +153,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Checks if a time range is within edge minutes of work start/end.
-  
+
   ## Examples
-  
+
       iex> Zonely.TimeUtils.within_edge?(480, 540, 540, 1020, 60)
       true
   """
@@ -128,9 +169,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Formats time for display using standard library.
-  
+
   ## Examples
-  
+
       iex> Zonely.TimeUtils.format_time(~T[09:30:00])
       "09:30 AM"
       iex> Zonely.TimeUtils.format_time(~T[15:45:00])
@@ -143,9 +184,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Gets current UTC time using standard library.
-  
+
   ## Examples
-  
+
       iex> utc_now = Zonely.TimeUtils.utc_now()
       iex> utc_now.__struct__
       DateTime
@@ -155,9 +196,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Adds duration to datetime using standard library.
-  
+
   ## Examples
-  
+
       iex> dt = ~U[2023-12-01 10:00:00Z]
       iex> Zonely.TimeUtils.add_minutes(dt, 30)
       ~U[2023-12-01 10:30:00Z]
@@ -169,9 +210,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Calculates difference between two datetimes in minutes using standard library.
-  
+
   ## Examples
-  
+
       iex> dt1 = ~U[2023-12-01 10:00:00Z]
       iex> dt2 = ~U[2023-12-01 10:30:00Z]
       iex> Zonely.TimeUtils.diff_minutes(dt2, dt1)
@@ -184,9 +225,9 @@ defmodule Zonely.TimeUtils do
 
   @doc """
   Converts naive datetime to UTC using standard library.
-  
+
   ## Examples
-  
+
       iex> naive = ~N[2023-12-01 10:00:00]
       iex> Zonely.TimeUtils.to_utc(naive)
       ~U[2023-12-01 10:00:00Z]

@@ -40,4 +40,13 @@ config :logger, :console,
 
 config :phoenix, :json_library, Jason
 
+# Use tzdata for timezone conversions
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
+# Overlap classification thresholds
+config :zonely, :overlap,
+  edge_minutes: 60,
+  working_min_minutes: 60,
+  working_min_coverage: 0.5
+
 import_config "#{config_env()}.exs"

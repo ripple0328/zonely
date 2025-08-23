@@ -106,6 +106,28 @@ mix test --cover
 ```
 
 ## Features
+### Working Hours Overlap (Map)
+
+The overlap panel shows who is available within a drag-selected time window.
+
+- The selection is interpreted in the viewer's timezone (sent from the browser) and converted to UTC.
+- For each user, the window is converted into the user's timezone and compared with their local `work_start`/`work_end`.
+- Overnight windows and overnight schedules are supported.
+
+Tuning thresholds (configure in `config/config.exs`):
+
+```elixir
+config :zonely, :overlap,
+  edge_minutes: 60,            # how close counts as edge
+  working_min_minutes: 60,     # minimum minutes overlapped to be Working
+  working_min_coverage: 0.5    # fraction of selected window that must overlap
+```
+
+Behavior:
+- Working: overlap minutes ≥ `working_min_minutes` AND coverage ≥ `working_min_coverage`.
+- Edge: any minimal overlap or within `edge_minutes` of start/end.
+- Off Work: no meaningful overlap.
+
 
 ### Directory Page (`/`)
 - Browse team members with profile cards
