@@ -171,7 +171,30 @@ const TeamMap = {
         const isDay = this.isDaytimeInZone(tzid, offsetHours)
 
         const theme = isDay ? 'tzp-light' : 'tzp-dark'
-        const popup = new maplibregl.Popup({ className: 'tz-popup', closeButton: false, closeOnMove: true, offset: 18 })
+        // Determine best anchor position based on click location
+        const mapContainer = map.getContainer()
+        const containerRect = mapContainer.getBoundingClientRect()
+        const clickPoint = map.project(e.lngLat)
+        
+        let anchor = 'bottom'
+        if (clickPoint.x < containerRect.width * 0.3) {
+          anchor = 'bottom-left'
+        } else if (clickPoint.x > containerRect.width * 0.7) {
+          anchor = 'bottom-right'
+        }
+        
+        if (clickPoint.y < containerRect.height * 0.3) {
+          anchor = anchor.replace('bottom', 'top')
+        }
+
+        const popup = new maplibregl.Popup({ 
+          className: 'tz-popup', 
+          closeButton: false, 
+          closeOnMove: true, 
+          offset: 18,
+          maxWidth: '320px',
+          anchor: anchor
+        })
           .setLngLat(e.lngLat)
           .setHTML(this.renderPopup({ theme, flag, displayName, timeStr, dateStr, rel, weekend }))
           .addTo(map)
@@ -504,24 +527,34 @@ const TeamMap = {
     const style = document.createElement('style')
     style.id = 'tz-popup-styles'
     style.innerHTML = `
-      .maplibregl-popup.tz-popup .maplibregl-popup-content { padding: 0; border-radius: 16px; box-shadow: 0 18px 36px rgba(0,0,0,0.3); overflow: hidden; border: none; }
-      .tzp { position: relative; padding: 18px 20px 16px 20px; min-width: 280px; }
+      .maplibregl-popup.tz-popup { max-width: none !important; }
+      .maplibregl-popup.tz-popup .maplibregl-popup-content { 
+        padding: 0; 
+        border-radius: 16px; 
+        box-shadow: 0 18px 36px rgba(0,0,0,0.3); 
+        overflow: hidden; 
+        border: none; 
+        max-width: 320px;
+        width: max-content;
+      }
+      .maplibregl-popup.tz-popup .maplibregl-popup-tip { display: none; }
+      .tzp { position: relative; padding: 18px 20px 16px 20px; min-width: 280px; max-width: 320px; }
       .tzp-dark { background: linear-gradient(180deg,#0f172a 0%, #0b1222 100%); color: #eaeefb; border: 1px solid rgba(255,255,255,0.1); }
       .tzp-light { background: #ffffff; color: #0f172a; border: 1px solid rgba(0,0,0,0.08); }
       .tzp-row { display: flex; align-items: center; gap: 10px; }
-      .tzp-icon { width: 22px; display: inline-block; text-align: center; }
+      .tzp-icon { width: 22px; display: inline-block; text-align: center; flex-shrink: 0; }
       .tzp-title { margin-bottom: 8px; }
-      .tzp-title-text { font-size: 18px; font-weight: 700; }
+      .tzp-title-text { font-size: 18px; font-weight: 700; word-break: break-word; }
       .tzp-dark .tzp-title-text { color: #f8e08e; }
       .tzp-datetime { margin-bottom: 6px; }
-      .tzp-dt { font-size: 26px; font-weight: 800; letter-spacing: .2px; margin-right: 10px; }
-      .tzp-date { font-size: 14px; opacity: .85; }
+      .tzp-dt { font-size: 26px; font-weight: 800; letter-spacing: .2px; margin-right: 10px; white-space: nowrap; }
+      .tzp-date { font-size: 14px; opacity: .85; white-space: nowrap; }
       .tzp-relative { font-size: 16px; margin-bottom: 8px; }
       .tzp-dark .tzp-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
       .tzp-light .tzp-divider { height: 1px; background: rgba(0,0,0,0.08); margin: 10px 0; }
       .tzp-weekend { font-size: 16px; }
-      .tzp-dark .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; }
-      .tzp-light .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; }
+      .tzp-dark .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; flex-shrink: 0; }
+      .tzp-light .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; flex-shrink: 0; }
       .tzp-close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 9999px; border: none; cursor: pointer; line-height: 32px; text-align: center; font-size: 18px; }
       .tzp-dark .tzp-close { background: rgba(255,255,255,0.08); color: #f6d26b; }
       .tzp-dark .tzp-close:hover { background: rgba(255,255,255,0.16); }

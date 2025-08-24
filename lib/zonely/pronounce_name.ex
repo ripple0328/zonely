@@ -108,32 +108,32 @@ defmodule Zonely.PronunceName do
       "en-au" -> "Olivia"
       "en-ca" -> "Emma"
       "en-in" -> "Aditi"
-      
+
       # Spanish variants
       "es-es" -> "Lucia"
       "es-us" -> "Lupe"
       "es-mx" -> "Lupe"
-      
+
       # Portuguese variants
       "pt-br" -> "Camila"
       "pt-pt" -> "Ines"
-      
+
       # French variants
       "fr-fr" -> "Lea"
       "fr-ca" -> "Chantal"
-      
+
       # German variants
       "de-de" -> "Vicki"
       "de-at" -> "Vicki"
-      
+
       # Chinese variants
       "zh-cn" -> "Zhiyu"
       "zh-tw" -> "Zhiyu"
-      
+
       # Arabic variants
       "ar-eg" -> "Zeina"
       "ar-sa" -> "Zeina"
-      
+
       _ ->
         case base do
           # Major language families by base code
