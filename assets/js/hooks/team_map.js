@@ -8,10 +8,17 @@ const TeamMap = {
     // Inform LiveView of the viewer's IANA timezone for correct overlap calculations
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Etc/UTC'
+      this.viewerTz = tz
+      this.viewerOffsetHours = -new Date().getTimezoneOffset() / 60
       this.pushEvent('set_viewer_tz', { tz })
     } catch (_e) {
+      this.viewerTz = 'Etc/UTC'
+      this.viewerOffsetHours = 0
       this.pushEvent('set_viewer_tz', { tz: 'Etc/UTC' })
     }
+
+    // Ensure custom popup styles are present
+    this.ensurePopupStyles()
 
     const users = JSON.parse(this.el.dataset.users || '[]')
 
@@ -147,29 +154,33 @@ const TeamMap = {
         try { map.setLayoutProperty('tz-hover', 'visibility', 'none') } catch (_) {}
       })
 
-      // Click popup with timezone info
+      // Click popup with timezone info (restore previous design)
       map.on('click', 'tz-fill', (e) => {
         const f = e.features && e.features[0]
         if (!f) return
         const props = f.properties || {}
         const tzid = props.tzid || props.timezone || props.time_zone || props.zone || props.ZONE || props.NAME || props.name || 'UTC'
-        const name = props.NAME || props.name || tzid
 
-        let currentTime = 'N/A'
-        try {
-          currentTime = new Date().toLocaleString(undefined, { timeZone: tzid, hour: '2-digit', minute: '2-digit' })
-        } catch (_) {}
+        const offsetHours = this.resolveOffsetHours(tzid, props)
+        const baseName = props.NAME || props.name || tzid.split('/').slice(-1)[0].replace(/_/g, ' ')
+        const displayName = baseName && baseName.length > 1 ? baseName : this.friendlyZoneName(tzid, offsetHours)
+        const flag = this.flagFromProps(props) || this.flagFromTzid(tzid)
+        const { timeStr, dateStr } = this.formatTimeAndDate(tzid, offsetHours)
+        const rel = this.relativeToViewer(offsetHours)
+        const weekend = this.isWeekendInZone(tzid, offsetHours)
+        const isDay = this.isDaytimeInZone(tzid, offsetHours)
 
-        new maplibregl.Popup()
+        const theme = isDay ? 'tzp-light' : 'tzp-dark'
+        const popup = new maplibregl.Popup({ className: 'tz-popup', closeButton: false, closeOnMove: true, offset: 18 })
           .setLngLat(e.lngLat)
-          .setHTML(`
-            <div class="p-3">
-              <div class="font-semibold text-gray-900">${name}</div>
-              <div class="text-xs text-gray-500 mt-1">${tzid}</div>
-              <div class="text-xs text-gray-700 mt-1">Current time: ${currentTime}</div>
-            </div>
-          `)
+          .setHTML(this.renderPopup({ theme, flag, displayName, timeStr, dateStr, rel, weekend }))
           .addTo(map)
+
+        try {
+          const el = popup.getElement()
+          const btn = el && el.querySelector('.tzp-close')
+          if (btn) btn.onclick = () => popup.remove()
+        } catch (_) {}
       })
     } catch (err) {
       console.warn('Failed to load timezone overlay:', err)
@@ -199,7 +210,7 @@ const TeamMap = {
       id: 'night-overlay',
       type: 'fill',
       source: 'night-overlay',
-      paint: { 'fill-color': '#000000', 'fill-opacity': 0.15 }
+      paint: { 'fill-color': '#000000', 'fill-opacity': 0.35 }
     })
 
     // Update every minute
@@ -303,6 +314,223 @@ const TeamMap = {
   deg2rad(d) { return d * Math.PI / 180 },
   rad2deg(r) { return r * 180 / Math.PI },
   mod(a, b) { return ((a % b) + b) % b },
+
+  // Timezone popup helpers
+  parseOffsetHours(props, tzid) {
+    const candidates = [
+      props.utc_offset, props.UTC_OFFSET,
+      props.offset, props.OFFSET,
+      props.gmt_offset, props.GMT_OFFSET,
+      typeof tzid === 'string' ? tzid : null
+    ].filter(Boolean)
+
+    for (const val of candidates) {
+      // Match formats like "+01:00", "-5", "+5.5", "UTC+01:00", "GMT-3"
+      const m = String(val).match(/([+-]?)(\d{1,2})(?::?(\d{2}))?/) || []
+      if (m.length >= 3) {
+        const sign = m[1] === '-' ? -1 : 1
+        const h = parseInt(m[2], 10)
+        const mm = m[3] ? parseInt(m[3], 10) : 0
+        if (!Number.isNaN(h) && !Number.isNaN(mm)) return sign * (h + mm / 60)
+      }
+    }
+    return null
+  },
+
+  offsetLabel(hours) {
+    if (hours == null) return 'UTC'
+    const sign = hours >= 0 ? '+' : '-'
+    const abs = Math.abs(hours)
+    const whole = Math.floor(abs)
+    const mins = Math.round((abs - whole) * 60)
+    return mins === 0 ? `${sign}${whole}` : `${sign}${whole}${mins === 30 ? '.5' : ''}`
+  },
+
+  formatUtcOffset(hours) {
+    if (hours == null) return 'UTC'
+    const sign = hours >= 0 ? '+' : '-'
+    const abs = Math.abs(hours)
+    const whole = Math.floor(abs)
+    const mins = Math.round((abs - whole) * 60)
+    const hh = String(whole).padStart(2, '0')
+    const mm = String(mins).padStart(2, '0')
+    return `UTC${sign}${hh}:${mm}`
+  },
+
+  formatTimeFromOffset(hours) {
+    try {
+      const now = new Date()
+      const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
+      const localMinutes = utcMinutes + Math.round(hours * 60)
+      const hh = Math.floor(((localMinutes % 1440) + 1440) % 1440 / 60)
+      const mm = ((localMinutes % 60) + 60) % 60
+      return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+    } catch (_e) {
+      return 'N/A'
+    }
+  },
+
+  // Presentational helpers to match previous popup styling/content
+  resolveOffsetHours(tzid, props) {
+    // Try IANA with formatToParts to get offset; fallback to parsing
+    try {
+      const fmt = new Intl.DateTimeFormat('en-US', { timeZone: tzid, timeZoneName: 'shortOffset' })
+      const parts = fmt.formatToParts(new Date())
+      const tzPart = parts.find(p => p.type === 'timeZoneName')
+      if (tzPart && tzPart.value) {
+        const m = tzPart.value.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/)
+        if (m) {
+          const sign = m[1].startsWith('-') ? -1 : 1
+          const h = parseInt(m[1].replace('+', ''), 10)
+          const mm = m[2] ? parseInt(m[2], 10) : 0
+          return sign * (h + mm / 60)
+        }
+      }
+    } catch (_) {}
+    return this.parseOffsetHours(props, tzid)
+  },
+
+  formatDateTimeYMDHM(tzid, offsetHours) {
+    try {
+      const d = new Date()
+      const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: tzid, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).replaceAll('-', '/')
+      const hm = new Intl.DateTimeFormat('en-US', { timeZone: tzid, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+      return `${ymd}-${hm}`
+    } catch (_) {
+      if (offsetHours != null) {
+        const d = new Date()
+        const yyyy = d.getUTCFullYear()
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const dd = String(d.getUTCDate()).padStart(2, '0')
+        const hm = this.formatTimeFromOffset(offsetHours)
+        return `${yyyy}/${mm}/${dd}-${hm}`
+      }
+      return 'N/A'
+    }
+  },
+
+  formatTimeAndDate(tzid, offsetHours) {
+    try {
+      const d = new Date()
+      const timeStr = new Intl.DateTimeFormat('en-US', { timeZone: tzid, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+      const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: tzid, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).replaceAll('-', '/')
+      return { timeStr, dateStr }
+    } catch (_) {
+      const timeStr = offsetHours != null ? this.formatTimeFromOffset(offsetHours) : 'N/A'
+      const d = new Date()
+      const dateStr = `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`
+      return { timeStr, dateStr }
+    }
+  },
+
+  relativeToViewer(zoneOffset) {
+    if (zoneOffset == null || this.viewerOffsetHours == null) return ''
+    const diff = Math.round((zoneOffset - this.viewerOffsetHours) * 10) / 10
+    if (diff === 0) return 'same time as you'
+    const abs = Math.abs(diff)
+    const units = abs === Math.floor(abs) ? `${abs} hours` : `${Math.floor(abs)} hours ${Math.round((abs - Math.floor(abs)) * 60)} min`
+    return `${diff > 0 ? '+' : '-'}${units} ${diff > 0 ? 'ahead' : 'behind'} of you`
+  },
+
+  isWeekendInZone(tzid, offsetHours) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tzid, weekday: 'short' }).formatToParts(new Date())
+      const wk = parts.find(p => p.type === 'weekday')?.value || ''
+      return wk === 'Sat' || wk === 'Sun'
+    } catch (_) {
+      if (offsetHours == null) return false
+      const now = new Date()
+      const utcDay = now.getUTCDay()
+      const localHour = (now.getUTCHours() + offsetHours + 24) % 24
+      // Rough approximation: adjust day when crossing midnight
+      const dayShift = localHour < 0 ? -1 : localHour >= 24 ? 1 : 0
+      const d = (utcDay + dayShift + 7) % 7
+      return d === 0 || d === 6
+    }
+  },
+
+  isDaytimeInZone(tzid, offsetHours) {
+    try {
+      const hour = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tzid, hour: '2-digit', hour12: false }).format(new Date()), 10)
+      return hour >= 6 && hour < 18
+    } catch (_) {
+      if (offsetHours == null) return true
+      const hour = (new Date().getUTCHours() + offsetHours + 24) % 24
+      return hour >= 6 && hour < 18
+    }
+  },
+
+  flagFromProps(props) {
+    const cc = props.ISO_A2 || props.iso_a2 || props.ADMIN || props.admin || ''
+    if (typeof cc === 'string' && cc.length === 2) return this.flagEmoji(cc)
+    return ''
+  },
+
+  flagFromTzid(tzid) {
+    const cc = tzid && tzid.split('/')?.[0]
+    return ''
+  },
+
+  flagEmoji(countryCode) {
+    try {
+      const code = countryCode.trim().toUpperCase()
+      return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)))
+    } catch (_) { return '' }
+  },
+
+  // --- Popup rendering & formatting ---
+  renderPopup({ theme, flag, displayName, timeStr, dateStr, rel, weekend }) {
+    const weekendRow = `<div class="tzp-row tzp-weekend" aria-live="polite"><span class="tzp-dot"></span><span>${weekend ? 'Weekend' : 'Weekday'}</span></div>`
+    return `
+      <div class="tzp ${theme}" role="dialog" aria-label="Timezone information">
+        <button class="tzp-close" aria-label="Close">×</button>
+        <div class="tzp-row tzp-title"><span class="tzp-icon">📍</span><span class="tzp-title-text">${flag ? flag + ' ' : ''}${displayName}</span></div>
+        <div class="tzp-row tzp-datetime"><span class="tzp-icon">🕰️</span><span class="tzp-dt">${timeStr}</span><span class="tzp-date">${dateStr}</span></div>
+        <div class="tzp-row tzp-relative"><span class="tzp-icon">⏳</span><span>${rel}</span></div>
+        <div class="tzp-divider"></div>
+        ${weekendRow}
+      </div>
+    `
+  },
+
+  friendlyZoneName(tzid, offsetHours) {
+    const city = tzid && tzid.split('/').slice(-1)[0].replace(/_/g, ' ')
+    if (city && city.length > 1) return city
+    return `${this.offsetLabel(offsetHours || 0)} time`
+  },
+
+  ensurePopupStyles() {
+    if (document.getElementById('tz-popup-styles')) return
+    const style = document.createElement('style')
+    style.id = 'tz-popup-styles'
+    style.innerHTML = `
+      .maplibregl-popup.tz-popup .maplibregl-popup-content { padding: 0; border-radius: 16px; box-shadow: 0 18px 36px rgba(0,0,0,0.3); overflow: hidden; border: none; }
+      .tzp { position: relative; padding: 18px 20px 16px 20px; min-width: 280px; }
+      .tzp-dark { background: linear-gradient(180deg,#0f172a 0%, #0b1222 100%); color: #eaeefb; border: 1px solid rgba(255,255,255,0.1); }
+      .tzp-light { background: #ffffff; color: #0f172a; border: 1px solid rgba(0,0,0,0.08); }
+      .tzp-row { display: flex; align-items: center; gap: 10px; }
+      .tzp-icon { width: 22px; display: inline-block; text-align: center; }
+      .tzp-title { margin-bottom: 8px; }
+      .tzp-title-text { font-size: 18px; font-weight: 700; }
+      .tzp-dark .tzp-title-text { color: #f8e08e; }
+      .tzp-datetime { margin-bottom: 6px; }
+      .tzp-dt { font-size: 26px; font-weight: 800; letter-spacing: .2px; margin-right: 10px; }
+      .tzp-date { font-size: 14px; opacity: .85; }
+      .tzp-relative { font-size: 16px; margin-bottom: 8px; }
+      .tzp-dark .tzp-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+      .tzp-light .tzp-divider { height: 1px; background: rgba(0,0,0,0.08); margin: 10px 0; }
+      .tzp-weekend { font-size: 16px; }
+      .tzp-dark .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; }
+      .tzp-light .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; }
+      .tzp-close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 9999px; border: none; cursor: pointer; line-height: 32px; text-align: center; font-size: 18px; }
+      .tzp-dark .tzp-close { background: rgba(255,255,255,0.08); color: #f6d26b; }
+      .tzp-dark .tzp-close:hover { background: rgba(255,255,255,0.16); }
+      .tzp-light .tzp-close { background: rgba(15,23,42,0.06); color: #111827; }
+      .tzp-light .tzp-close:hover { background: rgba(15,23,42,0.12); }
+      .maplibregl-popup-close-button { display: none; }
+    `
+    document.head.appendChild(style)
+  },
 
   destroyed() {
     if (this.sunlightInterval) clearInterval(this.sunlightInterval)

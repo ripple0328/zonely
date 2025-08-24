@@ -47,3 +47,10 @@ if config_env() == :dev do
   config :zonely, :maptiler,
     api_key: System.get_env("MAPTILER_API_KEY") || "demo_key_get_your_own_at_maptiler_com"
 end
+
+config :ex_aws,
+  region: System.get_env("AWS_REGION") || "us-east-1",
+  json_codec: Jason,
+  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
+  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
+  http_client: ExAws.Request.Hackney

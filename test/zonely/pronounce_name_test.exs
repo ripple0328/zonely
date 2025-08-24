@@ -44,33 +44,51 @@ defmodule Zonely.PronunceNameTest do
       :ok
     end
 
-    test "returns play_tts for names without API key" do
-      # Without FORVO_API_KEY, should fallback to TTS
+    test "returns Polly audio when external services unavailable (no FORVO/NS)" do
       System.delete_env("FORVO_API_KEY")
+      System.delete_env("NS_API_KEY")
+      # Stub AWS request to return fake mp3 bytes
+      Application.put_env(:zonely, :aws_request_fun, fn _req ->
+        {:ok, %{status_code: 200, body: <<"FAKE_MP3"::binary>>}}
+      end)
+      on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
-      result = PronunceName.play("TTS Only Name", "en-US", "US")
-      assert {:play_tts, %{text: "TTS Only Name", lang: "en-US"}} = result
+      {:play_audio, %{url: url}} = PronunceName.play("TTS Only Name", "en-US", "US")
+      assert String.ends_with?(url, ".mp3")
+      # Ensure stable file gets written
+      assert File.exists?(Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", String.trim_leading(url, "/audio/")]))
     end
 
     test "derives language from country when language is nil" do
       System.delete_env("FORVO_API_KEY")
 
-      result = PronunceName.play("Hans Mueller", nil, "DE")
-      assert {:play_tts, %{text: "Hans Mueller", lang: "de-DE"}} = result
+      # Stub Polly to avoid network
+      Application.put_env(:zonely, :aws_request_fun, fn _req ->
+        {:ok, %{status_code: 200, body: <<"FAKE_MP3"::binary>>}}
+      end)
+      on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
+
+      {:play_audio, %{url: url}} = PronunceName.play("Hans Mueller", nil, "DE")
+      assert String.ends_with?(url, ".mp3")
     end
 
     test "handles various country codes for language derivation" do
       System.delete_env("FORVO_API_KEY")
 
       # Test a few key mappings
-      result_us = PronunceName.play("John", nil, "US")
-      assert {:play_tts, %{text: "John", lang: "en-US"}} = result_us
+      Application.put_env(:zonely, :aws_request_fun, fn _req ->
+        {:ok, %{status_code: 200, body: <<"FAKE_MP3"::binary>>}}
+      end)
+      on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
-      result_es = PronunceName.play("María", nil, "ES")
-      assert {:play_tts, %{text: "María", lang: "es-ES"}} = result_es
+      {:play_audio, %{url: url_us}} = PronunceName.play("John", nil, "US")
+      assert String.ends_with?(url_us, ".mp3")
 
-      result_jp = PronunceName.play("Yuki", nil, "JP")
-      assert {:play_tts, %{text: "Yuki", lang: "ja-JP"}} = result_jp
+      {:play_audio, %{url: url_es}} = PronunceName.play("María", nil, "ES")
+      assert String.ends_with?(url_es, ".mp3")
+
+      {:play_audio, %{url: url_jp}} = PronunceName.play("Yuki", nil, "JP")
+      assert String.ends_with?(url_jp, ".mp3")
     end
 
     test "cache hit returns cached audio without external calls" do
@@ -102,11 +120,13 @@ defmodule Zonely.PronunceNameTest do
       assert url =~ "/audio/cache/"
     end
 
-    test "falls back to TTS when both services unavailable" do
+    test "falls back to browser TTS when Polly fails" do
       System.put_env("NS_API_KEY", "test")
       System.put_env("FORVO_API_KEY", "forvo")
       Application.put_env(:zonely, :http_fake_scenario, :all_fail)
+      Application.put_env(:zonely, :aws_request_fun, fn _req -> {:error, :network_fail} end)
       on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
+      on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
       assert {:play_tts, %{text: "Charlie Unique", lang: "en-US"}} = PronunceName.play("Charlie Unique", "en-US", "US")
     end
