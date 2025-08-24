@@ -8,13 +8,14 @@ defmodule Zonely.PronunceName.Providers.Polly do
     voice_id = PronunceName.pick_polly_voice(language)
 
     # Use the 2-arity form: synthesize_speech(text, options)
-    op = ExAws.Polly.synthesize_speech(
-      to_string(text),
-      voice_id: to_string(voice_id),
-      output_format: "mp3",
-      engine: "neural",
-      text_type: "text"
-    )
+    op =
+      ExAws.Polly.synthesize_speech(
+        to_string(text),
+        voice_id: to_string(voice_id),
+        output_format: "mp3",
+        engine: "neural",
+        text_type: "text"
+      )
 
     case aws_request(op) do
       {:ok, %{status_code: 200, body: audio_bin}} when is_binary(audio_bin) ->
@@ -25,20 +26,25 @@ defmodule Zonely.PronunceName.Providers.Polly do
 
       {:error, {:http_error, 400, _}} ->
         # Retry with standard engine
-        op2 = ExAws.Polly.synthesize_speech(
-          to_string(text),
-          voice_id: to_string(voice_id),
-          output_format: "mp3",
-          engine: "standard",
-          text_type: "text"
-        )
+        op2 =
+          ExAws.Polly.synthesize_speech(
+            to_string(text),
+            voice_id: to_string(voice_id),
+            output_format: "mp3",
+            engine: "standard",
+            text_type: "text"
+          )
+
         case aws_request(op2) do
           {:ok, %{status_code: 200, body: audio_bin}} when is_binary(audio_bin) ->
             Cache.write_binary_to_cache(audio_bin, text, language, ".mp3")
-          other -> {:error, other}
+
+          other ->
+            {:error, other}
         end
 
-      {:error, reason} -> {:error, reason}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

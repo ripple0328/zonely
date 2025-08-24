@@ -32,7 +32,8 @@ defmodule Zonely.TimeUtilsTest do
 
       assert from_utc.hour == 22
       assert to_utc.hour == 0
-      assert to_utc.day == 2  # Next day
+      # Next day
+      assert to_utc.day == 2
     end
   end
 
@@ -49,7 +50,8 @@ defmodule Zonely.TimeUtilsTest do
 
     test "classifies user as off when outside work hours" do
       user = %{timezone: "Europe/Berlin", work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
-      from_utc = ~U[2023-12-01 22:00:00Z]  # 23:00 local
+      # 23:00 local
+      from_utc = ~U[2023-12-01 22:00:00Z]
       to_utc = ~U[2023-12-01 23:00:00Z]
 
       result = TimeUtils.classify_user(user, from_utc, to_utc)
@@ -79,7 +81,7 @@ defmodule Zonely.TimeUtilsTest do
     test "viewer 02:00-03:00 overlaps APAC user local working hours" do
       # Viewer America/New_York selects 02:00-03:00 on 2023-12-01
       date = ~D[2023-12-01]
-      {from_utc, to_utc} = TimeUtils.frac_to_utc(2/24, 3/24, "America/New_York", date)
+      {from_utc, to_utc} = TimeUtils.frac_to_utc(2 / 24, 3 / 24, "America/New_York", date)
 
       # APAC user in Asia/Tokyo works 09:00-17:00 local; 02:30 ET ≈ 16:30 JST
       user = %{timezone: "Asia/Tokyo", work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
@@ -92,7 +94,7 @@ defmodule Zonely.TimeUtilsTest do
     test "handles user overnight schedule (22:00-06:00) with viewer window crossing midnight" do
       # Viewer UTC selects 23:30-00:30
       date = ~D[2023-12-01]
-      {from_utc, to_utc} = TimeUtils.frac_to_utc(23.5/24, 0.5/24, "Etc/UTC", date)
+      {from_utc, to_utc} = TimeUtils.frac_to_utc(23.5 / 24, 0.5 / 24, "Etc/UTC", date)
 
       user = %{timezone: "Etc/UTC", work_start: ~T[22:00:00], work_end: ~T[06:00:00]}
       result = TimeUtils.classify_user(user, from_utc, to_utc)
@@ -102,12 +104,17 @@ defmodule Zonely.TimeUtilsTest do
     test "working classification obeys min overlap minutes and coverage thresholds" do
       # Temporarily set stricter thresholds
       original = Application.get_env(:zonely, :overlap, [])
-      Application.put_env(:zonely, :overlap, [working_min_minutes: 90, working_min_coverage: 0.75, edge_minutes: 60])
+
+      Application.put_env(:zonely, :overlap,
+        working_min_minutes: 90,
+        working_min_coverage: 0.75,
+        edge_minutes: 60
+      )
 
       try do
         # Viewer UTC selects a 2-hour window 10:00-12:00
         date = ~D[2023-12-01]
-        {from_utc, to_utc} = TimeUtils.frac_to_utc(10/24, 12/24, "Etc/UTC", date)
+        {from_utc, to_utc} = TimeUtils.frac_to_utc(10 / 24, 12 / 24, "Etc/UTC", date)
         # User overlaps exactly 60 minutes (11:00-12:00), coverage 0.5 < 0.75
         user = %{timezone: "Etc/UTC", work_start: ~T[11:00:00], work_end: ~T[12:00:00]}
         result = TimeUtils.classify_user(user, from_utc, to_utc)
@@ -137,9 +144,12 @@ defmodule Zonely.TimeUtilsTest do
 
   describe "overlap?/4" do
     test "detects overlapping time ranges" do
-      assert TimeUtils.overlap?(540, 600, 570, 630) == true  # 9-10 AM overlaps with 9:30-10:30 AM
-      assert TimeUtils.overlap?(540, 570, 600, 630) == false # 9-9:30 AM doesn't overlap with 10-10:30 AM
-      assert TimeUtils.overlap?(570, 630, 540, 600) == true  # Same as first but reversed
+      # 9-10 AM overlaps with 9:30-10:30 AM
+      assert TimeUtils.overlap?(540, 600, 570, 630) == true
+      # 9-9:30 AM doesn't overlap with 10-10:30 AM
+      assert TimeUtils.overlap?(540, 570, 600, 630) == false
+      # Same as first but reversed
+      assert TimeUtils.overlap?(570, 630, 540, 600) == true
     end
 
     test "handles edge cases" do

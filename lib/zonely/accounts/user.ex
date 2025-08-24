@@ -6,29 +6,46 @@ defmodule Zonely.Accounts.User do
   @foreign_key_type :binary_id
 
   schema "users" do
-    field :name, :string
-    field :pronunciation_audio_url, :string  # User-recorded audio (highest priority)
-    field :pronouns, :string
-    field :role, :string
-    field :timezone, :string
-    field :country, :string
-    field :work_start, :time
-    field :work_end, :time
-    field :name_native, :string
-    field :native_language, :string
-    field :latitude, :decimal
-    field :longitude, :decimal
+    field(:name, :string)
+    # User-recorded audio (highest priority)
+    field(:pronunciation_audio_url, :string)
+    field(:pronouns, :string)
+    field(:role, :string)
+    field(:timezone, :string)
+    field(:country, :string)
+    field(:work_start, :time)
+    field(:work_end, :time)
+    field(:name_native, :string)
+    field(:native_language, :string)
+    field(:latitude, :decimal)
+    field(:longitude, :decimal)
 
     # Forvo API caching fields
-    field :forvo_audio_url, :string  # Note: database type is :text for long URLs
-    field :forvo_last_checked, :utc_datetime
+    # Note: database type is :text for long URLs
+    field(:forvo_audio_url, :string)
+    field(:forvo_last_checked, :utc_datetime)
 
     timestamps(type: :utc_datetime)
   end
 
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:name, :pronunciation_audio_url, :pronouns, :role, :timezone, :country, :work_start, :work_end, :name_native, :native_language, :latitude, :longitude, :forvo_audio_url, :forvo_last_checked])
+    |> cast(attrs, [
+      :name,
+      :pronunciation_audio_url,
+      :pronouns,
+      :role,
+      :timezone,
+      :country,
+      :work_start,
+      :work_end,
+      :name_native,
+      :native_language,
+      :latitude,
+      :longitude,
+      :forvo_audio_url,
+      :forvo_last_checked
+    ])
     |> validate_required([:name, :timezone, :country, :work_start, :work_end])
     |> validate_timezone()
     |> validate_country_code()
@@ -41,7 +58,9 @@ defmodule Zonely.Accounts.User do
 
   defp validate_country_code(changeset) do
     case get_change(changeset, :country) do
-      nil -> changeset
+      nil ->
+        changeset
+
       country ->
         if String.length(country) == 2 and String.upcase(country) == country do
           changeset

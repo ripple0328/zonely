@@ -1,7 +1,7 @@
 defmodule ZonelyWeb.ComponentCase do
   @moduledoc """
   This module defines the test case to be used by tests for Phoenix components.
-  
+
   Such tests rely on `Phoenix.LiveViewTest` and also import other functionality 
   to make it easier to build common data structures and query the DOM.
   """
@@ -17,7 +17,7 @@ defmodule ZonelyWeb.ComponentCase do
 
       # The default endpoint for testing
       @endpoint ZonelyWeb.Endpoint
-      
+
       # Helper function to render a component (avoid import conflict)
       defp render_component_test(component, assigns) do
         component

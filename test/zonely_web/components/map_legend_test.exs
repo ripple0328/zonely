@@ -8,13 +8,14 @@ defmodule ZonelyWeb.MapLegendComponentTest do
 
   test "renders legend title and sections" do
     assigns = %{}
-    html = rendered_to_string(~H"""
-    <.map_legend />
-    """)
+
+    html =
+      rendered_to_string(~H"""
+      <.map_legend />
+      """)
 
     assert html =~ "Map Overlays"
     assert html =~ "Timezone Regions"
     assert html =~ "Night Region"
   end
 end
-

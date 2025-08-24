@@ -41,7 +41,6 @@ defmodule ZonelyWeb.WorkHoursLive do
     WorkingHours.calculate_overlap_hours(selected_users)
   end
 
-
   @impl true
   def render(assigns) do
     ~H"""

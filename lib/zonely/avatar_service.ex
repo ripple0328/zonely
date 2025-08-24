@@ -52,7 +52,10 @@ defmodule Zonely.AvatarService do
       iex> AvatarService.generate_initials_avatar("María")
       %{initials: "M", class: "bg-gradient-to-br from-blue-500 to-purple-600"}
   """
-  @spec generate_initials_avatar(String.t(), String.t()) :: %{initials: String.t(), class: String.t()}
+  @spec generate_initials_avatar(String.t(), String.t()) :: %{
+          initials: String.t(),
+          class: String.t()
+        }
   def generate_initials_avatar(name, class \\ "bg-gradient-to-br from-blue-500 to-purple-600") do
     initials = extract_initials(name)
     %{initials: initials, class: class}
@@ -104,7 +107,8 @@ defmodule Zonely.AvatarService do
   defp normalize_name_for_seed(name) do
     name
     |> String.downcase()
-    |> String.replace(~r/[^\w\s]/, "")  # Remove special characters
+    # Remove special characters
+    |> String.replace(~r/[^\w\s]/, "")
     |> String.replace(" ", "-")
   end
 
@@ -113,7 +117,8 @@ defmodule Zonely.AvatarService do
     name
     |> String.split(" ", trim: true)
     |> Enum.map(&String.first/1)
-    |> Enum.take(2)  # Maximum 2 initials
+    # Maximum 2 initials
+    |> Enum.take(2)
     |> Enum.join()
     |> String.upcase()
   end

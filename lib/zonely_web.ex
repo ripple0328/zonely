@@ -17,7 +17,9 @@ defmodule ZonelyWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images audio favicon.ico favicon.svg favicon-32x32.png favicon-minimal.svg robots.txt)
+  def static_paths,
+    do:
+      ~w(assets fonts images audio favicon.ico favicon.svg favicon-32x32.png favicon-minimal.svg robots.txt)
 
   def router do
     quote do

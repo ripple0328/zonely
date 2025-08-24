@@ -51,12 +51,20 @@ defmodule Zonely.PronunceNameTest do
       Application.put_env(:zonely, :aws_request_fun, fn _req ->
         {:ok, %{status_code: 200, body: <<"FAKE_MP3"::binary>>}}
       end)
+
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
       {:play_audio, %{url: url}} = PronunceName.play("TTS Only Name", "en-US", "US")
       assert String.ends_with?(url, ".mp3")
       # Ensure stable file gets written
-      assert File.exists?(Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", String.trim_leading(url, "/audio/")]))
+      assert File.exists?(
+               Path.join([
+                 Application.app_dir(:zonely, "priv"),
+                 "static",
+                 "audio",
+                 String.trim_leading(url, "/audio/")
+               ])
+             )
     end
 
     test "derives language from country when language is nil" do
@@ -66,6 +74,7 @@ defmodule Zonely.PronunceNameTest do
       Application.put_env(:zonely, :aws_request_fun, fn _req ->
         {:ok, %{status_code: 200, body: <<"FAKE_MP3"::binary>>}}
       end)
+
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
       {:play_audio, %{url: url}} = PronunceName.play("Hans Mueller", nil, "DE")
@@ -79,6 +88,7 @@ defmodule Zonely.PronunceNameTest do
       Application.put_env(:zonely, :aws_request_fun, fn _req ->
         {:ok, %{status_code: 200, body: <<"FAKE_MP3"::binary>>}}
       end)
+
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
       {:play_audio, %{url: url_us}} = PronunceName.play("John", nil, "US")
@@ -128,7 +138,8 @@ defmodule Zonely.PronunceNameTest do
       on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
-      assert {:play_tts, %{text: "Charlie Unique", lang: "en-US"}} = PronunceName.play("Charlie Unique", "en-US", "US")
+      assert {:play_tts, %{text: "Charlie Unique", lang: "en-US"}} =
+               PronunceName.play("Charlie Unique", "en-US", "US")
     end
   end
 end

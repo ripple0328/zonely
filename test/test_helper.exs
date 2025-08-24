@@ -16,6 +16,7 @@ if System.get_env("WALLABY_ENABLE_SERVER") == "true" do
   try do
     {:ok, _} = Application.ensure_all_started(:wallaby)
   rescue
-    _ -> :ok  # Ignore wallaby startup errors - they'll be handled later
+    # Ignore wallaby startup errors - they'll be handled later
+    _ -> :ok
   end
 end

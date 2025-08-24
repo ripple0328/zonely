@@ -10,5 +10,5 @@ defmodule ZonelyWeb.Layouts do
   """
   use ZonelyWeb, :html
 
-  embed_templates "layouts/*"
+  embed_templates("layouts/*")
 end

@@ -42,9 +42,11 @@ defmodule Zonely.PronunceName do
   - `{:play_audio, %{url: url}}` - for cached or downloaded audio files
   - `{:play_tts, %{text: text, lang: lang}}` - for text-to-speech fallback
   """
-  @spec play(String.t(), String.t() | nil, String.t()) :: {:play_audio | :play_tts, map()}
+  @spec play(String.t(), String.t() | nil, String.t()) :: {:play_audio | :play_tts | :play_tts_audio, map()}
   def play(name, language, country) when is_binary(name) and is_binary(country) do
-    Logger.info("🎯 PronunceName.play called: name=#{inspect(name)}, language=#{inspect(language) || "auto"}, country=#{country}")
+    Logger.info(
+      "🎯 PronunceName.play called: name=#{inspect(name)}, language=#{inspect(language) || "auto"}, country=#{country}"
+    )
 
     # Derive language from country if needed
     target_language = language || derive_language_from_country(country)
@@ -52,11 +54,17 @@ defmodule Zonely.PronunceName do
     # Try to get pronunciation
     case get_pronunciation(name, target_language, country) do
       {:audio_url, url} ->
-        Logger.info("🔊 PronounceName result: cache_or_external_audio url=#{url}")
-        {:play_audio, %{url: url}}
+        # Check if this is AI-generated audio (Polly) based on filename
+        if String.contains?(url, "polly_") do
+          Logger.info("🤖 PronounceName result: ai_generated_audio url=#{url}")
+          {:play_tts_audio, %{url: url}}
+        else
+          Logger.info("🔊 PronounceName result: real_person_audio url=#{url}")
+          {:play_audio, %{url: url}}
+        end
 
       {:tts, text, lang} ->
-        Logger.info("🗣️ PronounceName result: tts text=#{inspect(text)} lang=#{lang}")
+        Logger.info("🗣️ PronounceName result: browser_tts text=#{inspect(text)} lang=#{lang}")
         {:play_tts, %{text: text, lang: lang}}
     end
   end
@@ -64,7 +72,7 @@ defmodule Zonely.PronunceName do
   # Private functions for internal logic
 
   @spec get_pronunciation(String.t(), String.t(), String.t()) ::
-    {:audio_url, String.t()} | {:tts, String.t(), String.t()}
+          {:audio_url, String.t()} | {:tts, String.t(), String.t()}
   defp get_pronunciation(name, language, _country) do
     # 1) Local cache lookup
     case Zonely.PronunceName.Cache.lookup_cached_audio(name, language) do
@@ -81,13 +89,20 @@ defmodule Zonely.PronunceName do
             {:audio_url, audio_url}
 
           {:error, :not_found} ->
-            Logger.info("↪️ External sources unavailable; attempting AWS Polly for #{inspect(name)} (#{language})")
+            Logger.info(
+              "↪️ External sources unavailable; attempting AWS Polly for #{inspect(name)} (#{language})"
+            )
+
             case Zonely.PronunceName.Providers.Polly.synthesize(name, language) do
               {:ok, web_path} ->
                 Logger.info("✅ Polly synth success -> #{web_path}")
                 {:audio_url, web_path}
+
               {:error, reason} ->
-                Logger.warning("❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS")
+                Logger.warning(
+                  "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
+                )
+
                 {:tts, name, language}
             end
         end
@@ -101,63 +116,114 @@ defmodule Zonely.PronunceName do
   @spec pick_polly_voice(String.t()) :: String.t()
   def pick_polly_voice(bcp47) do
     base = bcp47 |> String.split("-") |> List.first() |> String.downcase()
+
     case String.downcase(bcp47) do
       # English variants (neural voices preferred)
-      "en-us" -> "Joanna"
-      "en-gb" -> "Amy"
-      "en-au" -> "Olivia"
-      "en-ca" -> "Emma"
-      "en-in" -> "Aditi"
+      "en-us" ->
+        "Joanna"
+
+      "en-gb" ->
+        "Amy"
+
+      "en-au" ->
+        "Olivia"
+
+      "en-ca" ->
+        "Emma"
+
+      "en-in" ->
+        "Aditi"
 
       # Spanish variants
-      "es-es" -> "Lucia"
-      "es-us" -> "Lupe"
-      "es-mx" -> "Lupe"
+      "es-es" ->
+        "Lucia"
+
+      "es-us" ->
+        "Lupe"
+
+      "es-mx" ->
+        "Lupe"
 
       # Portuguese variants
-      "pt-br" -> "Camila"
-      "pt-pt" -> "Ines"
+      "pt-br" ->
+        "Camila"
+
+      "pt-pt" ->
+        "Ines"
 
       # French variants
-      "fr-fr" -> "Lea"
-      "fr-ca" -> "Chantal"
+      "fr-fr" ->
+        "Lea"
+
+      "fr-ca" ->
+        "Chantal"
 
       # German variants
-      "de-de" -> "Vicki"
-      "de-at" -> "Vicki"
+      "de-de" ->
+        "Vicki"
+
+      "de-at" ->
+        "Vicki"
 
       # Chinese variants
-      "zh-cn" -> "Zhiyu"
-      "zh-tw" -> "Zhiyu"
+      "zh-cn" ->
+        "Zhiyu"
+
+      "zh-tw" ->
+        "Zhiyu"
 
       # Arabic variants
-      "ar-eg" -> "Zeina"
-      "ar-sa" -> "Zeina"
+      "ar-eg" ->
+        "Zeina"
+
+      "ar-sa" ->
+        "Zeina"
 
       _ ->
         case base do
           # Major language families by base code
-          "es" -> "Lucia"      # Spanish (Spain default)
-          "pt" -> "Camila"     # Portuguese (Brazilian default)
-          "fr" -> "Lea"        # French
-          "de" -> "Vicki"      # German
-          "it" -> "Bianca"     # Italian
-          "ja" -> "Mizuki"     # Japanese
-          "ko" -> "Seoyeon"    # Korean
-          "hi" -> "Aditi"      # Hindi
-          "zh" -> "Zhiyu"      # Chinese (Mandarin)
-          "ar" -> "Zeina"      # Arabic
-          "ru" -> "Tatyana"    # Russian
-          "nl" -> "Lotte"      # Dutch
-          "sv" -> "Astrid"     # Swedish
-          "no" -> "Liv"        # Norwegian
-          "da" -> "Naja"       # Danish
-          "fi" -> "Suvi"       # Finnish
-          "pl" -> "Ewa"        # Polish
-          "tr" -> "Filiz"      # Turkish
-          "th" -> "Zhiyu"      # Thai (fallback to multilingual voice)
-          "vi" -> "Zhiyu"      # Vietnamese (fallback to multilingual voice)
-          _ -> "Joanna"        # English fallback
+          # Spanish (Spain default)
+          "es" -> "Lucia"
+          # Portuguese (Brazilian default)
+          "pt" -> "Camila"
+          # French
+          "fr" -> "Lea"
+          # German
+          "de" -> "Vicki"
+          # Italian
+          "it" -> "Bianca"
+          # Japanese
+          "ja" -> "Mizuki"
+          # Korean
+          "ko" -> "Seoyeon"
+          # Hindi
+          "hi" -> "Aditi"
+          # Chinese (Mandarin)
+          "zh" -> "Zhiyu"
+          # Arabic
+          "ar" -> "Zeina"
+          # Russian
+          "ru" -> "Tatyana"
+          # Dutch
+          "nl" -> "Lotte"
+          # Swedish
+          "sv" -> "Astrid"
+          # Norwegian
+          "no" -> "Liv"
+          # Danish
+          "da" -> "Naja"
+          # Finnish
+          "fi" -> "Suvi"
+          # Polish
+          "pl" -> "Ewa"
+          # Turkish
+          "tr" -> "Filiz"
+          # Thai (fallback to multilingual voice)
+          "th" -> "Zhiyu"
+          # Vietnamese (fallback to multilingual voice)
+          "vi" -> "Zhiyu"
+          # English fallback
+          _ -> "Joanna"
         end
     end
   end
@@ -165,16 +231,20 @@ defmodule Zonely.PronunceName do
   # (binary cache writing lives in Zonely.PronunceName.Cache)
 
   @spec fetch_from_external_service(String.t(), String.t()) ::
-    {:ok, String.t()} | {:error, :not_found}
+          {:ok, String.t()} | {:error, :not_found}
   defp fetch_from_external_service(name, language) do
     Logger.info("🔎 Trying NameShouts for #{inspect(name)} (#{language})")
+
     case Zonely.PronunceName.Providers.NameShouts.fetch(name, language) do
       {:ok, url} ->
         Logger.info("✅ NameShouts hit -> #{url}")
         {:ok, url}
 
       {:error, reason} ->
-        Logger.info("↪️ NameShouts miss (#{inspect(reason)}), trying Forvo for #{inspect(name)} (#{language})")
+        Logger.info(
+          "↪️ NameShouts miss (#{inspect(reason)}), trying Forvo for #{inspect(name)} (#{language})"
+        )
+
         case Zonely.PronunceName.Providers.Forvo.fetch(name, language) do
           {:ok, url} ->
             Logger.info("✅ Forvo hit -> #{url}")
@@ -194,7 +264,6 @@ defmodule Zonely.PronunceName do
   # (Forvo request logic moved to Providers.Forvo)
 
   # (external download moved to Cache.write_external_and_cache/4)
-
 
   @spec generate_name_variants(String.t()) :: [String.t()]
   def generate_name_variants(name) do
@@ -216,9 +285,10 @@ defmodule Zonely.PronunceName do
 
   # (NameShouts integration moved to Providers.NameShouts)
 
-  @spec pick_nameshouts_variant(map(), String.t(), String.t()) :: {:ok, String.t()} | {:error, atom()}
+  @spec pick_nameshouts_variant(map(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, atom()}
   def pick_nameshouts_variant(%{"status" => status, "message" => message}, name, language)
-       when is_binary(status) and is_map(message) do
+      when is_binary(status) and is_map(message) do
     target_lang_name = language_display_name_from_bcp47(language)
 
     # Try multiple possible keys that NameShouts may use
@@ -249,12 +319,15 @@ defmodule Zonely.PronunceName do
                 {:ok, path} -> path
                 _ -> nil
               end
+
             is_map(v) ->
               case select_variant_from_map(v) do
                 {:ok, path} -> path
                 _ -> nil
               end
-            true -> nil
+
+            true ->
+              nil
           end
         end)
         |> case do
@@ -267,9 +340,10 @@ defmodule Zonely.PronunceName do
   def pick_nameshouts_variant(_body, _name, _language), do: {:error, :unexpected_format}
 
   defp select_variant_from_list(list, target_lang_name) when is_list(list) do
-    preferred = Enum.find(list, fn v ->
-      String.downcase(v["lang_name"] || "") == String.downcase(target_lang_name)
-    end)
+    preferred =
+      Enum.find(list, fn v ->
+        String.downcase(v["lang_name"] || "") == String.downcase(target_lang_name)
+      end)
 
     chosen = preferred || List.first(list)
 
@@ -292,20 +366,25 @@ defmodule Zonely.PronunceName do
   def recover_nameshouts_body_from_decode_error(raw) when is_binary(raw) do
     # Try to find the first JSON object start
     case :binary.match(raw, "{") do
-      :nomatch -> {:error, :no_json}
+      :nomatch ->
+        {:error, :no_json}
+
       {pos, _len} ->
         json = binary_part(raw, pos, byte_size(raw) - pos)
+
         case Jason.decode(json) do
           {:ok, body} -> {:ok, body}
           _ -> {:error, :bad_json}
         end
     end
   end
+
   def recover_nameshouts_body_from_decode_error(_), do: {:error, :bad_data}
 
   @spec language_display_name_from_bcp47(String.t()) :: String.t()
   def language_display_name_from_bcp47(bcp47) do
     prefix = bcp47 |> String.split("-") |> List.first()
+
     case prefix do
       "en" -> "English"
       "es" -> "Spanish"
@@ -361,7 +440,8 @@ defmodule Zonely.PronunceName do
       "IN" -> "Hindi"
       "EG" -> "Arabic"
       "SE" -> "Swedish"
-      _ -> "English"  # Default fallback
+      # Default fallback
+      _ -> "English"
     end
   end
 
@@ -385,7 +465,8 @@ defmodule Zonely.PronunceName do
       "IN" -> "hi-IN"
       "EG" -> "ar-EG"
       "SE" -> "sv-SE"
-      _ -> "en-US"  # Default fallback
+      # Default fallback
+      _ -> "en-US"
     end
   end
 end

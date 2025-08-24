@@ -4,7 +4,8 @@ defmodule Zonely.HttpClient do
   """
 
   @callback get(String.t()) :: {:ok, %{status: non_neg_integer(), body: any()}} | {:error, any()}
-  @callback get(String.t(), list()) :: {:ok, %{status: non_neg_integer(), body: any()}} | {:error, any()}
+  @callback get(String.t(), list()) ::
+              {:ok, %{status: non_neg_integer(), body: any()}} | {:error, any()}
 end
 
 defmodule Zonely.HttpClient.Req do

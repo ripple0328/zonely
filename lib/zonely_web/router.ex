@@ -2,40 +2,40 @@ defmodule ZonelyWeb.Router do
   use ZonelyWeb, :router
 
   pipeline :browser do
-    plug :accepts, ["html"]
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {ZonelyWeb.Layouts, :root}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_live_flash)
+    plug(:put_root_layout, html: {ZonelyWeb.Layouts, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :map_layout do
-    plug :accepts, ["html"]
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {ZonelyWeb.Layouts, :root}
-    plug :put_layout, html: {ZonelyWeb.Layouts, :map}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_live_flash)
+    plug(:put_root_layout, html: {ZonelyWeb.Layouts, :root})
+    plug(:put_layout, html: {ZonelyWeb.Layouts, :map})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :api do
-    plug :accepts, ["json"]
+    plug(:accepts, ["json"])
   end
 
   scope "/", ZonelyWeb do
-    pipe_through :map_layout
+    pipe_through(:map_layout)
 
-    live "/", MapLive
+    live("/", MapLive)
   end
 
-    scope "/", ZonelyWeb do
-    pipe_through :browser
+  scope "/", ZonelyWeb do
+    pipe_through(:browser)
 
-    live "/directory", DirectoryLive
-    live "/work-hours", WorkHoursLive
-    live "/holidays", HolidaysLive
+    live("/directory", DirectoryLive)
+    live("/work-hours", WorkHoursLive)
+    live("/holidays", HolidaysLive)
   end
 
   # Other scopes may use custom stacks.
@@ -48,9 +48,9 @@ defmodule ZonelyWeb.Router do
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do
-      pipe_through :browser
+      pipe_through(:browser)
 
-      live_dashboard "/dashboard", metrics: ZonelyWeb.Telemetry
+      live_dashboard("/dashboard", metrics: ZonelyWeb.Telemetry)
     end
   end
 end

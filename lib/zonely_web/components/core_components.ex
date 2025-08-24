@@ -9,8 +9,8 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders the Zonely logo with consistent styling.
   """
-  attr :class, :string, default: "", doc: "additional CSS classes"
-  attr :link, :boolean, default: true, doc: "whether to wrap in a link to home"
+  attr(:class, :string, default: "", doc: "additional CSS classes")
+  attr(:link, :boolean, default: true, doc: "whether to wrap in a link to home")
 
   def logo(assigns) do
     ~H"""
@@ -39,7 +39,7 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders the Zonely logo with a link to home.
   """
-  attr :class, :string, default: "", doc: "additional CSS classes"
+  attr(:class, :string, default: "", doc: "additional CSS classes")
 
   def logo_link(assigns) do
     ~H"""
@@ -52,13 +52,13 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders flash notices.
   """
-  attr :id, :string, doc: "the optional id of flash container"
-  attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
-  attr :title, :string, default: nil
-  attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
-  attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
+  attr(:id, :string, doc: "the optional id of flash container")
+  attr(:flash, :map, default: %{}, doc: "the map of flash messages to display")
+  attr(:title, :string, default: nil)
+  attr(:kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup")
+  attr(:rest, :global, doc: "the arbitrary HTML attributes to add to the flash container")
 
-  slot :inner_block, doc: "the optional inner block that renders the flash message"
+  slot(:inner_block, doc: "the optional inner block that renders the flash message")
 
   def flash(assigns) do
     assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
@@ -92,8 +92,8 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Shows the flash group with standard titles and content.
   """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-  attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
+  attr(:flash, :map, required: true, doc: "the map of flash messages")
+  attr(:id, :string, default: "flash-group", doc: "the optional id of flash container")
 
   def flash_group(assigns) do
     ~H"""
@@ -107,30 +107,33 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders an input with label and error messages.
   """
-  attr :id, :any, default: nil
-  attr :name, :any
-  attr :label, :string, default: nil
-  attr :value, :any
+  attr(:id, :any, default: nil)
+  attr(:name, :any)
+  attr(:label, :string, default: nil)
+  attr(:value, :any)
 
-  attr :type, :string,
+  attr(:type, :string,
     default: "text",
     values: ~w(checkbox color date datetime-local email file month number password
                range search tel text textarea time url week select)
+  )
 
-  attr :field, Phoenix.HTML.FormField,
+  attr(:field, Phoenix.HTML.FormField,
     doc: "a form field struct retrieved from the form, for example: @form[:email]"
+  )
 
-  attr :errors, :list, default: []
-  attr :checked, :boolean, doc: "the checked flag for checkbox inputs"
-  attr :prompt, :string, default: nil, doc: "the prompt for select inputs"
-  attr :options, :list, doc: "the options to pass to Phoenix.HTML.Form.options_for_select/2"
-  attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
+  attr(:errors, :list, default: [])
+  attr(:checked, :boolean, doc: "the checked flag for checkbox inputs")
+  attr(:prompt, :string, default: nil, doc: "the prompt for select inputs")
+  attr(:options, :list, doc: "the options to pass to Phoenix.HTML.Form.options_for_select/2")
+  attr(:multiple, :boolean, default: false, doc: "the multiple flag for select inputs")
 
-  attr :rest, :global,
+  attr(:rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
+  )
 
-  slot :inner_block
+  slot(:inner_block)
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
@@ -207,8 +210,8 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a label.
   """
-  attr :for, :string, default: nil
-  slot :inner_block, required: true
+  attr(:for, :string, default: nil)
+  slot(:inner_block, required: true)
 
   def label(assigns) do
     ~H"""
@@ -221,7 +224,7 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Generates a generic error message.
   """
-  slot :inner_block, required: true
+  slot(:inner_block, required: true)
 
   def error(assigns) do
     ~H"""
@@ -235,8 +238,8 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders an icon.
   """
-  attr :name, :string, required: true
-  attr :class, :string, default: nil
+  attr(:name, :string, required: true)
+  attr(:class, :string, default: nil)
 
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
@@ -272,9 +275,9 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders an inline actions popup with expandable action forms.
   """
-  attr :user, :map, required: true
-  attr :class, :string, default: ""
-  attr :expanded_action, :string, default: nil
+  attr(:user, :map, required: true)
+  attr(:class, :string, default: "")
+  attr(:expanded_action, :string, default: nil)
 
   def inline_actions_popup(assigns) do
     ~H"""
@@ -407,11 +410,11 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders an individual action pill that can expand into an inline form.
   """
-  attr :icon, :string, required: true
-  attr :label, :string, required: true
-  attr :action, :string, required: true
-  attr :expanded, :boolean, default: false
-  attr :user, :map, required: true
+  attr(:icon, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:action, :string, required: true)
+  attr(:expanded, :boolean, default: false)
+  attr(:user, :map, required: true)
 
   def action_pill(assigns) do
     ~H"""
@@ -447,8 +450,8 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders the appropriate inline form based on the action type.
   """
-  attr :action, :string, required: true
-  attr :user, :map, required: true
+  attr(:action, :string, required: true)
+  attr(:user, :map, required: true)
 
   def action_form(%{action: "message"} = assigns) do
     ~H"""
@@ -785,12 +788,11 @@ defmodule ZonelyWeb.CoreComponents do
     """
   end
 
-
   @doc """
   Renders compact inline forms for quick actions.
   """
-  attr :action, :string, required: true
-  attr :user, :map, required: true
+  attr(:action, :string, required: true)
+  attr(:user, :map, required: true)
 
   def quick_action_form(%{action: "message"} = assigns) do
     ~H"""
@@ -873,14 +875,15 @@ defmodule ZonelyWeb.CoreComponents do
 
   defp user_avatar_url(name) do
     seed = name |> String.downcase() |> String.replace(" ", "-")
+
     "https://api.dicebear.com/7.x/avataaars/svg?seed=#{seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
   end
 
   @doc """
   Renders the main navigation bar with mobile support.
   """
-  attr :current_page, :string, default: "map", doc: "the currently active page"
-  attr :page_title, :string, default: "Global Team Map", doc: "the page title to display"
+  attr(:current_page, :string, default: "map", doc: "the currently active page")
+  attr(:page_title, :string, default: "Global Team Map", doc: "the page title to display")
 
   def navbar(assigns) do
     ~H"""
@@ -933,9 +936,9 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a desktop navigation link.
   """
-  attr :navigate, :string, required: true
-  attr :current, :boolean, default: false
-  slot :inner_block, required: true
+  attr(:navigate, :string, required: true)
+  attr(:current, :boolean, default: false)
+  slot(:inner_block, required: true)
 
   def nav_link(assigns) do
     ~H"""
@@ -955,9 +958,9 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a mobile navigation link.
   """
-  attr :navigate, :string, required: true
-  attr :current, :boolean, default: false
-  slot :inner_block, required: true
+  attr(:navigate, :string, required: true)
+  attr(:current, :boolean, default: false)
+  slot(:inner_block, required: true)
 
   def mobile_nav_link(assigns) do
     ~H"""
@@ -1027,9 +1030,9 @@ defmodule ZonelyWeb.CoreComponents do
 
   Uses AvatarService for avatar generation to maintain consistency across the app.
   """
-  attr :user, :map, required: true, doc: "User struct with name"
-  attr :size, :integer, default: 64, doc: "Avatar size in pixels"
-  attr :class, :string, default: "", doc: "Additional CSS classes"
+  attr(:user, :map, required: true, doc: "User struct with name")
+  attr(:size, :integer, default: 64, doc: "Avatar size in pixels")
+  attr(:class, :string, default: "", doc: "Additional CSS classes")
 
   def user_avatar(assigns) do
     ~H"""
@@ -1047,13 +1050,36 @@ defmodule ZonelyWeb.CoreComponents do
 
   Shows both English and native language pronunciation buttons with proper icons and states.
   """
-  attr :user, :map, required: true, doc: "User struct with name, native_language, country"
-  attr :size, :atom, default: :normal, values: [:small, :normal, :large], doc: "Button size variant"
-  attr :show_labels, :boolean, default: true, doc: "Whether to show language labels"
+  attr(:user, :map, required: true, doc: "User struct with name, native_language, country")
+
+  attr(:size, :atom,
+    default: :normal,
+    values: [:small, :normal, :large],
+    doc: "Button size variant"
+  )
+
+  attr(:show_labels, :boolean, default: true, doc: "Whether to show language labels")
+
+  attr(:loading_pronunciation, :string,
+    default: nil,
+    doc: "Which pronunciation is currently loading (english/native)"
+  )
+
+  attr(:playing_pronunciation, :map,
+    default: %{},
+    doc: "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
+  )
 
   def pronunciation_buttons(assigns) do
     # Generate size-specific classes
     assigns = assign(assigns, :size_classes, size_classes_for_pronunciation(assigns.size))
+    
+    # Determine button states
+    user_id = assigns.user.id
+    playing_info = Map.get(assigns.playing_pronunciation, user_id, %{})
+    
+    assigns = assign(assigns, :english_state, get_button_state("english", assigns.loading_pronunciation, playing_info))
+    assigns = assign(assigns, :native_state, get_button_state("native", assigns.loading_pronunciation, playing_info))
 
     ~H"""
     <div class="flex items-center gap-1">
@@ -1062,15 +1088,66 @@ defmodule ZonelyWeb.CoreComponents do
         phx-click="play_english_pronunciation"
         phx-value-user_id={@user.id}
         class={[
-          "inline-flex items-center justify-center gap-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors",
+          "inline-flex items-center justify-center gap-1 text-gray-500 rounded-full transition-colors",
+          @english_state.class,
           @size_classes.button
         ]}
-        title="Play English pronunciation"
+        title={@english_state.tooltip}
         data-testid="pronunciation-english"
+        disabled={@english_state.state == :loading}
       >
-        <svg class={@size_classes.icon} fill="currentColor" viewBox="0 0 20 20">
+        <!-- Play icon (idle state) -->
+        <svg
+          :if={@english_state.icon == :play}
+          class={@size_classes.icon}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
         </svg>
+        
+        <!-- Spinner icon (loading state) -->
+        <svg
+          :if={@english_state.icon == :spinner}
+          class={[@size_classes.icon, "animate-spin"]}
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        
+        <!-- User icon (real person playing) -->
+        <svg
+          :if={@english_state.icon == :user}
+          class={[@size_classes.icon]}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+        </svg>
+        
+        <!-- Robot icon (AI generated playing) -->
+        <svg
+          :if={@english_state.icon == :robot}
+          class={[@size_classes.icon]}
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2ZM12 4C11.4 4 11 4.4 11 5V6H13V5C13 4.4 12.6 4 12 4ZM9 10C8.4 10 8 10.4 8 11S8.4 12 9 12 10 11.6 10 11 9.6 10 9 10ZM15 10C14.4 10 14 10.4 14 11S14.4 12 15 12 16 11.6 16 11 15.6 10 15 10ZM8 14H16V16H8V14Z"/>
+        </svg>
+        
+        <!-- Sound waves icon (playing state) -->
+        <svg
+          :if={@english_state.icon == :sound_waves}
+          class={[@size_classes.icon, "animate-pulse"]}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.792L5.232 14H2a1 1 0 01-1-1V7a1 1 0 011-1h3.232l3.151-2.792a1 1 0 011 0z"/>
+          <path d="M12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"/>
+        </svg>
+        
         <span :if={@show_labels} class={["font-medium", @size_classes.text]}>EN</span>
       </button>
 
@@ -1080,15 +1157,63 @@ defmodule ZonelyWeb.CoreComponents do
         phx-click="play_native_pronunciation"
         phx-value-user_id={@user.id}
         class={[
-          "inline-flex items-center justify-center gap-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors",
+          "inline-flex items-center justify-center gap-1 text-gray-500 rounded-full transition-colors",
+          @native_state.class,
           @size_classes.button
         ]}
-        title={"Play #{Zonely.LanguageService.get_native_language_name(@user.country)} pronunciation"}
+        title={@native_state.tooltip}
         data-testid="pronunciation-native"
+        disabled={@native_state.state == :loading}
       >
-        <svg class={@size_classes.icon} fill="currentColor" viewBox="0 0 20 20">
+        <svg
+          :if={@native_state.icon == :play}
+          class={@size_classes.icon}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
         </svg>
+        <svg
+          :if={@native_state.icon == :spinner}
+          class={[@size_classes.icon, "animate-spin"]}
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        
+        <!-- User icon (real person playing) -->
+        <svg
+          :if={@native_state.icon == :user}
+          class={[@size_classes.icon]}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+        </svg>
+        
+        <!-- Robot icon (AI generated playing) -->
+        <svg
+          :if={@native_state.icon == :robot}
+          class={[@size_classes.icon]}
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2ZM12 4C11.4 4 11 4.4 11 5V6H13V5C13 4.4 12.6 4 12 4ZM9 10C8.4 10 8 10.4 8 11S8.4 12 9 12 10 11.6 10 11 9.6 10 9 10ZM15 10C14.4 10 14 10.4 14 11S14.4 12 15 12 16 11.6 16 11 15.6 10 15 10ZM8 14H16V16H8V14Z"/>
+        </svg>
+        
+        <!-- Sound waves icon (playing state) -->
+        <svg
+          :if={@native_state.icon == :sound_waves}
+          class={[@size_classes.icon, "animate-pulse"]}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.792L5.232 14H2a1 1 0 01-1-1V7a1 1 0 011-1h3.232l3.151-2.792a1 1 0 011 0z"/>
+          <path d="M12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"/>
+        </svg>
+        
         <span :if={@show_labels} class={["font-medium", @size_classes.text]}>
           <%= String.slice(Zonely.LanguageService.get_native_language_name(@user.country), 0, 2) |> String.upcase() %>
         </span>
@@ -1102,9 +1227,18 @@ defmodule ZonelyWeb.CoreComponents do
 
   Displays country, timezone, and optional local time in a clean, consistent format.
   """
-  attr :user, :map, required: true, doc: "User struct with country, timezone"
-  attr :show_local_time, :boolean, default: false, doc: "Whether to calculate and show local time"
-  attr :layout, :atom, default: :horizontal, values: [:horizontal, :vertical], doc: "Layout direction"
+  attr(:user, :map, required: true, doc: "User struct with country, timezone")
+
+  attr(:show_local_time, :boolean,
+    default: false,
+    doc: "Whether to calculate and show local time"
+  )
+
+  attr(:layout, :atom,
+    default: :horizontal,
+    values: [:horizontal, :vertical],
+    doc: "Layout direction"
+  )
 
   def timezone_display(assigns) do
     ~H"""
@@ -1133,9 +1267,9 @@ defmodule ZonelyWeb.CoreComponents do
 
   Shows work start/end times with optional status indicator.
   """
-  attr :user, :map, required: true, doc: "User struct with work_start, work_end"
-  attr :show_status, :boolean, default: false, doc: "Whether to show current availability status"
-  attr :compact, :boolean, default: false, doc: "Whether to use compact layout"
+  attr(:user, :map, required: true, doc: "User struct with work_start, work_end")
+  attr(:show_status, :boolean, default: false, doc: "Whether to show current availability status")
+  attr(:compact, :boolean, default: false, doc: "Whether to use compact layout")
 
   def working_hours(assigns) do
     ~H"""
@@ -1167,8 +1301,8 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a 24-hour timeline visualization for user work hours.
   """
-  attr :users, :list, required: true, doc: "List of users to display on timeline"
-  attr :class, :string, default: "", doc: "Additional CSS classes"
+  attr(:users, :list, required: true, doc: "List of users to display on timeline")
+  attr(:class, :string, default: "", doc: "Additional CSS classes")
 
   def work_hours_timeline(assigns) do
     ~H"""
@@ -1214,9 +1348,9 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a holiday card with affected users and time indicators.
   """
-  attr :holiday, :map, required: true, doc: "Holiday struct with name, date, country"
-  attr :users, :list, required: true, doc: "List of users affected by this holiday"
-  attr :class, :string, default: "", doc: "Additional CSS classes"
+  attr(:holiday, :map, required: true, doc: "Holiday struct with name, date, country")
+  attr(:users, :list, required: true, doc: "List of users affected by this holiday")
+  attr(:class, :string, default: "", doc: "Additional CSS classes")
 
   def holiday_card(assigns) do
     days_until = Zonely.DateUtils.days_until(assigns.holiday.date)
@@ -1280,10 +1414,21 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a country badge with consistent styling.
   """
-  attr :country, :string, required: true, doc: "Country code or name to display"
-  attr :size, :atom, default: :normal, values: [:small, :normal, :large], doc: "Size of the badge"
-  attr :variant, :atom, default: :gray, values: [:gray, :blue, :green, :yellow], doc: "Color variant"
-  attr :class, :string, default: "", doc: "Additional CSS classes"
+  attr(:country, :string, required: true, doc: "Country code or name to display")
+
+  attr(:size, :atom,
+    default: :normal,
+    values: [:small, :normal, :large],
+    doc: "Size of the badge"
+  )
+
+  attr(:variant, :atom,
+    default: :gray,
+    values: [:gray, :blue, :green, :yellow],
+    doc: "Color variant"
+  )
+
+  attr(:class, :string, default: "", doc: "Additional CSS classes")
 
   def country_badge(assigns) do
     ~H"""
@@ -1312,10 +1457,20 @@ defmodule ZonelyWeb.CoreComponents do
 
   This is a composite component that uses other components for consistency.
   """
-  attr :user, :map, required: true, doc: "User struct with all user data"
-  attr :show_actions, :boolean, default: false, doc: "Whether to show action buttons"
-  attr :show_local_time, :boolean, default: false, doc: "Whether to show calculated local time"
-  attr :class, :string, default: "", doc: "Additional CSS classes"
+  attr(:user, :map, required: true, doc: "User struct with all user data")
+  attr(:show_actions, :boolean, default: false, doc: "Whether to show action buttons")
+  attr(:show_local_time, :boolean, default: false, doc: "Whether to show calculated local time")
+  attr(:class, :string, default: "", doc: "Additional CSS classes")
+
+  attr(:loading_pronunciation, :string,
+    default: nil,
+    doc: "Which pronunciation is currently loading (english/native)"
+  )
+
+  attr(:playing_pronunciation, :map,
+    default: %{},
+    doc: "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
+  )
 
   def profile_card(assigns) do
     ~H"""
@@ -1332,7 +1487,7 @@ defmodule ZonelyWeb.CoreComponents do
             <h3 class="text-lg font-semibold text-gray-900 truncate">
               <%= @user.name %>
             </h3>
-            <.pronunciation_buttons user={@user} size={:small} />
+            <.pronunciation_buttons user={@user} size={:small} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
           </div>
 
           <p class="text-sm text-gray-600 mb-2">
@@ -1383,9 +1538,19 @@ defmodule ZonelyWeb.CoreComponents do
 
   Optimized for grid layouts with essential information only.
   """
-  attr :user, :map, required: true, doc: "User struct"
-  attr :clickable, :boolean, default: true, doc: "Whether the card is clickable"
-  attr :class, :string, default: "", doc: "Additional CSS classes"
+  attr(:user, :map, required: true, doc: "User struct")
+  attr(:clickable, :boolean, default: true, doc: "Whether the card is clickable")
+  attr(:class, :string, default: "", doc: "Additional CSS classes")
+
+  attr(:loading_pronunciation, :string,
+    default: nil,
+    doc: "Which pronunciation is currently loading (english/native)"
+  )
+
+  attr(:playing_pronunciation, :map,
+    default: %{},
+    doc: "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
+  )
 
   def user_card(assigns) do
     ~H"""
@@ -1407,7 +1572,7 @@ defmodule ZonelyWeb.CoreComponents do
           <dl>
             <dt class="text-sm font-medium text-gray-500 truncate flex items-center gap-2">
               <span><%= @user.name %></span>
-              <.pronunciation_buttons user={@user} size={:small} show_labels={true} />
+              <.pronunciation_buttons user={@user} size={:small} show_labels={true} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
             </dt>
             <dd class="text-sm text-gray-900 mt-1">
               <%= @user.role || "Team Member" %>
@@ -1462,9 +1627,9 @@ defmodule ZonelyWeb.CoreComponents do
 
   Provides common quick actions like messaging, scheduling meetings, and timezone pinning.
   """
-  attr :user, :map, required: true, doc: "user struct"
-  attr :expanded_action, :string, default: nil, doc: "currently expanded action"
-  attr :class, :string, default: "", doc: "additional CSS classes"
+  attr(:user, :map, required: true, doc: "user struct")
+  attr(:expanded_action, :string, default: nil, doc: "currently expanded action")
+  attr(:class, :string, default: "", doc: "additional CSS classes")
 
   def quick_actions_bar(assigns) do
     ~H"""
@@ -1517,10 +1682,10 @@ defmodule ZonelyWeb.CoreComponents do
 
   This component provides a visual time selector for working hours overlap analysis.
   """
-  attr :expanded, :boolean, default: true, doc: "whether the panel is expanded"
-  attr :class, :string, default: "", doc: "additional CSS classes"
-  attr :selected_a_frac, :float, default: nil, doc: "start fraction of selected range (0..1)"
-  attr :selected_b_frac, :float, default: nil, doc: "end fraction of selected range (0..1)"
+  attr(:expanded, :boolean, default: true, doc: "whether the panel is expanded")
+  attr(:class, :string, default: "", doc: "additional CSS classes")
+  attr(:selected_a_frac, :float, default: nil, doc: "start fraction of selected range (0..1)")
+  attr(:selected_b_frac, :float, default: nil, doc: "end fraction of selected range (0..1)")
   # Removed server persistence wiring for selection
 
   def time_range_selector(assigns) do
@@ -1630,11 +1795,11 @@ defmodule ZonelyWeb.CoreComponents do
   @doc """
   Renders a collapsible panel toggle button.
   """
-  attr :expanded, :boolean, required: true, doc: "whether the panel is expanded"
-  attr :label, :string, required: true, doc: "button label"
-  attr :collapsed_label, :string, default: nil, doc: "label when collapsed"
-  attr :click_event, :string, required: true, doc: "Phoenix event to trigger"
-  attr :class, :string, default: "", doc: "additional CSS classes"
+  attr(:expanded, :boolean, required: true, doc: "whether the panel is expanded")
+  attr(:label, :string, required: true, doc: "button label")
+  attr(:collapsed_label, :string, default: nil, doc: "label when collapsed")
+  attr(:click_event, :string, required: true, doc: "Phoenix event to trigger")
+  attr(:class, :string, default: "", doc: "additional CSS classes")
 
   def panel_toggle(assigns) do
     assigns = assign(assigns, collapsed_label: assigns.collapsed_label || assigns.label)
@@ -1655,5 +1820,30 @@ defmodule ZonelyWeb.CoreComponents do
       </span>
     </button>
     """
+  end
+
+  # Helper function to determine button state for pronunciation buttons
+  defp get_button_state(button_type, loading_pronunciation, playing_info) do
+    cond do
+      loading_pronunciation == button_type ->
+        %{state: :loading, icon: :spinner, class: "animate-pulse bg-blue-100 text-blue-600", tooltip: "Loading..."}
+      
+      Map.get(playing_info, :type) == button_type ->
+        source = Map.get(playing_info, :source, "unknown")
+        case source do
+          "audio" -> 
+            %{state: :playing, icon: :user, class: "animate-pulse bg-green-100 text-green-600", tooltip: "Real person voice"}
+          "tts" -> 
+            %{state: :playing, icon: :robot, class: "animate-pulse bg-orange-100 text-orange-600", tooltip: "AI synthesized pronunciation"}
+          _ ->
+            %{state: :playing, icon: :sound_waves, class: "animate-pulse bg-green-100 text-green-600", tooltip: "Playing"}
+        end
+      
+      true ->
+        case button_type do
+          "english" -> %{state: :idle, icon: :play, class: "hover:text-blue-600 hover:bg-blue-50", tooltip: "Play English pronunciation"}
+          "native" -> %{state: :idle, icon: :play, class: "hover:text-emerald-600 hover:bg-emerald-50", tooltip: "Play native pronunciation"}
+        end
+    end
   end
 end

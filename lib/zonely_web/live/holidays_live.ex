@@ -53,8 +53,6 @@ defmodule ZonelyWeb.HolidaysLive do
     Geography.users_by_country(users, country)
   end
 
-
-
   @impl true
   def render(assigns) do
     ~H"""

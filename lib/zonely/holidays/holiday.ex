@@ -6,9 +6,9 @@ defmodule Zonely.Holidays.Holiday do
   @foreign_key_type :binary_id
 
   schema "holidays" do
-    field :country, :string
-    field :date, :date
-    field :name, :string
+    field(:country, :string)
+    field(:date, :date)
+    field(:name, :string)
 
     timestamps(type: :utc_datetime)
   end
@@ -23,7 +23,9 @@ defmodule Zonely.Holidays.Holiday do
 
   defp validate_country_code(changeset) do
     case get_change(changeset, :country) do
-      nil -> changeset
+      nil ->
+        changeset
+
       country ->
         if String.length(country) == 2 and String.upcase(country) == country do
           changeset

@@ -24,7 +24,9 @@ defmodule ZonelyWeb.MapLive do
        base_date: Date.utc_today(),
        overlap_panel_expanded: true,
        selected_a_frac: nil,
-       selected_b_frac: nil
+       selected_b_frac: nil,
+       loading_pronunciation: %{},
+       playing_pronunciation: %{}
      )}
   end
 
@@ -53,15 +55,67 @@ defmodule ZonelyWeb.MapLive do
   @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = Audio.play_native_pronunciation(user)
-    {:noreply, push_event(socket, event_type, event_data)}
+    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "native"))
+    
+    # Send message to self to process audio after UI update
+    send(self(), {:process_pronunciation, :native, user})
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
+    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "english"))
+    
+    # Send message to self to process audio after UI update
+    send(self(), {:process_pronunciation, :english, user})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:process_pronunciation, :native, user}, socket) do
+    {event_type, event_data} = Audio.play_native_pronunciation(user)
+    
+    # Determine audio source type
+    source = case event_type do
+      :play_audio -> "audio"      # Real person
+      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
+      :play_tts -> "tts"          # AI synthetic (browser TTS)
+    end
+    
+    socket = socket
+    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "native", source: source}))
+    
+    # Add user_id to the event data for JavaScript callback
+    enhanced_event_data = Map.put(event_data, :user_id, user.id)
+    {:noreply, push_event(socket, event_type, enhanced_event_data)}
+  end
+
+  @impl true
+  def handle_info({:process_pronunciation, :english, user}, socket) do
     {event_type, event_data} = Audio.play_english_pronunciation(user)
-    {:noreply, push_event(socket, event_type, event_data)}
+    
+    # Determine audio source type
+    source = case event_type do
+      :play_audio -> "audio"      # Real person
+      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
+      :play_tts -> "tts"          # AI synthetic (browser TTS)
+    end
+    
+    socket = socket
+    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "english", source: source}))
+    
+    # Add user_id to the event data for JavaScript callback
+    enhanced_event_data = Map.put(event_data, :user_id, user.id)
+    {:noreply, push_event(socket, event_type, enhanced_event_data)}
+  end
+
+  @impl true
+  def handle_event("audio_ended", %{"user_id" => user_id}, socket) do
+    socket = assign(socket, playing_pronunciation: Map.delete(socket.assigns.playing_pronunciation, user_id))
+    {:noreply, socket}
   end
 
   # Quick Actions Event Handlers
@@ -82,32 +136,43 @@ defmodule ZonelyWeb.MapLive do
   def handle_event("quick_message", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
     IO.puts("📨 Quick message to #{user.name}")
-    {:noreply, socket |> assign(expanded_action: nil) |> put_flash(:info, "Message sent to #{user.name}!")}
+
+    {:noreply,
+     socket |> assign(expanded_action: nil) |> put_flash(:info, "Message sent to #{user.name}!")}
   end
 
   @impl true
   def handle_event("quick_meeting", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
     IO.puts("📅 Quick meeting with #{user.name}")
-    {:noreply, socket |> assign(expanded_action: nil) |> put_flash(:info, "Meeting proposal sent to #{user.name}!")}
+
+    {:noreply,
+     socket
+     |> assign(expanded_action: nil)
+     |> put_flash(:info, "Meeting proposal sent to #{user.name}!")}
   end
 
   @impl true
   def handle_event("quick_pin", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
     IO.puts("📌 Quick pin #{user.name}'s timezone: #{user.timezone}")
-    {:noreply, socket |> assign(expanded_action: nil) |> put_flash(:info, "#{user.name}'s timezone pinned!")}
+
+    {:noreply,
+     socket |> assign(expanded_action: nil) |> put_flash(:info, "#{user.name}'s timezone pinned!")}
   end
 
   # Time Scrubber Event Handlers
   @impl true
   def handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket) do
-    {from_utc, to_utc} = TimeUtils.frac_to_utc(a, b, socket.assigns.viewer_tz, socket.assigns.base_date)
+    {from_utc, to_utc} =
+      TimeUtils.frac_to_utc(a, b, socket.assigns.viewer_tz, socket.assigns.base_date)
 
     statuses =
       socket.assigns.users
       |> Task.async_stream(fn u -> {u.id, TimeUtils.classify_user(u, from_utc, to_utc)} end,
-           max_concurrency: 8, timeout: 200)
+        max_concurrency: 8,
+        timeout: 200
+      )
       |> Enum.map(fn {:ok, kv} -> kv end)
       |> Map.new()
 
@@ -130,6 +195,7 @@ defmodule ZonelyWeb.MapLive do
         {:ok, dt} -> DateTime.to_date(dt)
         _ -> Date.utc_today()
       end
+
     {:noreply, assign(socket, viewer_tz: tz, base_date: base_date)}
   end
 
@@ -176,12 +242,12 @@ defmodule ZonelyWeb.MapLive do
     Zonely.AvatarService.generate_avatar_url(name, 64)
   end
 
-
-
-
   @impl true
   def render(assigns) do
     ~H"""
+    <!-- Audio event hook for handling audio end events -->
+    <div phx-hook="AudioHook" id="audio-hook" style="display: none;"></div>
+    
     <div class="fixed left-0 top-16 w-full h-[calc(100vh-4rem)] z-10">
       <!-- MapLibre GL JS Map Container -->
       <div
@@ -208,6 +274,8 @@ defmodule ZonelyWeb.MapLive do
             show_actions={false}
             show_local_time={true}
             class="relative"
+            loading_pronunciation={Map.get(@loading_pronunciation, @selected_user.id)}
+            playing_pronunciation={@playing_pronunciation}
           />
 
           <!-- Quick Actions Bar for Map -->

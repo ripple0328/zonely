@@ -153,7 +153,8 @@ defmodule Zonely.LanguageService do
       "BE" -> "Dutch"
       "AT" -> "German"
       "CH" -> "German"
-      _ -> "English"  # Default fallback
+      # Default fallback
+      _ -> "English"
     end
   end
 
@@ -186,7 +187,8 @@ defmodule Zonely.LanguageService do
       "BE" -> "nl-BE"
       "AT" -> "de-AT"
       "CH" -> "de-CH"
-      _ -> "en-US"  # Default fallback
+      # Default fallback
+      _ -> "en-US"
     end
   end
 end

@@ -40,30 +40,33 @@ defmodule ZonelyWeb.Features.DirectoryTest do
 
   describe "Directory - User Profile Cards" do
     setup do
-      user_with_native = create_test_user(%{
-        id: 3,
-        name: "Maria Gonzalez",
-        role: "UX Designer",
-        country: "ES",
-        timezone: "Europe/Madrid",
-        name_native: "María González",
-        native_language: "es-ES",
-        pronouns: "she/her"
-      })
+      user_with_native =
+        create_test_user(%{
+          id: 3,
+          name: "Maria Gonzalez",
+          role: "UX Designer",
+          country: "ES",
+          timezone: "Europe/Madrid",
+          name_native: "María González",
+          native_language: "es-ES",
+          pronouns: "she/her"
+        })
 
-      user_regular = create_test_user(%{
-        id: 4,
-        name: "John Smith",
-        role: "DevOps Engineer",
-        country: "US",
-        timezone: "America/New_York",
-        pronouns: "he/him"
-      })
+      user_regular =
+        create_test_user(%{
+          id: 4,
+          name: "John Smith",
+          role: "DevOps Engineer",
+          country: "US",
+          timezone: "America/New_York",
+          pronouns: "he/him"
+        })
 
       %{user_with_native: user_with_native, user_regular: user_regular}
     end
 
-    @tag :skip # TODO: Align UI with test (pronouns/country text), or relax assertion
+    # TODO: Align UI with test (pronouns/country text), or relax assertion
+    @tag :skip
     feature "user cards display comprehensive profile information", %{session: session} do
       session
       |> visit("/directory")
@@ -87,7 +90,8 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       |> assert_text("05:00 PM")
     end
 
-    @tag :skip # TODO: Stabilize selector and avoid multiple matches; wire NameShouts/Forvo fakes for LV
+    # TODO: Stabilize selector and avoid multiple matches; wire NameShouts/Forvo fakes for LV
+    @tag :skip
     feature "pronunciation buttons are available for users", %{session: session} do
       session
       |> visit("/directory")
@@ -96,7 +100,8 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       |> assert_has(css("[data-testid='pronunciation-english']", count: :any))
     end
 
-    @tag :skip # TODO: Ensure native button visibility when name_native differs and event wiring is stable
+    # TODO: Ensure native button visibility when name_native differs and event wiring is stable
+    @tag :skip
     feature "native pronunciation shows for international users", %{session: session} do
       session
       |> visit("/directory")
@@ -105,13 +110,15 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       |> assert_has(testid("pronunciation-native"))
     end
 
-    @tag :skip # TODO: Mock audio events and external calls reliably; re-enable after wiring
+    # TODO: Mock audio events and external calls reliably; re-enable after wiring
+    @tag :skip
     feature "user can play pronunciation from directory", %{session: session} do
       session
       |> visit("/directory")
       |> wait_for_liveview()
       |> mock_audio_support()
       |> click(Wallaby.Query.at(css("[data-testid='pronunciation-english']"), 0))
+
       # Audio would play (mocked)
     end
   end
@@ -193,10 +200,14 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       |> visit("/directory")
       |> wait_for_liveview()
       |> select(testid("timezone-filter"), option: "Europe")
-      |> assert_text("Bob Anderson")  # Stockholm
-      |> assert_text("Diana Rossi")   # Rome
-      |> refute_text("Alice Chen")    # Los Angeles
-      |> refute_text("Charlie Kumar") # Kolkata
+      # Stockholm
+      |> assert_text("Bob Anderson")
+      # Rome
+      |> assert_text("Diana Rossi")
+      # Los Angeles
+      |> refute_text("Alice Chen")
+      # Kolkata
+      |> refute_text("Charlie Kumar")
     end
   end
 
@@ -237,13 +248,14 @@ defmodule ZonelyWeb.Features.DirectoryTest do
 
   describe "Directory - User Interactions" do
     setup do
-      user = create_test_user(%{
-        id: 14,
-        name: "Interactive User",
-        role: "Product Manager",
-        country: "CA",
-        timezone: "America/Toronto"
-      })
+      user =
+        create_test_user(%{
+          id: 14,
+          name: "Interactive User",
+          role: "Product Manager",
+          country: "CA",
+          timezone: "America/Toronto"
+        })
 
       %{user: user}
     end
@@ -272,7 +284,8 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       |> assert_text("Message sent")
     end
 
-    @tag :skip # TODO: Fix intermittent click handling for nav links under LV during tests
+    # TODO: Fix intermittent click handling for nav links under LV during tests
+    @tag :skip
     feature "user can navigate back to map from directory", %{session: session} do
       session
       |> visit("/directory")
@@ -288,8 +301,10 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       session
       |> visit("/directory")
       |> wait_for_liveview()
-      |> resize_window(375, 667)  # iPhone size
-      |> assert_has(css(".mx-auto.max-w-7xl"))  # Container should be responsive
+      # iPhone size
+      |> resize_window(375, 667)
+      # Container should be responsive
+      |> assert_has(css(".mx-auto.max-w-7xl"))
     end
 
     @tag :skip
@@ -301,7 +316,8 @@ defmodule ZonelyWeb.Features.DirectoryTest do
       |> visit("/directory")
       |> wait_for_liveview()
       |> resize_window(375, 667)
-      |> assert_has(css(".grid-cols-1"))  # Should show single column on mobile
+      # Should show single column on mobile
+      |> assert_has(css(".grid-cols-1"))
     end
   end
 

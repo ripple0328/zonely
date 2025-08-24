@@ -6,7 +6,15 @@ defmodule ZonelyWeb.DirectoryLive do
   @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_users()
-    {:ok, assign(socket, users: users, selected_user: nil, expanded_action: nil)}
+
+    {:ok,
+     assign(socket,
+       users: users,
+       selected_user: nil,
+       expanded_action: nil,
+       loading_pronunciation: %{},
+       playing_pronunciation: %{}
+     )}
   end
 
   @impl true
@@ -31,18 +39,70 @@ defmodule ZonelyWeb.DirectoryLive do
     {:noreply, assign(socket, selected_user: nil)}
   end
 
-    @impl true
+  @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    {event_type, event_data} = Audio.play_native_pronunciation(user)
-    {:noreply, push_event(socket, event_type, event_data)}
+    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "native"))
+    
+    # Send message to self to process audio after UI update
+    send(self(), {:process_pronunciation, :native, user})
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
+    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "english"))
+    
+    # Send message to self to process audio after UI update
+    send(self(), {:process_pronunciation, :english, user})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:process_pronunciation, :native, user}, socket) do
+    {event_type, event_data} = Audio.play_native_pronunciation(user)
+    
+    # Determine audio source type
+    source = case event_type do
+      :play_audio -> "audio"      # Real person
+      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
+      :play_tts -> "tts"          # AI synthetic (browser TTS)
+    end
+    
+    socket = socket
+    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "native", source: source}))
+    
+    # Add user_id to the event data for JavaScript callback
+    enhanced_event_data = Map.put(event_data, :user_id, user.id)
+    {:noreply, push_event(socket, event_type, enhanced_event_data)}
+  end
+
+  @impl true
+  def handle_info({:process_pronunciation, :english, user}, socket) do
     {event_type, event_data} = Audio.play_english_pronunciation(user)
-    {:noreply, push_event(socket, event_type, event_data)}
+    
+    # Determine audio source type
+    source = case event_type do
+      :play_audio -> "audio"      # Real person
+      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
+      :play_tts -> "tts"          # AI synthetic (browser TTS)
+    end
+    
+    socket = socket
+    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "english", source: source}))
+    
+    # Add user_id to the event data for JavaScript callback
+    enhanced_event_data = Map.put(event_data, :user_id, user.id)
+    {:noreply, push_event(socket, event_type, enhanced_event_data)}
+  end
+
+  @impl true
+  def handle_event("audio_ended", %{"user_id" => user_id}, socket) do
+    socket = assign(socket, playing_pronunciation: Map.delete(socket.assigns.playing_pronunciation, user_id))
+    {:noreply, socket}
   end
 
   # Inline Actions Event Handlers
@@ -161,6 +221,9 @@ defmodule ZonelyWeb.DirectoryLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <!-- Audio event hook for handling audio end events -->
+    <div phx-hook="AudioHook" id="audio-hook" style="display: none;"></div>
+    
     <div class="space-y-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Team Directory</h1>
@@ -168,7 +231,8 @@ defmodule ZonelyWeb.DirectoryLive do
       </div>
 
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <.user_card :for={user <- @users} user={user} />
+        <.user_card :for={user <- @users} user={user} loading_pronunciation={Map.get(@loading_pronunciation, user.id)}
+        playing_pronunciation={@playing_pronunciation} />
       </div>
 
       <!-- Profile Modal using new ProfileCard component -->
@@ -183,6 +247,8 @@ defmodule ZonelyWeb.DirectoryLive do
             show_actions={true} 
             show_local_time={true} 
             class="relative"
+            loading_pronunciation={Map.get(@loading_pronunciation, @selected_user.id)}
+            playing_pronunciation={@playing_pronunciation}
           />
           <button
             phx-click="hide_profile"

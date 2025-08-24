@@ -26,18 +26,17 @@ import {setupSimpleAudio} from "./simple-audio"
 import TeamMap from "./hooks/team_map"
 import TimeScrubber from "./hooks/time_scrubber"
 
-// Register hooks in a dedicated object to avoid the legacy inline Hooks
-const LV_HOOKS = { TeamMap, TimeScrubber }
+// Setup simple audio functionality first to create AudioHook
+setupSimpleAudio()
 
+// Register hooks in a dedicated object to avoid the legacy inline Hooks
+const LV_HOOKS = { TeamMap, TimeScrubber, AudioHook: window.AudioHook }
 
 // TimeScrubber handled via ./hooks/time_scrubber
 
 // Setup topbar and connect LiveView
 initTopbar()
 const liveSocket = initLiveSocket(LV_HOOKS)
-
-// Setup simple audio functionality
-setupSimpleAudio()
 
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})

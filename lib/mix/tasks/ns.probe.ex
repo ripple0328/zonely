@@ -26,10 +26,12 @@ defmodule Mix.Tasks.Ns.Probe do
 
         {:error, %Jason.DecodeError{data: data}} ->
           trimmed = trim_leading_html(data)
+
           case Jason.decode(trimmed) do
             {:ok, body} ->
               summary = summarize_body(body)
               Mix.shell().info("NS[#{label}] status=200* recovered body=#{summary}")
+
             _ ->
               Mix.shell().info("NS[#{label}] error=malformed_json")
           end
@@ -40,7 +42,9 @@ defmodule Mix.Tasks.Ns.Probe do
     end)
   end
 
-  defp summarize_body(%{"status" => s, "message" => m}) when is_map(m), do: "status=#{s} keys=#{m |> Map.keys() |> Enum.take(3) |> inspect}"
+  defp summarize_body(%{"status" => s, "message" => m}) when is_map(m),
+    do: "status=#{s} keys=#{m |> Map.keys() |> Enum.take(3) |> inspect}"
+
   defp summarize_body(%{"status" => s, "message" => _m}), do: "status=#{s} message=string"
   defp summarize_body(_), do: "unknown"
 

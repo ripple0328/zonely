@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Deploy do
 
   ## Initial Setup
   Before first deployment, run these commands to set up your app with an existing database:
-  
+
       flyctl launch --no-deploy
       flyctl postgres attach YOUR-EXISTING-DB-APP
       mix deploy
@@ -44,7 +44,8 @@ defmodule Mix.Tasks.Deploy do
         :ok
 
       _ ->
-        {:error, "flyctl is not installed. Please install it from https://fly.io/docs/flyctl/installing/"}
+        {:error,
+         "flyctl is not installed. Please install it from https://fly.io/docs/flyctl/installing/"}
     end
   end
 

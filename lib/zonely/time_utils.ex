@@ -67,7 +67,9 @@ defmodule Zonely.TimeUtils do
 
     # Thresholds: require meaningful overlap for "working"
     working = overlap_min >= min_minutes and coverage >= min_coverage
-    near_edge = overlap_min > 0 or within_edge?(win_start, win_end, user_start, user_end, edge_min)
+
+    near_edge =
+      overlap_min > 0 or within_edge?(win_start, win_end, user_start, user_end, edge_min)
 
     cond do
       working -> :working

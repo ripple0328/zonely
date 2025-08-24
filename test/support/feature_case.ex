@@ -1,4 +1,5 @@
-if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) and Code.ensure_loaded?(Wallaby.Browser) do
+if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) and
+     Code.ensure_loaded?(Wallaby.Browser) do
   defmodule ZonelyWeb.FeatureCase do
     @moduledoc """
     This module defines the test case to be used by feature tests that require browser automation.
@@ -10,7 +11,9 @@ if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) a
       quote do
         use Wallaby.Feature
 
-        import Wallaby.Query, only: [css: 1, css: 2, text_field: 1, button: 1, link: 1, select: 1, checkbox: 1]
+        import Wallaby.Query,
+          only: [css: 1, css: 2, text_field: 1, button: 1, link: 1, select: 1, checkbox: 1]
+
         import ZonelyWeb.FeatureCase
 
         alias ZonelyWeb.Endpoint
@@ -21,7 +24,9 @@ if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) a
     end
 
     import Wallaby.Query, only: [css: 1, css: 2]
-    import Wallaby.Browser, only: [has_text?: 2, click: 2, current_path: 1, has?: 2, execute_script: 2]
+
+    import Wallaby.Browser,
+      only: [has_text?: 2, click: 2, current_path: 1, has?: 2, execute_script: 2]
 
     def create_test_user(attrs \\ %{}) do
       default_attrs = %{
@@ -113,8 +118,17 @@ if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) a
     end
 
     def testid(id), do: css("[data-testid='#{id}']")
-    def assert_path(session, expected_path), do: (assert current_path(session) == expected_path; session)
-    def select(session, query, option: value), do: session |> click(query) |> click(css("option", text: value))
+
+    def assert_path(session, expected_path),
+      do:
+        (
+          assert current_path(session) == expected_path
+          session
+        )
+
+    def select(session, query, option: value),
+      do: session |> click(query) |> click(css("option", text: value))
+
     def check(session, query), do: session |> click(query)
   end
 else
@@ -198,6 +212,7 @@ else
         work_start: ~T[09:00:00],
         work_end: ~T[17:00:00]
       }
+
       Map.merge(default_attrs, attrs)
     end
   end

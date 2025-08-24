@@ -15,7 +15,8 @@ defmodule Zonely.HttpClient.Fake do
       String.contains?(url, "apifree.forvo.com/") ->
         case scenario do
           :forvo_success ->
-            {:ok, %{status: 200, body: %{"items" => [%{"pathmp3" => "https://forvo.cdn/file.mp3"}]}}}
+            {:ok,
+             %{status: 200, body: %{"items" => [%{"pathmp3" => "https://forvo.cdn/file.mp3"}]}}}
 
           _ ->
             {:ok, %{status: 200, body: %{"items" => []}}}
@@ -35,8 +36,16 @@ defmodule Zonely.HttpClient.Fake do
         case scenario do
           :nameshouts_success ->
             # Build a minimal successful response
-            name = url |> URI.parse() |> Map.get(:path) |> String.split("/") |> List.last() |> URI.decode()
+            name =
+              url
+              |> URI.parse()
+              |> Map.get(:path)
+              |> String.split("/")
+              |> List.last()
+              |> URI.decode()
+
             key = name |> String.downcase() |> String.replace(~r/\s+/, "-")
+
             body = %{
               "status" => "Success",
               "message" => %{

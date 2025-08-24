@@ -43,8 +43,8 @@ export function setupSimpleAudio() {
     return (scored[0] && scored[0].v) || null;
   }
 
-  // Simple audio file playback using Phoenix events
-  window.addEventListener("phx:play_audio", (event) => {
+  // Audio file playback for both real person and AI-generated audio
+  function handleAudioPlayback(event) {
     // Stop current audio if playing
     if (currentAudio) {
       currentAudio.pause();
@@ -57,8 +57,21 @@ export function setupSimpleAudio() {
     // Play new audio
     currentAudio = new Audio(event.detail.url);
     currentAudio.play().catch(console.error);
-    currentAudio.onended = () => currentAudio = null;
-  });
+    currentAudio.onended = () => {
+      currentAudio = null;
+      // Notify LiveView that audio ended by dispatching a custom event that can be caught by hooks
+      if (event.detail.user_id) {
+        const endEvent = new CustomEvent('audio:ended', {
+          detail: { user_id: event.detail.user_id }
+        });
+        document.dispatchEvent(endEvent);
+      }
+    };
+  }
+
+  // Register handlers for both real person and AI-generated audio
+  window.addEventListener("phx:play_audio", handleAudioPlayback);
+  window.addEventListener("phx:play_tts_audio", handleAudioPlayback);
 
   // Simple TTS using browser's built-in speech synthesis
   window.addEventListener("phx:play_tts", (event) => {
@@ -89,6 +102,17 @@ export function setupSimpleAudio() {
     const voice = pickBestVoice(lang);
     if (voice) utterance.voice = voice;
     
+    // Add event listener for when TTS ends
+    utterance.onend = () => {
+      // Notify LiveView that TTS ended
+      if (event.detail.user_id) {
+        const endEvent = new CustomEvent('audio:ended', {
+          detail: { user_id: event.detail.user_id }
+        });
+        document.dispatchEvent(endEvent);
+      }
+    };
+    
     speechSynthesis.speak(utterance);
   });
 
@@ -100,4 +124,17 @@ export function setupSimpleAudio() {
       refreshVoices();
     };
   }
+
+  // Create a hook to listen for audio end events and push them to LiveView
+  window.AudioHook = {
+    mounted() {
+      this.handleAudioEnd = (e) => {
+        this.pushEvent("audio_ended", { user_id: e.detail.user_id });
+      };
+      document.addEventListener('audio:ended', this.handleAudioEnd);
+    },
+    destroyed() {
+      document.removeEventListener('audio:ended', this.handleAudioEnd);
+    }
+  };
 }

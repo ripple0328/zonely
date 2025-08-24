@@ -55,34 +55,38 @@ defmodule Mix.Tasks.Test.Browser do
         {"WALLABY_ENABLE_SERVER", "true"}
       ]
 
-      env_vars = if opts[:show] do
-        env_vars ++ [{"HEADLESS", "false"}]
-      else
-        env_vars ++ [{"HEADLESS", "true"}]
-      end
+      env_vars =
+        if opts[:show] do
+          env_vars ++ [{"HEADLESS", "false"}]
+        else
+          env_vars ++ [{"HEADLESS", "true"}]
+        end
 
       # Build test command arguments
       test_args = ["test", "--only", "feature"]
 
       # Add file paths if specified
-      test_args = if Enum.empty?(files) do
-        test_args ++ ["test/zonely_web/features/"]
-      else
-        test_args ++ files
-      end
+      test_args =
+        if Enum.empty?(files) do
+          test_args ++ ["test/zonely_web/features/"]
+        else
+          test_args ++ files
+        end
 
       # Add optional flags
-      test_args = if opts[:max_failures] do
-        test_args ++ ["--max-failures", to_string(opts[:max_failures])]
-      else
-        test_args
-      end
+      test_args =
+        if opts[:max_failures] do
+          test_args ++ ["--max-failures", to_string(opts[:max_failures])]
+        else
+          test_args
+        end
 
-      test_args = if opts[:seed] do
-        test_args ++ ["--seed", to_string(opts[:seed])]
-      else
-        test_args
-      end
+      test_args =
+        if opts[:seed] do
+          test_args ++ ["--seed", to_string(opts[:seed])]
+        else
+          test_args
+        end
 
       # Show what we're about to run
       if opts[:verbose] do
@@ -96,14 +100,15 @@ defmodule Mix.Tasks.Test.Browser do
       Mix.Task.run("assets.build", [])
 
       # Use System.cmd to run the command with proper environment
-      {_output, exit_code} = System.cmd(
-        "mix",
-        test_args,
-        env: env_vars,
-        into: IO.stream(:stdio, :line),
-        stderr_to_stdout: true,
-        cd: File.cwd!()
-      )
+      {_output, exit_code} =
+        System.cmd(
+          "mix",
+          test_args,
+          env: env_vars,
+          into: IO.stream(:stdio, :line),
+          stderr_to_stdout: true,
+          cd: File.cwd!()
+        )
 
       System.halt(exit_code)
     end

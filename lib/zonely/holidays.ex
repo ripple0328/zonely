@@ -41,7 +41,7 @@ defmodule Zonely.Holidays do
   def get_upcoming_holidays(country, days \\ 30) do
     today = Date.utc_today()
     end_date = Date.add(today, days)
-    
+
     get_holidays_by_country_and_date_range(country, today, end_date)
   end
 
@@ -59,7 +59,7 @@ defmodule Zonely.Holidays do
   """
   def fetch_and_store_holidays(country, year) do
     url = "https://date.nager.at/api/v3/publicholidays/#{year}/#{country}"
-    
+
     case Req.get(url) do
       {:ok, %{status: 200, body: holidays}} ->
         holidays
@@ -71,12 +71,12 @@ defmodule Zonely.Holidays do
           }
         end)
         |> Enum.each(&create_holiday_if_not_exists/1)
-        
+
         {:ok, "Holidays fetched and stored for #{country} #{year}"}
-      
+
       {:ok, %{status: status}} ->
         {:error, "Failed to fetch holidays: HTTP #{status}"}
-      
+
       {:error, reason} ->
         {:error, "Failed to fetch holidays: #{inspect(reason)}"}
     end

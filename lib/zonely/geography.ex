@@ -1,7 +1,7 @@
 defmodule Zonely.Geography do
   @moduledoc """
   Domain module for handling geographical information, countries, timezones, and locations.
-  
+
   This module encapsulates business logic related to:
   - Country name resolution and validation
   - Language derivation from country codes  
@@ -14,9 +14,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Resolves a country code to its full name.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.country_name("US")
       "United States"
       
@@ -38,14 +38,14 @@ defmodule Zonely.Geography do
       _ -> "Unknown Country"
     end
   end
-  
+
   def country_name(_), do: "Unknown Country"
 
   @doc """
   Validates if a country code is valid according to ISO standards.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.valid_country?("US")
       true
       
@@ -59,9 +59,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets the native language name for a country.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.native_language("ES")
       "Spanish"
       
@@ -75,9 +75,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Derives locale code from country code.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.country_to_locale("US")
       "en-US"
       
@@ -91,9 +91,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets users filtered by country.
-  
+
   ## Examples
-  
+
       iex> users = [%User{country: "US"}, %User{country: "ES"}]
       iex> Zonely.Geography.users_by_country(users, "US")
       [%User{country: "US"}]
@@ -105,9 +105,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets users grouped by country.
-  
+
   ## Examples
-  
+
       iex> users = [%User{country: "US"}, %User{country: "ES"}, %User{country: "US"}]
       iex> Zonely.Geography.group_users_by_country(users)
       %{"US" => [%User{}, %User{}], "ES" => [%User{}]}
@@ -119,9 +119,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets users filtered by timezone.
-  
+
   ## Examples
-  
+
       iex> users = [%User{timezone: "America/New_York"}, %User{timezone: "Europe/London"}]
       iex> Zonely.Geography.users_by_timezone(users, "America/New_York")
       [%User{timezone: "America/New_York"}]
@@ -133,9 +133,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets users grouped by timezone.
-  
+
   ## Examples
-  
+
       iex> users = [%User{timezone: "America/New_York"}, %User{timezone: "Europe/London"}]
       iex> Zonely.Geography.group_users_by_timezone(users)
       %{"America/New_York" => [%User{}], "Europe/London" => [%User{}]}
@@ -147,9 +147,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets all unique countries from a list of users.
-  
+
   ## Examples
-  
+
       iex> users = [%User{country: "US"}, %User{country: "ES"}, %User{country: "US"}]
       iex> Zonely.Geography.unique_countries(users)
       ["ES", "US"]
@@ -164,9 +164,9 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets all unique timezones from a list of users.
-  
+
   ## Examples
-  
+
       iex> users = [%User{timezone: "America/New_York"}, %User{timezone: "Europe/London"}]
       iex> Zonely.Geography.unique_timezones(users)
       ["America/New_York", "Europe/London"]
@@ -181,11 +181,11 @@ defmodule Zonely.Geography do
 
   @doc """
   Gets geographic statistics for a list of users.
-  
+
   Returns counts by country and timezone.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.get_statistics(users)
       %{
         countries: %{"US" => 3, "ES" => 2},
@@ -195,15 +195,15 @@ defmodule Zonely.Geography do
       }
   """
   @spec get_statistics([User.t()]) :: %{
-    countries: %{String.t() => non_neg_integer()},
-    timezones: %{String.t() => non_neg_integer()},
-    total_countries: non_neg_integer(),
-    total_timezones: non_neg_integer()
-  }
+          countries: %{String.t() => non_neg_integer()},
+          timezones: %{String.t() => non_neg_integer()},
+          total_countries: non_neg_integer(),
+          total_timezones: non_neg_integer()
+        }
   def get_statistics(users) when is_list(users) do
     country_counts = Enum.frequencies_by(users, & &1.country)
     timezone_counts = Enum.frequencies_by(users, & &1.timezone)
-    
+
     %{
       countries: country_counts,
       timezones: timezone_counts,
@@ -214,11 +214,11 @@ defmodule Zonely.Geography do
 
   @doc """
   Validates timezone string format.
-  
+
   This is a basic validation - for production you'd want to use a proper timezone library.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.valid_timezone?("America/New_York")
       true
       
@@ -229,16 +229,31 @@ defmodule Zonely.Geography do
   def valid_timezone?(timezone) when is_binary(timezone) do
     # Basic validation - contains region/city format with known regions
     case String.split(timezone, "/") do
-      [region, city | _] when region in ["America", "Europe", "Asia", "Africa", "Australia", "Pacific", "Atlantic", "Indian", "UTC", "GMT"] and byte_size(city) > 0 -> true
-      _ -> false
+      [region, city | _]
+      when region in [
+             "America",
+             "Europe",
+             "Asia",
+             "Africa",
+             "Australia",
+             "Pacific",
+             "Atlantic",
+             "Indian",
+             "UTC",
+             "GMT"
+           ] and byte_size(city) > 0 ->
+        true
+
+      _ ->
+        false
     end
   end
 
   @doc """
   Gets country information including native language and locale.
-  
+
   ## Examples
-  
+
       iex> Zonely.Geography.country_info("ES")
       %{
         code: "ES",
@@ -248,11 +263,11 @@ defmodule Zonely.Geography do
       }
   """
   @spec country_info(String.t()) :: %{
-    code: String.t(),
-    name: String.t(),
-    native_language: String.t(),
-    locale: String.t()
-  }
+          code: String.t(),
+          name: String.t(),
+          native_language: String.t(),
+          locale: String.t()
+        }
   def country_info(country_code) when is_binary(country_code) do
     %{
       code: country_code,
@@ -264,7 +279,7 @@ defmodule Zonely.Geography do
 
   @doc """
   Checks if a user is in a specific geographic region.
-  
+
   Currently uses simple country matching but could be extended for regions.
   """
   @spec user_in_region?(User.t(), String.t() | [String.t()]) :: boolean()

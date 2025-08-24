@@ -16,52 +16,65 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       session
       |> visit("/work-hours")
       |> wait_for_liveview()
-      |> assert_text("Work Hours")  # Page title
+      # Page title
+      |> assert_text("Work Hours")
     end
   end
 
   describe "Work Hours - Team Member Display" do
     setup do
       # Create users with different working hours across timezones
-      early_bird = create_test_user(%{
-        id: 1,
-        name: "Alice Early",
-        role: "Frontend Developer",
-        country: "US",
-        timezone: "America/Los_Angeles",
-        work_start: ~T[06:00:00],  # 6 AM
-        work_end: ~T[14:00:00]     # 2 PM
-      })
+      early_bird =
+        create_test_user(%{
+          id: 1,
+          name: "Alice Early",
+          role: "Frontend Developer",
+          country: "US",
+          timezone: "America/Los_Angeles",
+          # 6 AM
+          work_start: ~T[06:00:00],
+          # 2 PM
+          work_end: ~T[14:00:00]
+        })
 
-      regular_worker = create_test_user(%{
-        id: 2,
-        name: "Bob Regular",
-        role: "Backend Developer",
-        country: "US",
-        timezone: "America/New_York",
-        work_start: ~T[09:00:00],  # 9 AM
-        work_end: ~T[17:00:00]     # 5 PM
-      })
+      regular_worker =
+        create_test_user(%{
+          id: 2,
+          name: "Bob Regular",
+          role: "Backend Developer",
+          country: "US",
+          timezone: "America/New_York",
+          # 9 AM
+          work_start: ~T[09:00:00],
+          # 5 PM
+          work_end: ~T[17:00:00]
+        })
 
-      night_owl = create_test_user(%{
-        id: 3,
-        name: "Charlie Night",
-        role: "DevOps Engineer",
-        country: "GB",
-        timezone: "Europe/London",
-        work_start: ~T[14:00:00],  # 2 PM
-        work_end: ~T[22:00:00]     # 10 PM
-      })
+      night_owl =
+        create_test_user(%{
+          id: 3,
+          name: "Charlie Night",
+          role: "DevOps Engineer",
+          country: "GB",
+          timezone: "Europe/London",
+          # 2 PM
+          work_start: ~T[14:00:00],
+          # 10 PM
+          work_end: ~T[22:00:00]
+        })
 
-      flexible_worker = create_test_user(%{
-        id: 4,
-        name: "Diana Flexible",
-        role: "Product Manager",
-        country: "AU",
-        timezone: "Australia/Sydney",
-        work_start: ~T[08:30:00],  # 8:30 AM
-        work_end: ~T[16:30:00]     # 4:30 PM
-      })
+      flexible_worker =
+        create_test_user(%{
+          id: 4,
+          name: "Diana Flexible",
+          role: "Product Manager",
+          country: "AU",
+          timezone: "Australia/Sydney",
+          # 8:30 AM
+          work_start: ~T[08:30:00],
+          # 4:30 PM
+          work_end: ~T[16:30:00]
+        })
 
       %{
         early_bird: early_bird,
@@ -71,7 +84,8 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       }
     end
 
-    @tag :skip # TODO: Align displayed time format with test or assert using DateUtils output
+    # TODO: Align displayed time format with test or assert using DateUtils output
+    @tag :skip
     feature "displays all team members with their working hours", %{session: session} do
       session
       |> visit("/work-hours")
@@ -100,7 +114,8 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       |> assert_text("Australia/Sydney")
     end
 
-    @tag :skip # TODO: UI shows codes; adjust assertion or render names
+    # TODO: UI shows codes; adjust assertion or render names
+    @tag :skip
     feature "displays country information using Geography module", %{session: session} do
       session
       |> visit("/work-hours")
@@ -152,9 +167,12 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       |> fill_in(testid("end-time"), with: "14:00")
       |> click(testid("find-overlap"))
       # Should show users available in 10 AM - 2 PM range
-      |> assert_text("Morning Person")   # 7-3, overlaps 10-2
-      |> assert_text("Regular Hours")    # 9-5, overlaps 10-2
-      |> refute_text("Evening Person")   # 12-8, starts too late for full overlap
+      # 7-3, overlaps 10-2
+      |> assert_text("Morning Person")
+      # 9-5, overlaps 10-2
+      |> assert_text("Regular Hours")
+      # 12-8, starts too late for full overlap
+      |> refute_text("Evening Person")
     end
 
     @tag :skip
@@ -173,6 +191,7 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       session
       |> visit("/work-hours")
       |> wait_for_liveview()
+
       # Should show current time or working status indicators
       # This would use our TimeUtils module for calculations
     end
@@ -184,24 +203,30 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       create_test_user(%{
         id: 8,
         name: "US East",
-        work_start: ~T[09:00:00],  # 9 AM EST
-        work_end: ~T[17:00:00],    # 5 PM EST
+        # 9 AM EST
+        work_start: ~T[09:00:00],
+        # 5 PM EST
+        work_end: ~T[17:00:00],
         timezone: "America/New_York"
       })
 
       create_test_user(%{
         id: 9,
         name: "US West",
-        work_start: ~T[09:00:00],  # 9 AM PST (12 PM EST)
-        work_end: ~T[17:00:00],    # 5 PM PST (8 PM EST)
+        # 9 AM PST (12 PM EST)
+        work_start: ~T[09:00:00],
+        # 5 PM PST (8 PM EST)
+        work_end: ~T[17:00:00],
         timezone: "America/Los_Angeles"
       })
 
       create_test_user(%{
         id: 10,
         name: "UK Worker",
-        work_start: ~T[09:00:00],  # 9 AM GMT (4 AM EST)
-        work_end: ~T[17:00:00],    # 5 PM GMT (12 PM EST)
+        # 9 AM GMT (4 AM EST)
+        work_start: ~T[09:00:00],
+        # 5 PM GMT (12 PM EST)
+        work_end: ~T[17:00:00],
         timezone: "Europe/London"
       })
 
@@ -221,9 +246,12 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       session
       |> visit("/work-hours")
       |> wait_for_liveview()
-      |> check(testid("user-checkbox-8"))   # US East
-      |> check(testid("user-checkbox-9"))   # US West
-      |> assert_text("12:00 PM - 5:00 PM EST")  # Expected overlap
+      # US East
+      |> check(testid("user-checkbox-8"))
+      # US West
+      |> check(testid("user-checkbox-9"))
+      # Expected overlap
+      |> assert_text("12:00 PM - 5:00 PM EST")
     end
 
     @tag :skip
@@ -231,11 +259,16 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       session
       |> visit("/work-hours")
       |> wait_for_liveview()
-      |> check(testid("user-checkbox-8"))   # US East
-      |> check(testid("user-checkbox-10"))  # UK
-      |> assert_text("12:00 PM - 5:00 PM EST")  # UK-US East overlap
-      |> check(testid("user-checkbox-9"))   # Add US West
-      |> assert_text("12:00 PM - 5:00 PM EST")  # All three overlap
+      # US East
+      |> check(testid("user-checkbox-8"))
+      # UK
+      |> check(testid("user-checkbox-10"))
+      # UK-US East overlap
+      |> assert_text("12:00 PM - 5:00 PM EST")
+      # Add US West
+      |> check(testid("user-checkbox-9"))
+      # All three overlap
+      |> assert_text("12:00 PM - 5:00 PM EST")
     end
 
     @tag :skip
@@ -252,8 +285,10 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       session
       |> visit("/work-hours")
       |> wait_for_liveview()
-      |> check(testid("user-checkbox-8"))   # US East (9-5)
-      |> check(testid("user-checkbox-11"))  # Night shift (11-7)
+      # US East (9-5)
+      |> check(testid("user-checkbox-8"))
+      # Night shift (11-7)
+      |> check(testid("user-checkbox-11"))
       |> assert_text("No overlap found")
     end
   end
@@ -300,7 +335,8 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       |> assert_text("Flexible hours")
     end
 
-    @tag :skip # TODO: Confirm target time strings; assert via DateUtils.format_working_hours if rendered
+    # TODO: Confirm target time strings; assert via DateUtils.format_working_hours if rendered
+    @tag :skip
     feature "displays working hours in readable format", %{session: session} do
       session
       |> visit("/work-hours")
@@ -312,14 +348,16 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
   end
 
   describe "Work Hours - Real-time Updates" do
-    @tag :skip # TODO: Add live update wiring for work-hours LV; assert after PubSub event integration
+    # TODO: Add live update wiring for work-hours LV; assert after PubSub event integration
+    @tag :skip
     feature "page updates when user working hours change", %{session: session} do
-      user = create_test_user(%{
-        id: 13,
-        name: "Dynamic User",
-        work_start: ~T[09:00:00],
-        work_end: ~T[17:00:00]
-      })
+      user =
+        create_test_user(%{
+          id: 13,
+          name: "Dynamic User",
+          work_start: ~T[09:00:00],
+          work_end: ~T[17:00:00]
+        })
 
       session
       |> visit("/work-hours")
@@ -328,10 +366,12 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       |> assert_text("17:00")
 
       # Simulate user updating their hours (this would come from another session)
-      Zonely.Repo.update!(Ecto.Changeset.change(user, %{
-        work_start: ~T[10:00:00],
-        work_end: ~T[18:00:00]
-      }))
+      Zonely.Repo.update!(
+        Ecto.Changeset.change(user, %{
+          work_start: ~T[10:00:00],
+          work_end: ~T[18:00:00]
+        })
+      )
 
       # Send PubSub message to trigger live update
       Phoenix.PubSub.broadcast(
@@ -359,6 +399,7 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       |> assert_has(testid("export-modal"))
       |> select(testid("export-format"), option: "CSV")
       |> click(testid("download-export"))
+
       # Would trigger file download
     end
 
@@ -370,7 +411,8 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       |> click(testid("share-schedule"))
       |> assert_has(testid("share-modal"))
       |> click(testid("generate-link"))
-      |> assert_has(css("input[readonly]"))  # Shareable URL
+      # Shareable URL
+      |> assert_has(css("input[readonly]"))
       |> click(testid("copy-link"))
       |> assert_has(css(".flash-info"))
       |> assert_text("Link copied")
@@ -392,8 +434,10 @@ defmodule ZonelyWeb.Features.WorkHoursTest do
       session
       |> visit("/work-hours")
       |> wait_for_liveview()
-      |> send_keys([:tab])  # Should focus first interactive element
-      |> send_keys([:enter]) # Should activate focused element
+      # Should focus first interactive element
+      |> send_keys([:tab])
+      # Should activate focused element
+      |> send_keys([:enter])
     end
   end
 
