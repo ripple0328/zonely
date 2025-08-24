@@ -81,10 +81,10 @@ defmodule Zonely.Audio do
 
       iex> Zonely.Audio.derive_english_locale("US")
       "en-US"
-      
+
       iex> Zonely.Audio.derive_english_locale("GB")
       "en-GB"
-      
+
       iex> Zonely.Audio.derive_english_locale("ES")
       "en-US"  # Default for non-English countries
   """
@@ -142,7 +142,9 @@ defmodule Zonely.Audio do
   """
   @spec get_cache_directory() :: String.t()
   def get_cache_directory do
-    Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
+    cache_path = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
+    File.mkdir_p!(cache_path)
+    cache_path
   end
 
   @doc """
@@ -305,7 +307,7 @@ defmodule Zonely.Audio do
 
       iex> Zonely.Audio.format_supported?("ogg")
       true
-      
+
       iex> Zonely.Audio.format_supported?("xyz")
       false
   """

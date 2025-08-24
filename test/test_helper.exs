@@ -11,6 +11,11 @@ Code.require_file("support/fake_http_client.ex", __DIR__)
 {:ok, _} = Application.ensure_all_started(:phoenix_html)
 {:ok, _} = Application.ensure_all_started(:phoenix_live_view)
 
+# Default AWS Polly stub for tests; individual tests may override
+Application.put_env(:zonely, :aws_request_fun, fn _req ->
+  {:ok, %{status_code: 200, body: <<"FAKE_MP3">>}}
+end)
+
 # Start Wallaby if running browser tests
 if System.get_env("WALLABY_ENABLE_SERVER") == "true" do
   try do

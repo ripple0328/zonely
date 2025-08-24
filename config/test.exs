@@ -32,3 +32,6 @@ config :wallaby,
 config :logger, level: :warning
 
 config :phoenix, :plug_init_mode, :runtime
+
+# Use tmp dir for audio cache during tests
+config :zonely, :audio_cache_dir, Path.join(System.tmp_dir!(), "zonely_test_audio")

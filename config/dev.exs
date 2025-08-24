@@ -42,6 +42,9 @@ config :tidewave,
   enabled: true,
   path: "/tidewave/mcp"
 
+# Audio cache directory (runtime-generated files)
+config :zonely, :audio_cache_dir, Path.expand("priv/static/audio/cache", File.cwd!())
+
 config :logger, :console, format: "[$level] $message\n"
 
 config :phoenix, :stacktrace_depth, 20

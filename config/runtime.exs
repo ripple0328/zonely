@@ -37,6 +37,10 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  # Audio cache directory for runtime-generated files
+  config :zonely, :audio_cache_dir,
+    System.get_env("AUDIO_CACHE_DIR") || "/tmp/zonely/audio-cache"
+
   # MapTiler configuration
   config :zonely, :maptiler,
     api_key: System.get_env("MAPTILER_API_KEY") || "demo_key_get_your_own_at_maptiler_com"

@@ -38,11 +38,6 @@ const LV_HOOKS = { TeamMap, TimeScrubber, AudioHook: window.AudioHook }
 initTopbar()
 const liveSocket = initLiveSocket(LV_HOOKS)
 
-// Show progress bar on live navigation and form submits
-topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
-window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
-window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
-
 // expose liveSocket helpers in console docs
 // >> liveSocket.enableDebug()
 // >> liveSocket.enableLatencySim(1000)

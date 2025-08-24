@@ -33,6 +33,9 @@ defmodule ZonelyWeb.Router do
   scope "/", ZonelyWeb do
     pipe_through(:browser)
 
+    # Serve runtime-cached audio safely
+    get("/audio-cache/:filename", AudioCacheController, :show)
+
     live("/directory", DirectoryLive)
     live("/work-hours", WorkHoursLive)
     live("/holidays", HolidaysLive)

@@ -38,8 +38,7 @@ defmodule Zonely.PronunceNameTest do
       Application.put_env(:zonely, :http_client, Zonely.HttpClient.Fake)
       on_exit(fn -> Application.delete_env(:zonely, :http_client) end)
       # Clear cache directory before each test to avoid cross-test interference
-      cache_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
-      File.mkdir_p!(cache_dir)
+      cache_dir = Zonely.AudioCache.dir()
       for f <- File.ls!(cache_dir), do: File.rm!(Path.join(cache_dir, f))
       :ok
     end
@@ -54,17 +53,12 @@ defmodule Zonely.PronunceNameTest do
 
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
-      {:play_audio, %{url: url}} = PronunceName.play("TTS Only Name", "en-US", "US")
+      {:play_tts_audio, %{url: url}} = PronunceName.play("TTS Only Name", "en-US", "US")
       assert String.ends_with?(url, ".mp3")
       # Ensure stable file gets written
-      assert File.exists?(
-               Path.join([
-                 Application.app_dir(:zonely, "priv"),
-                 "static",
-                 "audio",
-                 String.trim_leading(url, "/audio/")
-               ])
-             )
+      # Ensure stable file gets written
+      cache_dir = Zonely.AudioCache.dir()
+      assert File.exists?(Path.join(cache_dir, Path.basename(url)))
     end
 
     test "derives language from country when language is nil" do
@@ -77,7 +71,7 @@ defmodule Zonely.PronunceNameTest do
 
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
-      {:play_audio, %{url: url}} = PronunceName.play("Hans Mueller", nil, "DE")
+      {:play_tts_audio, %{url: url}} = PronunceName.play("Hans Mueller", nil, "DE")
       assert String.ends_with?(url, ".mp3")
     end
 
@@ -91,24 +85,23 @@ defmodule Zonely.PronunceNameTest do
 
       on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
 
-      {:play_audio, %{url: url_us}} = PronunceName.play("John", nil, "US")
+      {:play_tts_audio, %{url: url_us}} = PronunceName.play("John", nil, "US")
       assert String.ends_with?(url_us, ".mp3")
 
-      {:play_audio, %{url: url_es}} = PronunceName.play("María", nil, "ES")
+      {:play_tts_audio, %{url: url_es}} = PronunceName.play("María", nil, "ES")
       assert String.ends_with?(url_es, ".mp3")
 
-      {:play_audio, %{url: url_jp}} = PronunceName.play("Yuki", nil, "JP")
+      {:play_tts_audio, %{url: url_jp}} = PronunceName.play("Yuki", nil, "JP")
       assert String.ends_with?(url_jp, ".mp3")
     end
 
     test "cache hit returns cached audio without external calls" do
-      cache_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
-      File.mkdir_p!(cache_dir)
+      cache_dir = Zonely.AudioCache.dir()
       filename = "Test_Name_en-US_12345.mp3"
       File.write!(Path.join(cache_dir, filename), "FAKE")
 
       result = PronunceName.play("Test Name", "en-US", "US")
-      assert {:play_audio, %{url: "/audio/cache/" <> ^filename}} = result
+      assert {:play_audio, %{url: "/audio-cache/" <> ^filename}} = result
     end
 
     test "nameshouts success returns audio and caches mp3" do
@@ -127,7 +120,7 @@ defmodule Zonely.PronunceNameTest do
       on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
 
       {:play_audio, %{url: url}} = PronunceName.play("Bob", "en-US", "US")
-      assert url =~ "/audio/cache/"
+      assert url =~ "/audio-cache/"
     end
 
     test "falls back to browser TTS when Polly fails" do

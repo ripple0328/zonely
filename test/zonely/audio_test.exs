@@ -13,7 +13,7 @@ defmodule Zonely.AudioTest do
       assert is_tuple(result)
       assert tuple_size(result) == 2
       {event_type, event_data} = result
-      assert event_type in [:play_audio, :play_tts]
+      assert event_type in [:play_audio, :play_tts, :play_tts_audio]
       assert is_map(event_data)
     end
 
@@ -42,7 +42,7 @@ defmodule Zonely.AudioTest do
 
       assert is_tuple(result)
       {event_type, event_data} = result
-      assert event_type in [:play_audio, :play_tts]
+      assert event_type in [:play_audio, :play_tts, :play_tts_audio]
       assert is_map(event_data)
     end
 
