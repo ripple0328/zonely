@@ -394,6 +394,18 @@
                 resetPillState(pill);
               }
               setPillState(pill, data.type === 'audio' ? 'playing-user' : 'playing-robot');
+            }else if(data.type === 'sequence'){
+              const urls = data.urls || [];
+              let idx = 0;
+              const playNext = () => {
+                if(idx >= urls.length){ resetPillState(pill); return; }
+                audio.src = urls[idx++];
+                audio.onended = playNext;
+                audio.onerror = playNext;
+                try { audio.play(); } catch(_) { playNext(); }
+              };
+              setPillState(pill, 'playing-user');
+              playNext();
             }else if(data.type === 'tts'){
               // Stop audio first in case it was playing
               try { audio.pause(); audio.currentTime = 0; } catch(_) {}

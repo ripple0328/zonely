@@ -73,6 +73,34 @@ export function setupSimpleAudio() {
   window.addEventListener("phx:play_audio", handleAudioPlayback);
   window.addEventListener("phx:play_tts_audio", handleAudioPlayback);
 
+  // Sequential playback of multiple audio URLs
+  window.addEventListener("phx:play_sequence", (event) => {
+    const { urls, user_id } = event.detail || {};
+    if (!Array.isArray(urls) || urls.length === 0) return;
+
+    // Stop any current audio/speech
+    try { if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; } } catch(_) {}
+    try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(_) {}
+
+    const audioEl = new Audio();
+    currentAudio = audioEl;
+    let idx = 0;
+    const playNext = () => {
+      if (idx >= urls.length) {
+        if (user_id) {
+          const endEvent = new CustomEvent('audio:ended', { detail: { user_id } });
+          document.dispatchEvent(endEvent);
+        }
+        return;
+      }
+      audioEl.src = urls[idx++];
+      audioEl.onended = playNext;
+      audioEl.onerror = playNext;
+      try { audioEl.play(); } catch(_) { playNext(); }
+    };
+    playNext();
+  });
+
   // Simple TTS using browser's built-in speech synthesis
   window.addEventListener("phx:play_tts", (event) => {
     const { text, lang } = event.detail;

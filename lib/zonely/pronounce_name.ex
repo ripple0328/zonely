@@ -41,7 +41,7 @@ defmodule Zonely.PronunceName do
   - `{:play_audio, %{url: url}}` - for cached or downloaded audio files
   - `{:play_tts, %{text: text, lang: lang}}` - for text-to-speech fallback
   """
-  @spec play(String.t(), String.t()) :: {:play_audio | :play_tts | :play_tts_audio, map()}
+  @spec play(String.t(), String.t()) :: {:play_audio | :play_tts | :play_tts_audio | :play_sequence, map()}
   def play(name, language) when is_binary(name) and is_binary(language) do
     Logger.info(
       "🎯 PronunceName.play called: name=#{inspect(name)}, language=#{language}"
@@ -62,13 +62,17 @@ defmodule Zonely.PronunceName do
       {:tts, text, lang} ->
         Logger.info("🗣️ PronounceName result: browser_tts text=#{inspect(text)} lang=#{lang}")
         {:play_tts, %{text: text, lang: lang}}
+
+      {:sequence, urls} ->
+        Logger.info("🔗 PronounceName result: sequential_parts count=#{length(urls)}")
+        {:play_sequence, %{urls: urls}}
     end
   end
 
   # Private functions for internal logic
 
   @spec get_pronunciation(String.t(), String.t()) ::
-          {:audio_url, String.t()} | {:tts, String.t(), String.t()}
+          {:audio_url, String.t()} | {:tts, String.t(), String.t()} | {:sequence, [String.t()]}
   defp get_pronunciation(name, language) do
     # 1) Local cache lookup
     case Zonely.PronunceName.Cache.lookup_cached_audio(name, language) do
@@ -80,6 +84,8 @@ defmodule Zonely.PronunceName do
         Logger.info("📦 Cache miss for name=#{inspect(name)} lang=#{language}")
         # 2) Try name variants systematically: full name first, then decide on fallback strategy
         case try_name_variants_with_providers(name, language) do
+          {:ok, {:sequence, urls}} ->
+            {:sequence, urls}
           {:ok, audio_url} ->
             Logger.info("🌐 External audio found -> #{audio_url}")
             {:audio_url, audio_url}
@@ -125,7 +131,7 @@ defmodule Zonely.PronunceName do
 
   # Simple strategy: try full name, then first name, then fail to next provider
   @spec try_name_variants_with_providers(String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, :not_found}
+          {:ok, String.t()} | {:ok, {:sequence, [String.t()]}} | {:error, :not_found}
   defp try_name_variants_with_providers(name, language) do
     Logger.info("🌍 Trying full name first: #{inspect(name)}")
 

@@ -21,6 +21,9 @@ defmodule ZonelyWeb.NameSiteController do
 
       {:play_tts, %{text: text, lang: tts_lang}} ->
         json(conn, %{type: "tts", text: text, lang: tts_lang})
+
+      {:play_sequence, %{urls: urls}} ->
+        json(conn, %{type: "sequence", urls: Enum.map(urls, &absolute_url(conn, &1))})
     end
   end
 

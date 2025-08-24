@@ -37,6 +37,8 @@ defmodule ZonelyWeb.Router do
     pipe_through(:bare)
 
     get("/", NameSiteController, :index)
+    # Ensure audio-cache is reachable from the standalone host
+    get("/audio-cache/:filename", AudioCacheController, :show)
     get("/api/pronounce", NameSiteController, :pronounce)
   end
 
@@ -62,6 +64,8 @@ defmodule ZonelyWeb.Router do
     pipe_through(:bare)
 
     get("/", NameSiteController, :index)
+    # Ensure audio-cache works under /name scope as well
+    get("/audio-cache/:filename", AudioCacheController, :show)
     get("/api/pronounce", NameSiteController, :pronounce)
   end
 
