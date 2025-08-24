@@ -35,7 +35,10 @@
       .pill.playing-user{background:#ecfdf5;color:#059669;border-color:#a7f3d0}
       .pill.playing-robot{background:#fff7ed;color:#ea580c;border-color:#fed7aa}
       .pill.animate{animation:pulse 1s ease-in-out infinite}
-      .pill.loading{opacity:0.7}
+      .pill.loading{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;animation:breath 1.2s ease-in-out infinite}
+      @keyframes breath{0%{background:#eff6ff}50%{background:#dbeafe}100%{background:#eff6ff}}
+      .icon.spin{animation:spin 0.9s linear infinite;transform-origin:50% 50%}
+      @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       .entry{display:flex;align-items:center;gap:8px}
       .text{font-weight:600;color:var(--fg)}
       @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
@@ -315,7 +318,10 @@
         pill.classList.remove('playing','loading','playing-user','playing-robot','animate');
         const icon = pill.querySelector('svg');
         if(state==='loading'){
-          pill.classList.add('loading','animate');
+          pill.classList.add('loading');
+          if(icon){
+            icon.outerHTML = '<svg class="icon spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity="0.25"/><path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+          }
         }else if(state==='playing-user'){
           pill.classList.add('playing-user','animate');
           icon.outerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
