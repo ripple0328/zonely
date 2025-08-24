@@ -1519,6 +1519,8 @@ defmodule ZonelyWeb.CoreComponents do
   """
   attr :expanded, :boolean, default: true, doc: "whether the panel is expanded"
   attr :class, :string, default: "", doc: "additional CSS classes"
+  attr :selected_a_frac, :float, default: nil, doc: "start fraction of selected range (0..1)"
+  attr :selected_b_frac, :float, default: nil, doc: "end fraction of selected range (0..1)"
   # Removed server persistence wiring for selection
 
   def time_range_selector(assigns) do

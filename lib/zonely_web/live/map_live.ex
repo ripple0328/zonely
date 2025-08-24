@@ -22,7 +22,9 @@ defmodule ZonelyWeb.MapLive do
        expanded_action: nil,
        viewer_tz: "UTC",
        base_date: Date.utc_today(),
-       overlap_panel_expanded: true
+       overlap_panel_expanded: true,
+       selected_a_frac: nil,
+       selected_b_frac: nil
      )}
   end
 
