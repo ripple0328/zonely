@@ -3,6 +3,45 @@
 
 export function setupSimpleAudio() {
   let currentAudio = null;
+  let cachedVoices = [];
+
+  function refreshVoices() {
+    try {
+      const list = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      if (Array.isArray(list) && list.length) cachedVoices = list;
+    } catch (_) {}
+  }
+
+  function pickBestVoice(targetLang) {
+    if (!('speechSynthesis' in window)) return null;
+    refreshVoices();
+    const voices = cachedVoices;
+    if (!voices || !voices.length) return null;
+
+    const base = (targetLang || '').split('-')[0] || '';
+
+    // Rank voices by:
+    // 1) exact lang match > base match > others
+    // 2) name includes preferred vendor markers
+    // 3) name includes Female/known pleasant voices
+    const vendorHints = [/google/i, /enhanced/i, /natural/i, /neural/i, /premium/i];
+    const pleasantHints = [/female/i, /samantha/i, /victoria/i, /amelie/i, /serena/i, /monica/i, /kyoko/i, /anna/i, /alice/i];
+
+    const scored = voices.map(v => {
+      let score = 0;
+      if (v.lang === targetLang) score += 100;
+      else if (base && v.lang && v.lang.toLowerCase().startsWith(base.toLowerCase())) score += 60;
+
+      if (vendorHints.some(rx => rx.test(v.name))) score += 20;
+      if (pleasantHints.some(rx => rx.test(v.name))) score += 10;
+      // Prefer non-default voices slightly
+      if (!v.default) score += 2;
+      return { v, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return (scored[0] && scored[0].v) || null;
+  }
 
   // Simple audio file playback using Phoenix events
   window.addEventListener("phx:play_audio", (event) => {
@@ -38,16 +77,16 @@ export function setupSimpleAudio() {
     }
     speechSynthesis.cancel();
     
-    // Create and configure utterance using browser defaults
+    // Create and configure utterance with tuned parameters
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
-    utterance.rate = 0.9;    // Natural speaking pace
-    utterance.pitch = 1.0;   // Natural pitch
-    utterance.volume = 0.9;  // Audible volume
+    // Slightly slower and fuller voice for clarity
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
     
-    // Use browser's default voice selection for language
-    const voices = speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang === lang || v.lang.startsWith(lang.split('-')[0]));
+    // Select a pleasant, natural-sounding voice for the requested language
+    const voice = pickBestVoice(lang);
     if (voice) utterance.voice = voice;
     
     speechSynthesis.speak(utterance);
@@ -55,8 +94,10 @@ export function setupSimpleAudio() {
 
   // Minimal voice loading - let browser handle it
   if ('speechSynthesis' in window) {
+    // Preload voices list and keep it refreshed
+    refreshVoices();
     speechSynthesis.onvoiceschanged = () => {
-      // Browser handles voice loading automatically
+      refreshVoices();
     };
   }
 }
