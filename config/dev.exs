@@ -45,6 +45,12 @@ config :tidewave,
 # Audio cache directory (runtime-generated files)
 config :zonely, :audio_cache_dir, Path.expand("priv/static/audio/cache", File.cwd!())
 
+# Use local backend in dev
+config :zonely, :audio_cache,
+  backend: "local",
+  s3_bucket: "zonely-cache",
+  public_base_url: "https://zonely-cache.s3.amazonaws.com"
+
 config :logger, :console, format: "[$level] $message\n"
 
 config :phoenix, :stacktrace_depth, 20

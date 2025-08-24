@@ -36,10 +36,24 @@ defmodule Zonely.PronunceName.Providers.Forvo do
           %{"items" => [item | _]} ->
             cond do
               is_binary(item["pathogg"]) ->
-                Cache.write_external_and_cache(item["pathogg"], word, language, ".ogg")
+                audio_url = item["pathogg"]
+                Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
+                case Cache.write_external_and_cache(audio_url, word, language, ".ogg") do
+                  {:ok, cached_url} ->
+                    Logger.info("✅ Serving cached URL -> #{cached_url}")
+                    {:ok, cached_url}
+                  other -> other
+                end
 
               is_binary(item["pathmp3"]) ->
-                Cache.write_external_and_cache(item["pathmp3"], word, language, ".mp3")
+                audio_url = item["pathmp3"]
+                Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
+                case Cache.write_external_and_cache(audio_url, word, language, ".mp3") do
+                  {:ok, cached_url} ->
+                    Logger.info("✅ Serving cached URL -> #{cached_url}")
+                    {:ok, cached_url}
+                  other -> other
+                end
 
               true ->
                 {:error, :no_audio_url}

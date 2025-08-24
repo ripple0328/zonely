@@ -38,7 +38,14 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
           case PronunceName.pick_nameshouts_variant(body, name, language) do
             {:ok, path} ->
               audio_url = "https://nslibrary01.blob.core.windows.net/ns-audio/#{path}.mp3"
-              Cache.write_external_and_cache(audio_url, name, language, ".mp3")
+              # Upload to configured storage and return the cached URL (S3 or local)
+              Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
+              case Cache.write_external_and_cache(audio_url, name, language, ".mp3") do
+                {:ok, cached_url} ->
+                  Logger.info("✅ Serving cached URL -> #{cached_url}")
+                  {:ok, cached_url}
+                other -> other
+              end
 
             {:error, reason} ->
               {:error, reason}
@@ -52,7 +59,13 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
               case PronunceName.pick_nameshouts_variant(body, name, language) do
                 {:ok, path} ->
                   audio_url = "https://nslibrary01.blob.core.windows.net/ns-audio/#{path}.mp3"
-                  Cache.write_external_and_cache(audio_url, name, language, ".mp3")
+                  Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
+                  case Cache.write_external_and_cache(audio_url, name, language, ".mp3") do
+                    {:ok, cached_url} ->
+                      Logger.info("✅ Serving cached URL -> #{cached_url}")
+                      {:ok, cached_url}
+                    other -> other
+                  end
 
                 {:error, reason} ->
                   {:error, reason}

@@ -35,3 +35,9 @@ config :phoenix, :plug_init_mode, :runtime
 
 # Use tmp dir for audio cache during tests
 config :zonely, :audio_cache_dir, Path.join(System.tmp_dir!(), "zonely_test_audio")
+
+# Use local backend during tests
+config :zonely, :audio_cache,
+  backend: "local",
+  s3_bucket: "zonely-cache",
+  public_base_url: "https://zonely-cache.s3.amazonaws.com"

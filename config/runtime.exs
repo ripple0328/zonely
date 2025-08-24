@@ -41,6 +41,16 @@ if config_env() == :prod do
   config :zonely, :audio_cache_dir,
     System.get_env("AUDIO_CACHE_DIR") || "/tmp/zonely/audio-cache"
 
+  # External audio cache (object storage) configuration
+  # Backend can be "s3" or "local". Default prod -> s3.
+  config :zonely, :audio_cache,
+    backend: System.get_env("AUDIO_CACHE_BACKEND") || "s3",
+    s3_bucket: System.get_env("AUDIO_CACHE_S3_BUCKET") || "zonely-cache",
+    public_base_url:
+      System.get_env("AUDIO_CACHE_PUBLIC_BASE_URL") ||
+        "https://zonely-cache.s3.amazonaws.com",
+    s3_endpoint: System.get_env("AWS_S3_ENDPOINT")
+
   # MapTiler configuration
   config :zonely, :maptiler,
     api_key: System.get_env("MAPTILER_API_KEY") || "demo_key_get_your_own_at_maptiler_com"
@@ -52,9 +62,20 @@ if config_env() == :dev do
     api_key: System.get_env("MAPTILER_API_KEY") || "demo_key_get_your_own_at_maptiler_com"
 end
 
+aws_region = System.get_env("AWS_REGION") || "us-west-1"
+aws_s3_endpoint = System.get_env("AWS_S3_ENDPOINT")
+
+s3_opts =
+  case aws_s3_endpoint do
+    nil -> [region: aws_region]
+    "" -> [region: aws_region]
+    endpoint -> [region: aws_region, host: endpoint]
+  end
+
 config :ex_aws,
-  region: System.get_env("AWS_REGION") || "us-east-1",
+  region: aws_region,
   json_codec: Jason,
   access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
   secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
-  http_client: ExAws.Request.Hackney
+  http_client: ExAws.Request.Hackney,
+  s3: s3_opts
