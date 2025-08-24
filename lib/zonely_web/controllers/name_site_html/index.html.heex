@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Say my name</title>
+    <meta name="color-scheme" content="light dark" />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+    <link rel="icon" type="image/svg+xml" href={~p"/favicon-saymyname.svg"} />
+    <link rel="icon" sizes="any" type="image/svg+xml" href={~p"/favicon-saymyname.svg"} />
+    <link rel="shortcut icon" href={~p"/favicon-saymyname.svg"} />
+    <style>
+      :root{--bg:#ffffff;--fg:#0f172a;--muted:#64748b;--ring:#e2e8f0;--accent:#111827;--card:#f8fafc}
+      @media (prefers-color-scheme: dark){:root{--bg:#0b0f17;--fg:#e5e7eb;--muted:#9ca3af;--ring:#111827;--accent:#e5e7eb;--card:#111827}}
+      *{box-sizing:border-box}
+      html,body{padding:0;margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+      a{color:inherit}
+      .wrap{max-width:820px;margin:0 auto;padding:24px}
+      .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+      .brand{display:flex;align-items:center;gap:10px}
+      .logo{width:28px;height:28px}
+      .title{font-size:18px;font-weight:600;letter-spacing:0.2px}
+      .card{background:var(--card);border:1px solid var(--ring);border-radius:12px;padding:16px}
+      .row{display:flex;gap:12px;align-items:center}
+      .input{flex:1;display:flex;gap:8px}
+      input,select{width:100%;padding:10px 12px;border:1px solid var(--ring);border-radius:10px;background:transparent;color:inherit}
+      button{appearance:none;border:1px solid var(--ring);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;cursor:pointer}
+      button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+      .list{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+      .item{display:flex;align-items:center;gap:12px;border:1px solid var(--ring);border-radius:12px;padding:10px}
+      .avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid var(--ring)}
+      .name{flex:1;font-weight:600}
+      .langs{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+      .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ring);border-radius:999px;padding:6px 10px;color:var(--muted)}
+      .pill.playing-user{background:#ecfdf5;color:#059669;border-color:#a7f3d0}
+      .pill.playing-robot{background:#fff7ed;color:#ea580c;border-color:#fed7aa}
+      .pill.animate{animation:pulse 1s ease-in-out infinite}
+      .pill.loading{opacity:0.7}
+      .entry{display:flex;align-items:center;gap:8px}
+      .text{font-weight:600;color:var(--fg)}
+      @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+      .empty{color:var(--muted);text-align:center;padding:28px}
+      .footer{margin-top:18px;display:flex;gap:10px;justify-content:space-between;align-items:center}
+      .muted{color:var(--muted)}
+      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div class="brand">
+          <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="24" cy="24" r="22" fill="#111827"/>
+            <path d="M12 19c3-6 10-9 16-7 6 2 10 8 10 14 0 7-5 12-12 12h-1" stroke="#FDE68A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="18" cy="21" r="2" fill="#FDE68A"/>
+            <path d="M18 28c3 0 5 2 6 5" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="title">Say my name</div>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="input">
+            <input id="text_en" placeholder="Name for English (e.g., San Zhang)" />
+            <select id="lang_en">
+              <option value="en-US" selected>English</option>
+              <option value="es-ES">Español</option>
+              <option value="fr-FR">Français</option>
+              <option value="de-DE">Deutsch</option>
+              <option value="pt-BR">Português</option>
+              <option value="zh-CN">中文</option>
+              <option value="ja-JP">日本語</option>
+              <option value="hi-IN">हिन्दी</option>
+              <option value="bn-IN">বাংলা</option>
+              <option value="ta-IN">தமிழ்</option>
+              <option value="te-IN">తెలుగు</option>
+              <option value="mr-IN">मराठी</option>
+              <option value="gu-IN">ગુજરાતી</option>
+              <option value="kn-IN">ಕನ್ನಡ</option>
+              <option value="ml-IN">മലയാളം</option>
+              <option value="pa-IN">ਪੰਜਾਬੀ</option>
+              <option value="ar-SA">العربية</option>
+            </select>
+            <span aria-hidden="true" style="align-self:center;color:var(--muted);">—</span>
+            <input id="text_zh" placeholder="Name for native language (e.g., 张三)" />
+            <select id="lang_zh">
+              <option value="en-US">English</option>
+              <option value="es-ES">Español</option>
+              <option value="fr-FR">Français</option>
+              <option value="de-DE">Deutsch</option>
+              <option value="pt-BR">Português</option>
+              <option value="zh-CN" selected>中文</option>
+              <option value="ja-JP">日本語</option>
+              <option value="hi-IN">हिन्दी</option>
+              <option value="bn-IN">বাংলা</option>
+              <option value="ta-IN">தமிழ்</option>
+              <option value="te-IN">తెలుగు</option>
+              <option value="mr-IN">मराठी</option>
+              <option value="gu-IN">ગુજરાતી</option>
+              <option value="kn-IN">ಕನ್ನಡ</option>
+              <option value="ml-IN">മലയാളം</option>
+              <option value="pa-IN">ਪੰਜਾਬੀ</option>
+              <option value="ar-SA">العربية</option>
+            </select>
+          </div>
+          <button id="add" class="primary">Add</button>
+        </div>
+
+        <div class="list" id="list">
+          <%= if @names == [] do %>
+            <div class="empty">No names yet. Add a name and language to begin.</div>
+          <% end %>
+          <%= for item <- @names do %>
+            <div class="item" data-name={item.name}>
+              <img class="avatar" src={item.avatar} alt="" />
+              <div class="name"><%= item.name %></div>
+              <div class="langs">
+                <%= for e <- item.entries || [] do %>
+                  <div class="entry">
+                    <button class="pill" data-lang={e.lang} data-text={e.text}>
+                      <span class="label"></span>
+                      <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                    </button>
+                    <span class="text"><%= e.text %></span>
+                  </div>
+                <% end %>
+              </div>
+              <button class="remove" title="Remove">✕</button>
+            </div>
+          <% end %>
+        </div>
+
+        <div class="footer">
+          <div class="muted">Bookmark this page to save your list.</div>
+          <div>
+            <button id="share">Copy link</button>
+            <a id="demo" href="#" target="_blank" rel="noopener" style="margin-left:8px; text-decoration:underline; cursor:pointer">Demo</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <audio id="audio" preload="none"></audio>
+
+    <script>
+      const listEl = document.getElementById('list');
+      const audio = document.getElementById('audio');
+      const textEnEl = document.getElementById('text_en');
+      const textZhEl = document.getElementById('text_zh');
+      const langEnEl = document.getElementById('lang_en');
+      const langZhEl = document.getElementById('lang_zh');
+      const addEl = document.getElementById('add');
+      const shareEl = document.getElementById('share');
+      const demoEl = document.getElementById('demo');
+      // Unicode-safe Base64 URL helpers (for names with non-Latin chars)
+      function utf8ToB64(str){
+        const bytes = new TextEncoder().encode(str);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin);
+      }
+      function b64ToUtf8(b64){
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new TextDecoder().decode(bytes);
+      }
+      function b64UrlEncode(str){
+        return utf8ToB64(str).replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_');
+      }
+      function b64UrlDecode(str){
+        const pad = str.length % 4 === 2 ? '==' : (str.length % 4 === 3 ? '=' : '');
+        const b64 = str.replace(/-/g,'+').replace(/_/g,'/') + pad;
+        return b64ToUtf8(b64);
+      }
+      function buildDemoUrl(){
+        const demo = [
+          { name: '张清波', entries: [
+            { lang: 'en-US', text: 'Qingbo Zhang' },
+            { lang: 'zh-CN', text: '张清波' }
+          ]},
+          { name: 'Maria Silva', entries: [
+            { lang: 'pt-BR', text: 'Maria Silva' },
+            { lang: 'en-US', text: 'Maria Silva' }
+          ]},
+          { name: 'Ravi Kumar', entries: [
+            { lang: 'hi-IN', text: 'रवि कुमार' },
+            { lang: 'en-US', text: 'Ravi Kumar' }
+          ]},
+          { name: 'Ana García', entries: [
+            { lang: 'es-ES', text: 'Ana García' },
+            { lang: 'en-US', text: 'Ana Garcia' }
+          ]},
+          { name: 'François Dupont', entries: [
+            { lang: 'fr-FR', text: 'François Dupont' },
+            { lang: 'en-US', text: 'Francois Dupont' }
+          ]},
+          { name: 'Jürgen Müller', entries: [
+            { lang: 'de-DE', text: 'Jürgen Müller' },
+            { lang: 'en-US', text: 'Juergen Mueller' }
+          ]},
+          { name: 'Ahmed Ali', entries: [
+            { lang: 'ar-SA', text: 'أحمد علي' },
+            { lang: 'en-US', text: 'Ahmed Ali' }
+          ]},
+          { name: 'Yuki Tanaka', entries: [
+            { lang: 'ja-JP', text: '田中 友紀' },
+            { lang: 'en-US', text: 'Yuki Tanaka' }
+          ]}
+        ];
+        const json = JSON.stringify(demo);
+        const s = b64UrlEncode(json);
+        const url = new URL(window.location.href);
+        url.searchParams.set('s', s);
+        return url.toString();
+      }
+
+      // Initialize demo link href on load
+      if (demoEl) {
+        demoEl.href = buildDemoUrl();
+      }
+
+
+      function encodeState(items){
+        const data = items.map(el => ({
+          name: el.dataset.name,
+          entries: [...el.querySelectorAll('.pill')].map(p=>({lang: p.dataset.lang, text: p.dataset.text || el.dataset.name}))
+        }));
+        const json = JSON.stringify(data);
+        return b64UrlEncode(json);
+      }
+
+      function decodeState(s){
+        try{
+          const json = b64UrlDecode(s);
+          return JSON.parse(json);
+        }catch(_){ return []; }
+      }
+
+      function setNativeLabelEl(el, lang){
+        const map = {"en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","hi-IN":"हिन्दी","ar-SA":"العربية"};
+        const label = map[lang] || lang;
+        el.textContent = label;
+        const pill = el.closest('.pill');
+        if(pill){ pill.title = `${label} — double-click to edit text`; }
+      }
+
+      function refreshURL(){
+        const items = [...listEl.querySelectorAll('.item')];
+        const s = encodeState(items);
+        const url = new URL(window.location.href);
+        if(s && s.length>0){ url.searchParams.set('s', s); }
+        else { url.searchParams.delete('s'); }
+        history.replaceState(null, '', url.toString());
+        // Update visible deep-link button
+        const share = document.getElementById('share');
+        if(share){ share.dataset.url = url.toString(); }
+      }
+
+      function avatarFor(name){
+        const seed = name.toLowerCase().replace(/[^\w\s]/g,'').replace(/\s+/g,'-');
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=48`;
+      }
+
+      function addItem(enText, zhText, langEn, langZh){
+        if(!enText && !zhText) return;
+        const el = document.createElement('div');
+        el.className = 'item';
+        el.dataset.name = zhText || enText || '';
+        el.innerHTML = `
+          <img class="avatar" src="${avatarFor(zhText || enText || '')}" alt="" />
+          <div class="name"></div>
+          <div class="langs"></div>
+          <button class="remove" title="Remove">✕</button>`;
+        el.querySelector('.name').textContent = zhText || enText || '';
+        const entry1 = document.createElement('div');
+        entry1.className = 'entry';
+        const pill = document.createElement('button');
+        pill.className = 'pill';
+        pill.dataset.lang = langEn || 'en-US';
+        pill.dataset.text = enText || (zhText || '');
+        pill.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
+        entry1.appendChild(pill);
+        const textSpan1 = document.createElement('span');
+        textSpan1.className = 'text';
+        textSpan1.textContent = pill.dataset.text;
+        entry1.appendChild(textSpan1);
+        el.querySelector('.langs').appendChild(entry1);
+        setNativeLabelEl(pill.querySelector('.label'), pill.dataset.lang);
+        if(zhText){
+          const entry2 = document.createElement('div');
+          entry2.className = 'entry';
+          const pill2 = document.createElement('button');
+          pill2.className = 'pill';
+          pill2.dataset.lang = langZh || 'zh-CN';
+          pill2.dataset.text = zhText;
+          pill2.innerHTML = `<span class=\"label\"></span> <svg class=\"icon\" width=\"16\" height=\"16\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z\" clip-rule=\"evenodd\"></path></svg>`;
+          entry2.appendChild(pill2);
+          const textSpan2 = document.createElement('span');
+          textSpan2.className = 'text';
+          textSpan2.textContent = pill2.dataset.text;
+          entry2.appendChild(textSpan2);
+          el.querySelector('.langs').appendChild(entry2);
+          setNativeLabelEl(pill2.querySelector('.label'), pill2.dataset.lang);
+        }
+        listEl.appendChild(el);
+        attachItemEvents(el);
+        const empty = listEl.querySelector('.empty'); if(empty) empty.remove();
+        refreshURL();
+      }
+
+      function setPillState(pill, state){
+        pill.classList.remove('playing','loading','playing-user','playing-robot','animate');
+        const icon = pill.querySelector('svg');
+        if(state==='loading'){
+          pill.classList.add('loading','animate');
+        }else if(state==='playing-user'){
+          pill.classList.add('playing-user','animate');
+          icon.outerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
+        }else if(state==='playing-robot'){
+          pill.classList.add('playing-robot','animate');
+          icon.outerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2ZM12 4C11.4 4 11 4.4 11 5V6H13V5C13 4.4 12.6 4 12 4ZM9 10C8.4 10 8 10.4 8 11S8.4 12 9 12 10 11.6 10 11 9.6 10 9 10ZM15 10C14.4 10 14 10.4 14 11S14.4 12 15 12 16 11.6 16 11 15.6 10 15 10ZM8 14H16V16H8V14Z"/></svg>';
+        }else{
+          icon.outerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>';
+        }
+      }
+
+      function resetPillState(pill){ setPillState(pill, 'idle'); }
+
+      function attachItemEvents(item){
+        item.querySelectorAll('.pill').forEach(pill => {
+          const labelEl = pill.querySelector('.label');
+          if(labelEl){ setNativeLabelEl(labelEl, pill.dataset.lang); }
+          // Inline edit: double-click or right-click to edit the text for this language
+          pill.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            const label = labelEl ? labelEl.textContent : (pill.dataset.lang || '');
+            const current = pill.dataset.text || item.dataset.name || '';
+            const next = prompt(`Text for ${label}`, current);
+            if(next !== null){
+              pill.dataset.text = next.trim();
+              const siblingText = pill.parentElement && pill.parentElement.querySelector && pill.parentElement.querySelector('.text');
+              if(siblingText){ siblingText.textContent = pill.dataset.text; }
+              refreshURL();
+            }
+          });
+          pill.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const label = labelEl ? labelEl.textContent : (pill.dataset.lang || '');
+            const current = pill.dataset.text || item.dataset.name || '';
+            const next = prompt(`Text for ${label}`, current);
+            if(next !== null){
+              pill.dataset.text = next.trim();
+              const siblingText = pill.parentElement && pill.parentElement.querySelector && pill.parentElement.querySelector('.text');
+              if(siblingText){ siblingText.textContent = pill.dataset.text; }
+              refreshURL();
+            }
+          });
+          pill.addEventListener('click', async () => {
+            const name = item.dataset.name;
+            const lang = pill.dataset.lang;
+            const text = pill.dataset.text || name;
+            setPillState(pill, 'loading');
+            // Ensure any previous playback is stopped before starting a new one
+            try { audio.pause(); audio.currentTime = 0; } catch(_) {}
+            try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(_) {}
+            const base = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0,-1) : window.location.pathname;
+            const api = base.endsWith('/name') ? '/name/api/pronounce' : '/api/pronounce';
+            const url = new URL(api, window.location.origin);
+            url.searchParams.set('name', text);
+            url.searchParams.set('lang', lang);
+            const res = await fetch(url.toString());
+            const data = await res.json();
+            if(data.type === 'audio' || data.type === 'tts_audio'){
+              audio.src = data.url;
+              audio.onended = () => resetPillState(pill);
+              audio.onerror = () => resetPillState(pill);
+              try {
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                  playPromise.catch(err => {
+                    if (!(err && err.name === 'AbortError')) {
+                      console.error('Audio play error', err);
+                    }
+                    resetPillState(pill);
+                  });
+                }
+              } catch (err) {
+                if (!(err && err.name === 'AbortError')) {
+                  console.error('Audio play threw', err);
+                }
+                resetPillState(pill);
+              }
+              setPillState(pill, data.type === 'audio' ? 'playing-user' : 'playing-robot');
+            }else if(data.type === 'tts'){
+              // Stop audio first in case it was playing
+              try { audio.pause(); audio.currentTime = 0; } catch(_) {}
+              const u = new SpeechSynthesisUtterance(data.text);
+              u.lang = data.lang;
+              u.onend = () => resetPillState(pill);
+              u.onerror = () => resetPillState(pill);
+              speechSynthesis.cancel();
+              speechSynthesis.speak(u);
+              setPillState(pill, 'playing-robot');
+            }
+          });
+        });
+        item.querySelector('.remove').addEventListener('click', () => { item.remove(); refreshURL(); });
+      }
+
+      addEl.addEventListener('click', () => {
+        const en = textEnEl.value.trim();
+        const zh = textZhEl.value.trim();
+        const langEn = langEnEl.value;
+        const langZh = langZhEl.value;
+        addItem(en, zh, langEn, langZh);
+        textEnEl.value = '';
+        textZhEl.value = '';
+        textEnEl.focus();
+        refreshURL();
+      });
+
+      [textEnEl, textZhEl].forEach(inp => inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addEl.click(); }}));
+
+      shareEl.addEventListener('click', async () => {
+        const url = (shareEl && shareEl.dataset.url) ? shareEl.dataset.url : window.location.href;
+        try{
+          await navigator.clipboard.writeText(url);
+          shareEl.textContent = 'Copied';
+          setTimeout(()=> shareEl.textContent = 'Copy link', 1200);
+        }catch(_){
+          prompt('Copy link', url);
+        }
+      });
+
+      demoEl.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const demoUrl = buildDemoUrl();
+        demoEl.href = demoUrl;
+        window.open(demoUrl, '_blank', 'noopener');
+      });
+
+      // Attach existing items
+      document.querySelectorAll('.item').forEach(attachItemEvents);
+    </script>
+  </body>
+  </html>
+
+

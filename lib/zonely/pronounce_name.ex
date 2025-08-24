@@ -10,14 +10,14 @@ defmodule Zonely.PronunceName do
   ## Usage
 
       # For LiveView - returns ready-to-use event data
-      {event_type, event_data} = PronunceName.play(name, language, country)
+      {event_type, event_data} = PronunceName.play(name, language)
       push_event(socket, event_type, event_data)
 
       # Examples:
-      PronunceName.play("María García", "es-ES", "ES")
+      PronunceName.play("María García", "es-ES")
       # → {:play_audio, %{url: "/audio/cache/maria_garcia.ogg"}}
 
-      PronunceName.play("John Doe", "en-US", "US")
+      PronunceName.play("John Doe", "en-US")
       # → {:play_tts, %{text: "John Doe", lang: "en-US"}}
   """
 
@@ -35,24 +35,20 @@ defmodule Zonely.PronunceName do
 
   ## Parameters
   - `name`: The name to pronounce (e.g., "María García")
-  - `language`: Language code (e.g., "es-ES", "en-US") - can be nil
-  - `country`: Country code for language derivation (e.g., "ES", "US")
+  - `language`: Language code (e.g., "es-ES", "en-US") - required
 
   ## Returns
   - `{:play_audio, %{url: url}}` - for cached or downloaded audio files
   - `{:play_tts, %{text: text, lang: lang}}` - for text-to-speech fallback
   """
-  @spec play(String.t(), String.t() | nil, String.t()) :: {:play_audio | :play_tts | :play_tts_audio, map()}
-  def play(name, language, country) when is_binary(name) and is_binary(country) do
+  @spec play(String.t(), String.t()) :: {:play_audio | :play_tts | :play_tts_audio, map()}
+  def play(name, language) when is_binary(name) and is_binary(language) do
     Logger.info(
-      "🎯 PronunceName.play called: name=#{inspect(name)}, language=#{inspect(language) || "auto"}, country=#{country}"
+      "🎯 PronunceName.play called: name=#{inspect(name)}, language=#{language}"
     )
 
-    # Derive language from country if needed
-    target_language = language || derive_language_from_country(country)
-
     # Try to get pronunciation
-    case get_pronunciation(name, target_language, country) do
+    case get_pronunciation(name, language) do
       {:audio_url, url} ->
         # Check if this is AI-generated audio (Polly) based on filename
         if String.contains?(url, "polly_") do
@@ -71,9 +67,9 @@ defmodule Zonely.PronunceName do
 
   # Private functions for internal logic
 
-  @spec get_pronunciation(String.t(), String.t(), String.t()) ::
+  @spec get_pronunciation(String.t(), String.t()) ::
           {:audio_url, String.t()} | {:tts, String.t(), String.t()}
-  defp get_pronunciation(name, language, _country) do
+  defp get_pronunciation(name, language) do
     # 1) Local cache lookup
     case Zonely.PronunceName.Cache.lookup_cached_audio(name, language) do
       {:ok, cached_url} ->
@@ -82,11 +78,29 @@ defmodule Zonely.PronunceName do
 
       :not_found ->
         Logger.info("📦 Cache miss for name=#{inspect(name)} lang=#{language}")
-        # 2) External services: NameShouts first, then Forvo
-        case fetch_from_external_service(name, language) do
+        # 2) Try name variants systematically: full name first, then decide on fallback strategy
+        case try_name_variants_with_providers(name, language) do
           {:ok, audio_url} ->
             Logger.info("🌐 External audio found -> #{audio_url}")
             {:audio_url, audio_url}
+
+          {:error, :use_ai_fallback} ->
+            Logger.info(
+              "🤖 Using AI TTS for complete name due to partial provider coverage: #{inspect(name)} (#{language})"
+            )
+
+            case Zonely.PronunceName.Providers.Polly.synthesize(name, language) do
+              {:ok, web_path} ->
+                Logger.info("✅ Polly synth success for complete name -> #{web_path}")
+                {:audio_url, web_path}
+
+              {:error, reason} ->
+                Logger.warning(
+                  "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
+                )
+
+                {:tts, name, language}
+            end
 
           {:error, :not_found} ->
             Logger.info(
@@ -105,6 +119,58 @@ defmodule Zonely.PronunceName do
 
                 {:tts, name, language}
             end
+        end
+    end
+  end
+
+  # Simple strategy: try full name, then first name, then fail to next provider
+  @spec try_name_variants_with_providers(String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :not_found}
+  defp try_name_variants_with_providers(name, language) do
+    Logger.info("🌍 Trying full name first: #{inspect(name)}")
+
+    # First, try the complete name
+    case try_single_name_with_providers(name, language, name) do
+      {:ok, audio_url} ->
+        Logger.info("✅ Found full name pronunciation: #{name}")
+        {:ok, audio_url}
+
+      {:error, _} ->
+        # If full name failed, try just the first name
+        name_parts = String.split(name, [" ", "-"], trim: true)
+        case name_parts do
+          [first_name | _rest] when first_name != name ->
+            Logger.info("🔍 Full name failed, trying first name: #{inspect(first_name)}")
+            case try_single_name_with_providers(first_name, language, name) do
+              {:ok, audio_url} ->
+                Logger.info("📝 Found first name pronunciation: #{first_name} (for #{name})")
+                {:ok, audio_url}
+              {:error, _} ->
+                Logger.info("❌ Both full name and first name failed for: #{name}")
+                {:error, :not_found}
+            end
+
+          _ ->
+            # Single word name or other case
+            Logger.info("❌ No pronunciation found for: #{name}")
+            {:error, :not_found}
+        end
+    end
+  end
+
+  # Try a single name with all providers: NameShouts first, then Forvo
+  @spec try_single_name_with_providers(String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, atom()}
+  defp try_single_name_with_providers(variant, language, original_name) do
+    # Try NameShouts first
+    case Zonely.PronunceName.Providers.NameShouts.fetch_single(variant, language, original_name) do
+      {:ok, audio_url} ->
+        {:ok, audio_url}
+      {:error, _} ->
+        # Try Forvo as fallback
+        case Zonely.PronunceName.Providers.Forvo.fetch_single(variant, language, original_name) do
+          {:ok, audio_url} -> {:ok, audio_url}
+          {:error, reason} -> {:error, reason}
         end
     end
   end
@@ -230,32 +296,6 @@ defmodule Zonely.PronunceName do
 
   # (binary cache writing lives in Zonely.PronunceName.Cache)
 
-  @spec fetch_from_external_service(String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, :not_found}
-  defp fetch_from_external_service(name, language) do
-    Logger.info("🔎 Trying NameShouts for #{inspect(name)} (#{language})")
-
-    case Zonely.PronunceName.Providers.NameShouts.fetch(name, language) do
-      {:ok, url} ->
-        Logger.info("✅ NameShouts hit -> #{url}")
-        {:ok, url}
-
-      {:error, reason} ->
-        Logger.info(
-          "↪️ NameShouts miss (#{inspect(reason)}), trying Forvo for #{inspect(name)} (#{language})"
-        )
-
-        case Zonely.PronunceName.Providers.Forvo.fetch(name, language) do
-          {:ok, url} ->
-            Logger.info("✅ Forvo hit -> #{url}")
-            {:ok, url}
-
-          {:error, reason2} ->
-            Logger.info("❌ Forvo miss (#{inspect(reason2)})")
-            {:error, :not_found}
-        end
-    end
-  end
 
   # Submodules moved to their own files under lib/zonely/pronounce_name/
 
@@ -265,16 +305,10 @@ defmodule Zonely.PronunceName do
 
   # (external download moved to Cache.write_external_and_cache/4)
 
-  @spec generate_name_variants(String.t()) :: [String.t()]
-  def generate_name_variants(name) do
-    # Split name into parts and create variants
-    parts = String.split(name, " ", trim: true)
-
-    case parts do
-      [single] -> [single]
-      [first, last] -> [name, first, last]
-      multiple -> [name | multiple]
-    end
+  @spec generate_name_parts(String.t()) :: [String.t()]
+  defp generate_name_parts(name) do
+    # Split name into individual parts for partial coverage analysis
+    String.split(name, [" ", "-"], trim: true)
   end
 
   # (Forvo API key access handled in Providers.Forvo)
@@ -286,12 +320,140 @@ defmodule Zonely.PronunceName do
   # (NameShouts integration moved to Providers.NameShouts)
 
   @spec pick_nameshouts_variant(map(), String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, atom()}
+          {:ok, String.t()} | {:ok, [String.t()]} | {:error, atom()}
   def pick_nameshouts_variant(%{"status" => status, "message" => message}, name, language)
       when is_binary(status) and is_map(message) do
-    target_lang_name = language_display_name_from_bcp47(language)
+    target_lang_name = language_display_name_from_bcp47(language) |> String.downcase()
 
-    # Try multiple possible keys that NameShouts may use
+    Logger.info("🔍 Analyzing NameShouts response for requested name: '#{name}'")
+    Logger.info("🔍 Available keys in NameShouts response: #{inspect(Map.keys(message))}")
+    Logger.info("🔍 Target language: '#{target_lang_name}'")
+
+    # Check if response is organized by language (like {"english" => [...]})
+    case Map.get(message, target_lang_name) do
+      variants when is_list(variants) ->
+        Logger.info("🔍 Found language-based variants: #{inspect(variants)}")
+        analyze_language_variants(variants, name, target_lang_name)
+
+      _ ->
+        # Fallback to original name-based lookup
+        Logger.info("🔍 No language-based variants, trying name-based lookup")
+        try_name_based_lookup(message, name, target_lang_name)
+    end
+  end
+
+
+  def pick_nameshouts_variant(_body, _name, _language), do: {:error, :unexpected_format}
+
+  # Analyze variants from language-based response structure
+  defp analyze_language_variants(variants, name, _target_lang_name) do
+    Logger.info("🔍 Analyzing #{length(variants)} variants for name '#{name}'")
+
+    # Look for multiple parts that might need chaining
+    name_parts = String.split(name, " ", trim: true) |> Enum.map(&String.downcase/1)
+    Logger.info("🔍 Name parts: #{inspect(name_parts)}")
+
+    # Group variants by what parts of the name they might represent
+    part_matches = Enum.map(variants, fn variant ->
+      path = variant["path"] || ""
+      clean_path = String.downcase(path) |> String.replace(~r/_[a-z]{2}$/, "")
+
+      matching_parts = Enum.filter(name_parts, fn part ->
+        String.contains?(clean_path, part)
+      end)
+
+      Logger.info("🔍 Path '#{path}' matches parts: #{inspect(matching_parts)}")
+      {variant, matching_parts, path}
+    end)
+
+    # Check if we have variants that cover all parts of the name
+    all_covered_parts = part_matches
+    |> Enum.flat_map(fn {_, parts, _} -> parts end)
+    |> Enum.uniq()
+
+    cond do
+      # If we have variants covering all parts, return them for chaining
+      length(all_covered_parts) == length(name_parts) and length(name_parts) > 1 ->
+        paths = part_matches |> Enum.map(fn {_, _, path} -> path end) |> Enum.filter(&(&1 != ""))
+        Logger.info("✅ Found multi-part pronunciation - paths for chaining: #{inspect(paths)}")
+        {:ok, paths}
+
+      # Otherwise, look for the best single match
+      true ->
+        best_match = Enum.find(part_matches, fn {_, matching_parts, path} ->
+          path != "" and (length(matching_parts) > 0 or String.contains?(String.downcase(path), String.downcase(name)))
+        end)
+
+        case best_match do
+          {_, _, path} when path != "" ->
+            Logger.info("✅ Found single best match: #{path}")
+            {:ok, path}
+          _ ->
+            # Fallback to first valid path
+            case Enum.find(variants, fn v -> v["path"] != nil end) do
+              %{"path" => path} ->
+                Logger.info("🔄 Using fallback path: #{path}")
+                {:ok, path}
+              _ ->
+                {:error, :no_path}
+            end
+        end
+    end
+  end
+
+  # Fallback to original name-based lookup
+  defp try_name_based_lookup(message, name, target_lang_name) do
+    Logger.info("🔍 Trying name-based lookup for '#{name}' in message keys: #{inspect(Map.keys(message))}")
+
+    # Check if message contains multiple name parts (like %{"John" => ..., "Doe" => ...})
+    name_parts = String.split(name, [" ", "-"], trim: true)
+    Logger.info("🔍 Name parts to look for: #{inspect(name_parts)}")
+
+    # Find all matching parts in the response (handling URL encoding)
+    matching_parts = name_parts
+    |> Enum.map(fn part ->
+        # Check both original and URL-encoded versions
+        key = cond do
+          Map.has_key?(message, part) -> part
+          Map.has_key?(message, URI.encode(part)) -> URI.encode(part)
+          true -> nil
+        end
+
+        if key do
+          case Map.get(message, key) do
+            %{"path" => path} when is_binary(path) -> {part, path}
+            _ -> nil
+          end
+        else
+          nil
+        end
+      end)
+    |> Enum.filter(&(&1 != nil))
+
+    Logger.info("🔍 Found matching parts: #{inspect(matching_parts)}")
+
+    cond do
+      # If we found multiple parts, return them for chaining
+      length(matching_parts) > 1 ->
+        paths = Enum.map(matching_parts, fn {_part, path} -> path end)
+        Logger.info("✅ Found multiple name parts for chaining: #{inspect(paths)}")
+        {:ok, paths}
+
+      # If we found exactly one part, return it
+      length(matching_parts) == 1 ->
+        {_part, path} = List.first(matching_parts)
+        Logger.info("✅ Found single name part: #{path}")
+        {:ok, path}
+
+      # Otherwise, try the original fallback logic
+      true ->
+        Logger.info("🔍 No direct name part matches, trying original candidates")
+        try_original_candidates(message, name, target_lang_name)
+    end
+  end
+
+  # Original candidate matching logic as fallback
+  defp try_original_candidates(message, name, target_lang_name) do
     candidates = [
       String.downcase(name) |> String.replace(~r/\s+/, "-"),
       String.downcase(name),
@@ -309,7 +471,7 @@ defmodule Zonely.PronunceName do
         select_variant_from_map(variants)
 
       true ->
-        # Fallback: scan all message values to find any variant with a path
+        # Scan all message values to find any variant with a path
         message
         |> Map.values()
         |> Enum.find_value(fn v ->
@@ -336,8 +498,6 @@ defmodule Zonely.PronunceName do
         end
     end
   end
-
-  def pick_nameshouts_variant(_body, _name, _language), do: {:error, :unexpected_format}
 
   defp select_variant_from_list(list, target_lang_name) when is_list(list) do
     preferred =
@@ -409,64 +569,4 @@ defmodule Zonely.PronunceName do
     Application.get_env(:zonely, :http_client, Zonely.HttpClient.Req)
   end
 
-  @doc """
-  Gets the native language name for display purposes.
-
-  ## Examples
-
-      PronunceName.get_native_language_name("ES")
-      # => "Spanish"
-
-      PronunceName.get_native_language_name("JP")
-      # => "Japanese"
-  """
-  @spec get_native_language_name(String.t()) :: String.t()
-  def get_native_language_name(country_code) do
-    case String.upcase(country_code) do
-      "US" -> "English"
-      "GB" -> "English"
-      "CA" -> "English"
-      "AU" -> "English"
-      "ES" -> "Spanish"
-      "MX" -> "Spanish"
-      "FR" -> "French"
-      "DE" -> "German"
-      "IT" -> "Italian"
-      "PT" -> "Portuguese"
-      "BR" -> "Portuguese"
-      "JP" -> "Japanese"
-      "CN" -> "Chinese"
-      "KR" -> "Korean"
-      "IN" -> "Hindi"
-      "EG" -> "Arabic"
-      "SE" -> "Swedish"
-      # Default fallback
-      _ -> "English"
-    end
-  end
-
-  @spec derive_language_from_country(String.t()) :: String.t()
-  defp derive_language_from_country(country_code) do
-    case String.upcase(country_code) do
-      "US" -> "en-US"
-      "GB" -> "en-GB"
-      "CA" -> "en-CA"
-      "AU" -> "en-AU"
-      "ES" -> "es-ES"
-      "MX" -> "es-MX"
-      "FR" -> "fr-FR"
-      "DE" -> "de-DE"
-      "IT" -> "it-IT"
-      "PT" -> "pt-PT"
-      "BR" -> "pt-BR"
-      "JP" -> "ja-JP"
-      "CN" -> "zh-CN"
-      "KR" -> "ko-KR"
-      "IN" -> "hi-IN"
-      "EG" -> "ar-EG"
-      "SE" -> "sv-SE"
-      # Default fallback
-      _ -> "en-US"
-    end
-  end
 end

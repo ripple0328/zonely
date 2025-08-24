@@ -33,10 +33,8 @@ defmodule Zonely.Audio do
     Logger.info("🔊 Playing English pronunciation: #{name}")
 
     english_locale = derive_english_locale(country)
-    # Default to US when country is nil
-    safe_country = country || "US"
 
-    case Zonely.PronunceName.play(name, english_locale, safe_country) do
+    case Zonely.PronunceName.play(name, english_locale) do
       result ->
         Logger.info("✅ English pronunciation result: #{inspect(result)}")
         result
@@ -61,7 +59,7 @@ defmodule Zonely.Audio do
 
     native_locale = Geography.country_to_locale(country)
 
-    case Zonely.PronunceName.play(native_name, native_locale, country) do
+    case Zonely.PronunceName.play(native_name, native_locale) do
       result ->
         Logger.info("✅ Native pronunciation result: #{inspect(result)}")
         result

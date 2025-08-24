@@ -19,7 +19,7 @@ defmodule ZonelyWeb do
 
   def static_paths,
     do:
-      ~w(assets fonts images audio favicon.ico favicon.svg favicon-32x32.png favicon-minimal.svg robots.txt)
+      ~w(assets fonts images audio favicon.ico favicon.svg favicon-32x32.png favicon-minimal.svg favicon-saymyname.svg robots.txt)
 
   def router do
     quote do
@@ -75,6 +75,17 @@ defmodule ZonelyWeb do
         only: [get_csrf_token: 0, view_module: 1, view_template: 1]
 
       unquote(html_helpers())
+    end
+  end
+
+  # Minimal HTML helpers for standalone, layout-free pages
+  def minimal_html do
+    quote do
+      use Phoenix.Component
+
+      import Phoenix.Controller, only: [get_csrf_token: 0]
+
+      unquote(verified_routes())
     end
   end
 

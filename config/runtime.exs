@@ -26,7 +26,7 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host = System.get_env("PHX_HOST") || "qingbo.us"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
   config :zonely, ZonelyWeb.Endpoint,
@@ -34,6 +34,10 @@ if config_env() == :prod do
     http: [
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
+    ],
+    check_origin: [
+      "https://#{host}",
+      "https://name.#{host}"
     ],
     secret_key_base: secret_key_base
 

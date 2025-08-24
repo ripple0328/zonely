@@ -182,9 +182,20 @@ defmodule Zonely.PronunceName.Cache do
   @spec write_external_and_cache(String.t(), String.t(), String.t(), String.t()) ::
           {:ok, String.t()} | {:error, atom()}
   def write_external_and_cache(audio_url, name, language, ext) do
-    safe_name = String.replace(name, ~r/[^a-zA-Z0-9_-]/, "_")
-    # Deterministic filename (no timestamp) so we only store one per name/lang
-    filename = "#{safe_name}_#{language}#{ext}"
+    write_external_and_cache_with_metadata(audio_url, name, name, name, language, ext)
+  end
+
+  @spec write_external_and_cache_with_metadata(String.t(), String.t(), String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, atom()}
+  def write_external_and_cache_with_metadata(audio_url, cache_name, original_name, found_variant, language, ext) do
+    safe_cache_name = String.replace(cache_name, ~r/[^a-zA-Z0-9_-]/, "_")
+    # Deterministic filename (no timestamp) so we only store one per cache_name/lang
+    filename = "#{safe_cache_name}_#{language}#{ext}"
+
+    # Log which part of the name was actually found
+    if found_variant != original_name do
+      Logger.info("📝 Caching partial name match: found '#{found_variant}' for requested '#{original_name}'")
+    end
 
     cfg = Application.get_env(:zonely, :audio_cache, [])
     backend = (cfg[:backend] || "local") |> String.downcase()
@@ -197,7 +208,11 @@ defmodule Zonely.PronunceName.Cache do
       case ExAws.S3.head_object(bucket, key) |> ExAws.request() do
         {:ok, _} ->
           url = Zonely.Storage.public_url(key)
-          Logger.info("📦 Cache hit (S3, deterministic) -> #{url}")
+          if found_variant != original_name do
+            Logger.info("📦 Cache hit (S3, partial match): #{filename} (#{found_variant} for #{original_name}) -> #{url}")
+          else
+            Logger.info("📦 Cache hit (S3, deterministic) -> #{url}")
+          end
           {:ok, url}
 
         _ ->
@@ -221,6 +236,9 @@ defmodule Zonely.PronunceName.Cache do
       web_path = "/audio-cache/#{filename}"
 
       if File.exists?(local_path) do
+        if found_variant != original_name do
+          Logger.info("📦 Cache hit for partial match: #{filename} (#{found_variant} for #{original_name})")
+        end
         {:ok, web_path}
       else
         case Zonely.PronunceName.http_client().get(audio_url) do

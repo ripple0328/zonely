@@ -24,6 +24,22 @@ defmodule ZonelyWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  # Minimal, layout-free pipeline for standalone host
+  pipeline :bare do
+    plug(:accepts, ["html"])
+    plug(:put_root_layout, false)
+    plug(:put_layout, false)
+    plug(:put_secure_browser_headers)
+  end
+
+  # Standalone minimal site served on name.qingbo.us (host-specific must be before generic "/" scopes)
+  scope "/", ZonelyWeb, host: "name.qingbo.us" do
+    pipe_through(:bare)
+
+    get("/", NameSiteController, :index)
+    get("/api/pronounce", NameSiteController, :pronounce)
+  end
+
   scope "/", ZonelyWeb do
     pipe_through(:map_layout)
 
@@ -39,6 +55,14 @@ defmodule ZonelyWeb.Router do
     live("/directory", DirectoryLive)
     live("/work-hours", WorkHoursLive)
     live("/holidays", HolidaysLive)
+  end
+
+  # Local development access at /name
+  scope "/name", ZonelyWeb do
+    pipe_through(:bare)
+
+    get("/", NameSiteController, :index)
+    get("/api/pronounce", NameSiteController, :pronounce)
   end
 
   # Other scopes may use custom stacks.
