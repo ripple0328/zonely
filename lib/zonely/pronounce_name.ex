@@ -102,21 +102,62 @@ defmodule Zonely.PronunceName do
   def pick_polly_voice(bcp47) do
     base = bcp47 |> String.split("-") |> List.first() |> String.downcase()
     case String.downcase(bcp47) do
+      # English variants (neural voices preferred)
       "en-us" -> "Joanna"
       "en-gb" -> "Amy"
       "en-au" -> "Olivia"
       "en-ca" -> "Emma"
+      "en-in" -> "Aditi"
+      
+      # Spanish variants
+      "es-es" -> "Lucia"
+      "es-us" -> "Lupe"
+      "es-mx" -> "Lupe"
+      
+      # Portuguese variants
+      "pt-br" -> "Camila"
+      "pt-pt" -> "Ines"
+      
+      # French variants
+      "fr-fr" -> "Lea"
+      "fr-ca" -> "Chantal"
+      
+      # German variants
+      "de-de" -> "Vicki"
+      "de-at" -> "Vicki"
+      
+      # Chinese variants
+      "zh-cn" -> "Zhiyu"
+      "zh-tw" -> "Zhiyu"
+      
+      # Arabic variants
+      "ar-eg" -> "Zeina"
+      "ar-sa" -> "Zeina"
+      
       _ ->
         case base do
-          "es" -> "Lucia"
-          "fr" -> "Lea"
-          "de" -> "Vicki"
-          "it" -> "Bianca"
-          "pt" -> "Camila"
-          "ja" -> "Mizuki"
-          "ko" -> "Seoyeon"
-          "hi" -> "Aditi"
-          _ -> "Joanna"
+          # Major language families by base code
+          "es" -> "Lucia"      # Spanish (Spain default)
+          "pt" -> "Camila"     # Portuguese (Brazilian default)
+          "fr" -> "Lea"        # French
+          "de" -> "Vicki"      # German
+          "it" -> "Bianca"     # Italian
+          "ja" -> "Mizuki"     # Japanese
+          "ko" -> "Seoyeon"    # Korean
+          "hi" -> "Aditi"      # Hindi
+          "zh" -> "Zhiyu"      # Chinese (Mandarin)
+          "ar" -> "Zeina"      # Arabic
+          "ru" -> "Tatyana"    # Russian
+          "nl" -> "Lotte"      # Dutch
+          "sv" -> "Astrid"     # Swedish
+          "no" -> "Liv"        # Norwegian
+          "da" -> "Naja"       # Danish
+          "fi" -> "Suvi"       # Finnish
+          "pl" -> "Ewa"        # Polish
+          "tr" -> "Filiz"      # Turkish
+          "th" -> "Zhiyu"      # Thai (fallback to multilingual voice)
+          "vi" -> "Zhiyu"      # Vietnamese (fallback to multilingual voice)
+          _ -> "Joanna"        # English fallback
         end
     end
   end
