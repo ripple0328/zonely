@@ -27,10 +27,11 @@
       button{appearance:none;border:1px solid var(--ring);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;cursor:pointer}
       button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
       .list{margin-top:16px;display:flex;flex-direction:column;gap:10px}
-      .item{display:flex;align-items:center;gap:12px;border:1px solid var(--ring);border-radius:12px;padding:10px}
-      .avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid var(--ring)}
-      .name{flex:1;font-weight:600}
-      .langs{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+      .item{display:grid;grid-template-columns:64px 1fr auto;align-items:start;column-gap:12px;row-gap:8px;border:1px solid var(--ring);border-radius:12px;padding:10px}
+      .avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;border:1px solid var(--ring);grid-column:1;grid-row:1 / span 2}
+      .name{font-weight:600;line-height:1.2;grid-column:2;grid-row:1}
+      .langs{display:flex;gap:16px;align-items:center;flex-wrap:wrap;grid-column:2;grid-row:2}
+      .item > .remove{grid-column:3;grid-row:1;align-self:start}
       .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ring);border-radius:999px;padding:6px 10px;color:var(--muted)}
       .pill.playing-user{background:#ecfdf5;color:#059669;border-color:#a7f3d0}
       .pill.playing-robot{background:#fff7ed;color:#ea580c;border-color:#fed7aa}
@@ -46,6 +47,23 @@
       .footer{margin-top:18px;display:flex;gap:10px;justify-content:space-between;align-items:center}
       .muted{color:var(--muted)}
       .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+      /* Mobile tweaks */
+      @media (max-width: 640px){
+        .wrap{padding:16px}
+        .title{font-size:16px}
+        .row{flex-direction:column;align-items:stretch;gap:10px}
+        .input{flex-direction:column}
+        input,select{width:100%}
+        button.primary{width:100%}
+        .item{padding:8px;grid-template-columns:48px 1fr auto}
+        .avatar{width:48px;height:48px}
+        .langs{gap:10px}
+        .entry{gap:6px}
+        .pill{padding:6px 10px}
+        .text{font-size:0.95rem}
+        .footer{flex-direction:column;align-items:stretch;gap:8px}
+        #share,#demo{width:100%}
+      }
     </style>
   </head>
   <body>
@@ -243,7 +261,7 @@
       }
 
       function setNativeLabelEl(el, lang){
-        const map = {"en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","hi-IN":"हिन्दी","ar-SA":"العربية"};
+        const map = {"en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","pt-BR":"Português","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","ta-IN":"தமிழ்","te-IN":"తెలుగు","mr-IN":"मराठी","gu-IN":"ગુજરાતી","kn-IN":"ಕನ್ನಡ","ml-IN":"മലയാളം","pa-IN":"ਪੰਜਾਬੀ"};
         const label = map[lang] || lang;
         el.textContent = label;
         const pill = el.closest('.pill');
