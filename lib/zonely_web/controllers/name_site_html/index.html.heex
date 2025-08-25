@@ -263,7 +263,35 @@
         demoEl.href = buildDemoUrl();
       }
 
+      // Cookie helpers for state persistence
+      function setStateCookie(s){
+        try{
+          if(!s){ document.cookie = 'names_state=; Max-Age=0; path=/; SameSite=Lax'; return; }
+          document.cookie = `names_state=${s}; Max-Age=31536000; path=/; SameSite=Lax`;
+        }catch(_){ }
+      }
+      function getStateCookie(){
+        try{
+          const m = document.cookie.match(/(?:^|; )names_state=([^;]+)/);
+          return m ? decodeURIComponent(m[1]) : null;
+        }catch(_){ return null; }
+      }
 
+      // If no URL state, try cookie state and hydrate via redirect
+      (function(){
+        try{
+          const url = new URL(window.location.href);
+          const hasS = url.searchParams.has('s');
+          if(!hasS){
+            const cs = getStateCookie();
+            if(cs){
+              url.searchParams.set('s', cs);
+              window.location.replace(url.toString());
+              return;
+            }
+          }
+        }catch(_){ }
+      })();
       function encodeState(items){
         const data = items.map(el => ({
           name: el.dataset.name,
@@ -298,6 +326,8 @@
         // Update visible deep-link button
         const share = document.getElementById('share');
         if(share){ share.dataset.url = url.toString(); }
+        // Persist to cookie
+        setStateCookie(s || '');
       }
 
       function avatarFor(name){
