@@ -64,6 +64,13 @@
         .footer{flex-direction:column;align-items:stretch;gap:8px}
         #share,#demo{width:100%}
       }
+      /* How it works collapsible */
+      .how{margin-top:12px;border:1px solid var(--ring);border-radius:10px}
+      .how-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer}
+      .how-title{font-weight:600}
+      .chev{transition:transform .2s ease}
+      .how[aria-expanded="true"] .chev{transform:rotate(90deg)}
+      .how-body{padding:10px 12px;padding-top:0;color:var(--muted)}
     </style>
   </head>
   <body>
@@ -151,6 +158,19 @@
               <button class="remove" title="Remove">✕</button>
             </div>
           <% end %>
+        </div>
+
+        <div id="how" class="how" aria-expanded="false">
+          <div class="how-head">
+            <div class="how-title">How it works</div>
+            <svg class="chev" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M7 6l6 4-6 4V6z"></path></svg>
+          </div>
+          <div class="how-body" style="display:none">
+            <p><strong>What we do</strong>: check cache → real voices (NameShouts, Forvo) → AI as last resort. Results are cached for speed.</p>
+            <p><strong>Why sometimes only first name</strong>: if a full name isn’t found but a real voice for the first name is, we play the first name. If only the last name is found, we don’t mix it with AI for consistency—so we fall back instead.</p>
+            <p><strong>Why it can be slow</strong>: the first time we search multiple providers; next time it’s fast from cache.</p>
+            <p><strong>Different voices</strong>: crowd‑sourced data often has first/last names recorded by different people. We prefer real first‑name audio over mixing last‑name + AI in one playback.</p>
+          </div>
         </div>
 
         <div class="footer">
@@ -470,6 +490,19 @@
           prompt('Copy link', url);
         }
       });
+
+      // How it works toggle
+      (function(){
+        const panel = document.getElementById('how');
+        if(!panel) return;
+        const head = panel.querySelector('.how-head');
+        const body = panel.querySelector('.how-body');
+        head.addEventListener('click', () => {
+          const open = panel.getAttribute('aria-expanded') === 'true';
+          panel.setAttribute('aria-expanded', open ? 'false' : 'true');
+          body.style.display = open ? 'none' : 'block';
+        });
+      })();
 
       demoEl.addEventListener('click', async (e) => {
         e.preventDefault();
