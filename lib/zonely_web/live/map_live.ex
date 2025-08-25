@@ -1,7 +1,10 @@
 defmodule ZonelyWeb.MapLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, Audio, Geography, TimeUtils}
+  alias Zonely.Accounts
+  alias Zonely.Audio
+  alias Zonely.Geography
+  alias Zonely.TimeUtils
   require Logger
 
   @topic "users:schedule"
@@ -55,7 +58,11 @@ defmodule ZonelyWeb.MapLive do
   @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "native"))
+
+    socket =
+      assign(socket,
+        loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "native")
+      )
 
     # Send message to self to process audio after UI update
     send(self(), {:process_pronunciation, :native, user})
@@ -65,10 +72,24 @@ defmodule ZonelyWeb.MapLive do
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "english"))
+
+    socket =
+      assign(socket,
+        loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "english")
+      )
 
     # Send message to self to process audio after UI update
     send(self(), {:process_pronunciation, :english, user})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("audio_ended", %{"user_id" => user_id}, socket) do
+    socket =
+      assign(socket,
+        playing_pronunciation: Map.delete(socket.assigns.playing_pronunciation, user_id)
+      )
+
     {:noreply, socket}
   end
 
@@ -77,16 +98,25 @@ defmodule ZonelyWeb.MapLive do
     {event_type, event_data} = Audio.play_native_pronunciation(user)
 
     # Determine audio source type
-    source = case event_type do
-      :play_audio -> "audio"      # Real person
-      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
-      :play_tts -> "tts"          # AI synthetic (browser TTS)
-      :play_sequence -> "audio"   # Real person parts in sequence
-    end
+    source =
+      case event_type do
+        # Real person
+        :play_audio -> "audio"
+        # AI synthetic (pre-generated audio file)
+        :play_tts_audio -> "tts"
+        # AI synthetic (browser TTS)
+        :play_tts -> "tts"
+        # Real person parts in sequence
+        :play_sequence -> "audio"
+      end
 
-    socket = socket
-    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
-    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "native", source: source}))
+    socket =
+      socket
+      |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+      |> assign(
+        playing_pronunciation:
+          Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "native", source: source})
+      )
 
     # Add user_id to the event data for JavaScript callback
     enhanced_event_data = Map.put(event_data, :user_id, user.id)
@@ -98,25 +128,38 @@ defmodule ZonelyWeb.MapLive do
     {event_type, event_data} = Audio.play_english_pronunciation(user)
 
     # Determine audio source type
-    source = case event_type do
-      :play_audio -> "audio"      # Real person
-      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
-      :play_tts -> "tts"          # AI synthetic (browser TTS)
-    end
+    source =
+      case event_type do
+        # Real person
+        :play_audio -> "audio"
+        # AI synthetic (pre-generated audio file)
+        :play_tts_audio -> "tts"
+        # AI synthetic (browser TTS)
+        :play_tts -> "tts"
+      end
 
-    socket = socket
-    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
-    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "english", source: source}))
+    socket =
+      socket
+      |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+      |> assign(
+        playing_pronunciation:
+          Map.put(socket.assigns.playing_pronunciation, user.id, %{
+            type: "english",
+            source: source
+          })
+      )
 
     # Add user_id to the event data for JavaScript callback
     enhanced_event_data = Map.put(event_data, :user_id, user.id)
     {:noreply, push_event(socket, event_type, enhanced_event_data)}
   end
 
+  # PubSub handler for real-time schedule changes
   @impl true
-  def handle_event("audio_ended", %{"user_id" => user_id}, socket) do
-    socket = assign(socket, playing_pronunciation: Map.delete(socket.assigns.playing_pronunciation, user_id))
-    {:noreply, socket}
+  def handle_info({:schedule_changed, _user_id, _new_hours}, socket) do
+    # For now, just refresh users - could optimize to update single user
+    users = Accounts.list_users()
+    {:noreply, assign(socket, users: users)}
   end
 
   # Quick Actions Event Handlers
@@ -203,14 +246,6 @@ defmodule ZonelyWeb.MapLive do
   @impl true
   def handle_event("toggle_overlap_panel", _params, socket) do
     {:noreply, assign(socket, overlap_panel_expanded: !socket.assigns.overlap_panel_expanded)}
-  end
-
-  # PubSub handler for real-time schedule changes (placeholder)
-  @impl true
-  def handle_info({:schedule_changed, _user_id, _new_hours}, socket) do
-    # For now, just refresh users - could optimize to update single user
-    users = Accounts.list_users()
-    {:noreply, assign(socket, users: users)}
   end
 
   # Convert users to JSON for JavaScript

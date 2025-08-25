@@ -88,11 +88,12 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "shows loading state with spinner" do
       user = %User{id: 1, name: "Test", country: "US"}
 
-      html = render_component_test(&pronunciation_buttons/1, %{
-        user: user, 
-        loading_pronunciation: "english",
-        playing_pronunciation: %{}
-      })
+      html =
+        render_component_test(&pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: "english",
+          playing_pronunciation: %{}
+        })
 
       assert html =~ "animate-spin"
       assert html =~ "animate-pulse"
@@ -102,11 +103,12 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "shows playing state for real person audio" do
       user = %User{id: 1, name: "Test", country: "US"}
 
-      html = render_component_test(&pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{1 => %{type: "english", source: "audio"}}
-      })
+      html =
+        render_component_test(&pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{1 => %{type: "english", source: "audio"}}
+        })
 
       assert html =~ "animate-pulse"
       assert html =~ "bg-green-100 text-green-600"
@@ -116,11 +118,12 @@ defmodule ZonelyWeb.CoreComponentsTest do
     test "shows playing state for AI generated audio" do
       user = %User{id: 1, name: "Test", country: "US"}
 
-      html = render_component_test(&pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{1 => %{type: "english", source: "tts"}}
-      })
+      html =
+        render_component_test(&pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{1 => %{type: "english", source: "tts"}}
+        })
 
       assert html =~ "animate-pulse"
       assert html =~ "bg-orange-100 text-orange-600"
@@ -129,17 +132,18 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
     test "shows native playing state when available" do
       user = %User{
-        id: 1, 
-        name: "Jose Garcia", 
-        name_native: "José García", 
+        id: 1,
+        name: "Jose Garcia",
+        name_native: "José García",
         country: "ES"
       }
 
-      html = render_component_test(&pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{1 => %{type: "native", source: "audio"}}
-      })
+      html =
+        render_component_test(&pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{1 => %{type: "native", source: "audio"}}
+        })
 
       assert html =~ "animate-pulse"
       assert html =~ "bg-green-100 text-green-600"

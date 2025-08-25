@@ -29,6 +29,7 @@ defmodule ZonelyWeb.NameSiteController do
 
   defp decode_state(nil), do: nil
   defp decode_state(""), do: nil
+
   defp decode_state(b64) do
     with {:ok, json} <- Base.url_decode64(b64, padding: false),
          {:ok, list} <- Jason.decode(json) do
@@ -37,24 +38,34 @@ defmodule ZonelyWeb.NameSiteController do
           # Preferred shape: {name, entries: [%{"lang"=>code, "text"=>string}, ...]}
           is_map(item) and is_binary(item["name"]) and is_list(item["entries"]) ->
             name = item["name"]
+
             entries =
               item["entries"]
               |> Enum.flat_map(fn e ->
                 case e do
                   %{"lang" => lang, "text" => text} when is_binary(lang) and is_binary(text) ->
                     [%{lang: lang, text: text}]
+
                   %{"lang" => lang} when is_binary(lang) ->
                     [%{lang: lang, text: name}]
-                  _ -> []
+
+                  _ ->
+                    []
                 end
               end)
+
             avatar = AvatarService.generate_avatar_url(name, 48)
             [%{name: name, entries: entries, avatar: avatar}]
 
           # Back-compat: {name, langs: ["en-US","zh-CN"]}
           is_map(item) and is_binary(item["name"]) and is_list(item["langs"]) ->
             name = item["name"]
-            entries = Enum.flat_map(item["langs"], fn lang -> if is_binary(lang), do: [%{lang: lang, text: name}], else: [] end)
+
+            entries =
+              Enum.flat_map(item["langs"], fn lang ->
+                if is_binary(lang), do: [%{lang: lang, text: name}], else: []
+              end)
+
             avatar = AvatarService.generate_avatar_url(name, 48)
             [%{name: name, entries: entries, avatar: avatar}]
 
@@ -65,7 +76,8 @@ defmodule ZonelyWeb.NameSiteController do
             avatar = AvatarService.generate_avatar_url(name, 48)
             [%{name: name, entries: entries, avatar: avatar}]
 
-          true -> []
+          true ->
+            []
         end
       end)
     else

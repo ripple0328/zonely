@@ -7,9 +7,11 @@ defmodule Zonely.StorageTest do
     # Force local backend for these tests
     Application.put_env(:zonely, :audio_cache, backend: "local")
     dir = Zonely.AudioCache.dir()
+
     on_exit(fn ->
       for f <- File.ls!(dir), do: File.rm!(Path.join(dir, f))
     end)
+
     :ok
   end
 

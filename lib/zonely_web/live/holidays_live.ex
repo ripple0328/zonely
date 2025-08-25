@@ -1,7 +1,10 @@
 defmodule ZonelyWeb.HolidaysLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, DateUtils, Geography, Holidays}
+  alias Zonely.Accounts
+  alias Zonely.DateUtils
+  alias Zonely.Geography
+  alias Zonely.Holidays
 
   @impl true
   def mount(_params, _session, socket) do

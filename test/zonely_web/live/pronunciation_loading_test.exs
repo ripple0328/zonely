@@ -1,6 +1,6 @@
 defmodule ZonelyWeb.PronunciationLoadingTest do
   use ZonelyWeb.ComponentCase, async: true
-  
+
   alias Zonely.Accounts.User
 
   describe "pronunciation buttons loading states" do
@@ -11,13 +11,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name_native: "جان دو",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{}
+        })
+
       assert html =~ "data-testid=\"pronunciation-english\""
       assert html =~ "data-testid=\"pronunciation-native\""
       refute html =~ "animate-spin"
@@ -34,13 +35,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name_native: "جان دو",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: "english",
-        playing_pronunciation: %{}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: "english",
+          playing_pronunciation: %{}
+        })
+
       assert html =~ "animate-spin"
       assert html =~ "animate-pulse bg-blue-100 text-blue-600"
       assert html =~ "Loading..."
@@ -53,13 +55,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name_native: "جان دو",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: "native",
-        playing_pronunciation: %{}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: "native",
+          playing_pronunciation: %{}
+        })
+
       assert html =~ "animate-spin"
       assert html =~ "animate-pulse bg-blue-100 text-blue-600"
       assert html =~ "Loading..."
@@ -73,13 +76,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name: "John Doe",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{"1" => %{type: "english", source: "audio"}}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{"1" => %{type: "english", source: "audio"}}
+        })
+
       assert html =~ "animate-pulse bg-green-100 text-green-600"
       assert html =~ "Real person voice"
       # Should show user icon for real person (SVG with user path)  
@@ -92,13 +96,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name: "John Doe",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{"1" => %{type: "english", source: "tts"}}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{"1" => %{type: "english", source: "tts"}}
+        })
+
       assert html =~ "animate-pulse bg-orange-100 text-orange-600"
       assert html =~ "AI synthesized pronunciation"
       # Should show robot icon for AI
@@ -113,13 +118,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name_native: "جان دو",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{"1" => %{type: "native", source: "tts"}}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{"1" => %{type: "native", source: "tts"}}
+        })
+
       assert html =~ "animate-pulse bg-orange-100 text-orange-600"
       assert html =~ "AI synthesized pronunciation"
     end
@@ -131,13 +137,14 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
         name_native: "جان دو",
         country: "US"
       }
-      
-      html = render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
-        user: user,
-        loading_pronunciation: nil,
-        playing_pronunciation: %{"1" => %{type: "native", source: "audio"}}
-      })
-      
+
+      html =
+        render_component_test(&ZonelyWeb.CoreComponents.pronunciation_buttons/1, %{
+          user: user,
+          loading_pronunciation: nil,
+          playing_pronunciation: %{"1" => %{type: "native", source: "audio"}}
+        })
+
       assert html =~ "animate-pulse bg-green-100 text-green-600"
       assert html =~ "Real person voice"
       # Should show user icon for real person (SVG with user path)

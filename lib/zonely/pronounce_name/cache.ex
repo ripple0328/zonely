@@ -25,16 +25,22 @@ defmodule Zonely.PronunceName.Cache do
     # If configured to use S3, consult the bucket first so cached files written
     # by other machines are visible across instances.
     case Application.get_env(:zonely, :audio_cache, []) do
-      %{backend: backend, s3_bucket: bucket} when is_binary(backend) and backend == "s3" and is_binary(bucket) ->
+      %{backend: backend, s3_bucket: bucket}
+      when is_binary(backend) and backend == "s3" and is_binary(bucket) ->
         s3_key = s3_lookup_key(name, language, variant_safe_names, lang_candidates, bucket)
+
         case s3_key do
-          nil -> :noop
+          nil ->
+            :noop
+
           key when is_binary(key) ->
             return_url = Zonely.Storage.public_url(key)
             Logger.info("📦 Cache hit (S3) -> #{return_url}")
             {:ok, return_url}
         end
-      _ -> :noop
+
+      _ ->
+        :noop
     end
 
     # Collect candidate files from both primary and legacy directories (local caches)
@@ -69,14 +75,18 @@ defmodule Zonely.PronunceName.Cache do
 
           # Look for Polly cached files (AI-generated audio)
           polly_voice = Zonely.PronunceName.pick_polly_voice(language)
+
           polly_key =
             :crypto.hash(:sha256, Enum.join([safe_name_for_hash, language, polly_voice], ":"))
             |> Base.encode16(case: :lower)
+
           expected_polly_prefix = "polly_#{polly_key}"
 
           polly_files =
             entries
-            |> Enum.filter(fn filename -> String.starts_with?(filename, expected_polly_prefix) end)
+            |> Enum.filter(fn filename ->
+              String.starts_with?(filename, expected_polly_prefix)
+            end)
             |> Enum.map(&{dir, &1, :polly})
 
           regular_files ++ polly_files
@@ -84,24 +94,45 @@ defmodule Zonely.PronunceName.Cache do
 
       # Prefer regular files; if none, fall back to Polly. Pick newest (lexicographically last)
       case {
-             matches |> Enum.filter(fn {_d, _f, k} -> k == :regular end) |> Enum.map(&elem(&1, 1)) |> Enum.sort() |> List.last(),
-             matches |> Enum.filter(fn {_d, _f, k} -> k == :polly end) |> Enum.map(&elem(&1, 1)) |> Enum.sort() |> List.last()
-           } do
-        {nil, nil} -> :not_found
+        matches
+        |> Enum.filter(fn {_d, _f, k} -> k == :regular end)
+        |> Enum.map(&elem(&1, 1))
+        |> Enum.sort()
+        |> List.last(),
+        matches
+        |> Enum.filter(fn {_d, _f, k} -> k == :polly end)
+        |> Enum.map(&elem(&1, 1))
+        |> Enum.sort()
+        |> List.last()
+      } do
+        {nil, nil} ->
+          :not_found
+
         {filename, _} when is_binary(filename) ->
           # Determine which dir this filename was found in
           which_dir =
             Enum.find_value(candidate_lists, fn {dir, entries} ->
               if filename in entries, do: dir, else: nil
             end)
-          web_path = if which_dir == legacy_dir, do: "/audio/cache/#{filename}", else: "/audio-cache/#{filename}"
+
+          web_path =
+            if which_dir == legacy_dir,
+              do: "/audio/cache/#{filename}",
+              else: "/audio-cache/#{filename}"
+
           {:ok, web_path}
+
         {nil, polly_filename} ->
           which_dir =
             Enum.find_value(candidate_lists, fn {dir, entries} ->
               if polly_filename in entries, do: dir, else: nil
             end)
-          web_path = if which_dir == legacy_dir, do: "/audio/cache/#{polly_filename}", else: "/audio-cache/#{polly_filename}"
+
+          web_path =
+            if which_dir == legacy_dir,
+              do: "/audio/cache/#{polly_filename}",
+              else: "/audio-cache/#{polly_filename}"
+
           {:ok, web_path}
       end
     end
@@ -115,17 +146,26 @@ defmodule Zonely.PronunceName.Cache do
 
     # First, try deterministic real-person key
     deterministic_real_key = "real/#{safe_name_for_hash}_#{language}.mp3"
+
     case ExAws.S3.head_object(bucket, deterministic_real_key) |> ExAws.request() do
-      {:ok, _} -> deterministic_real_key
+      {:ok, _} ->
+        deterministic_real_key
+
       _ ->
         # Fallback to legacy timestamped objects
-        real_prefixes = for vn <- variant_safe_names, lc <- lang_candidates, do: "real/#{vn}_#{lc}_"
+        real_prefixes =
+          for vn <- variant_safe_names, lc <- lang_candidates, do: "real/#{vn}_#{lc}_"
 
         list_keys = fn prefix ->
           case ExAws.S3.list_objects_v2(bucket, prefix: prefix) |> ExAws.request() do
-            {:ok, %{body: %{contents: contents}}} when is_list(contents) -> Enum.map(contents, & &1.key)
-            {:ok, %{body: %{contents: nil}}} -> []
-            _ -> []
+            {:ok, %{body: %{contents: contents}}} when is_list(contents) ->
+              Enum.map(contents, & &1.key)
+
+            {:ok, %{body: %{contents: nil}}} ->
+              []
+
+            _ ->
+              []
           end
         end
 
@@ -137,9 +177,11 @@ defmodule Zonely.PronunceName.Cache do
         else
           # Try Polly hash key (deterministic)
           polly_voice = Zonely.PronunceName.pick_polly_voice(language)
+
           polly_key =
             :crypto.hash(:sha256, Enum.join([safe_name_for_hash, language, polly_voice], ":"))
             |> Base.encode16(case: :lower)
+
           key = "polly/polly_#{polly_key}.mp3"
 
           case ExAws.S3.head_object(bucket, key) |> ExAws.request() do
@@ -164,14 +206,18 @@ defmodule Zonely.PronunceName.Cache do
 
     # Write to external storage when configured (preferred)
     key = "polly/" <> filename
+
     case Zonely.Storage.put(key, audio_bin) do
-      :ok -> {:ok, Zonely.Storage.public_url(key)}
+      :ok ->
+        {:ok, Zonely.Storage.public_url(key)}
+
       {:error, _} ->
         # Fallback to local FS
         cache_dir = AudioCache.dir()
         File.mkdir_p!(cache_dir)
         local_path = Path.join(cache_dir, filename)
         web_path = "/audio-cache/#{filename}"
+
         case File.write(local_path, audio_bin) do
           :ok -> {:ok, web_path}
           {:error, reason} -> {:error, reason}
@@ -185,16 +231,32 @@ defmodule Zonely.PronunceName.Cache do
     write_external_and_cache_with_metadata(audio_url, name, name, name, language, ext)
   end
 
-  @spec write_external_and_cache_with_metadata(String.t(), String.t(), String.t(), String.t(), String.t(), String.t()) ::
+  @spec write_external_and_cache_with_metadata(
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t()
+        ) ::
           {:ok, String.t()} | {:error, atom()}
-  def write_external_and_cache_with_metadata(audio_url, cache_name, original_name, found_variant, language, ext) do
+  def write_external_and_cache_with_metadata(
+        audio_url,
+        cache_name,
+        original_name,
+        found_variant,
+        language,
+        ext
+      ) do
     safe_cache_name = String.replace(cache_name, ~r/[^a-zA-Z0-9_-]/, "_")
     # Deterministic filename (no timestamp) so we only store one per cache_name/lang
     filename = "#{safe_cache_name}_#{language}#{ext}"
 
     # Log which part of the name was actually found
     if found_variant != original_name do
-      Logger.info("📝 Caching partial name match: found '#{found_variant}' for requested '#{original_name}'")
+      Logger.info(
+        "📝 Caching partial name match: found '#{found_variant}' for requested '#{original_name}'"
+      )
     end
 
     cfg = Application.get_env(:zonely, :audio_cache, [])
@@ -208,11 +270,15 @@ defmodule Zonely.PronunceName.Cache do
       case ExAws.S3.head_object(bucket, key) |> ExAws.request() do
         {:ok, _} ->
           url = Zonely.Storage.public_url(key)
+
           if found_variant != original_name do
-            Logger.info("📦 Cache hit (S3, partial match): #{filename} (#{found_variant} for #{original_name}) -> #{url}")
+            Logger.info(
+              "📦 Cache hit (S3, partial match): #{filename} (#{found_variant} for #{original_name}) -> #{url}"
+            )
           else
             Logger.info("📦 Cache hit (S3, deterministic) -> #{url}")
           end
+
           {:ok, url}
 
         _ ->
@@ -224,8 +290,11 @@ defmodule Zonely.PronunceName.Cache do
                 {:error, _} -> {:error, :write_failed}
               end
 
-            {:ok, %{status: _}} -> {:error, :download_failed}
-            {:error, _} -> {:error, :request_failed}
+            {:ok, %{status: _}} ->
+              {:error, :download_failed}
+
+            {:error, _} ->
+              {:error, :request_failed}
           end
       end
     else
@@ -237,8 +306,11 @@ defmodule Zonely.PronunceName.Cache do
 
       if File.exists?(local_path) do
         if found_variant != original_name do
-          Logger.info("📦 Cache hit for partial match: #{filename} (#{found_variant} for #{original_name})")
+          Logger.info(
+            "📦 Cache hit for partial match: #{filename} (#{found_variant} for #{original_name})"
+          )
         end
+
         {:ok, web_path}
       else
         case Zonely.PronunceName.http_client().get(audio_url) do
@@ -248,8 +320,11 @@ defmodule Zonely.PronunceName.Cache do
               {:error, _} -> {:error, :write_failed}
             end
 
-          {:ok, %{status: _}} -> {:error, :download_failed}
-          {:error, _} -> {:error, :request_failed}
+          {:ok, %{status: _}} ->
+            {:error, :download_failed}
+
+          {:error, _} ->
+            {:error, :request_failed}
         end
       end
     end

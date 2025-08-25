@@ -40,6 +40,7 @@ defmodule ZonelyWeb.Router do
     # Ensure audio-cache is reachable from the standalone host
     get("/audio-cache/:filename", AudioCacheController, :show)
     get("/api/pronounce", NameSiteController, :pronounce)
+    live("/native", NativePronounceLive)
   end
 
   scope "/", ZonelyWeb do
@@ -67,6 +68,7 @@ defmodule ZonelyWeb.Router do
     # Ensure audio-cache works under /name scope as well
     get("/audio-cache/:filename", AudioCacheController, :show)
     get("/api/pronounce", NameSiteController, :pronounce)
+    live("/native", NativePronounceLive)
   end
 
   # Other scopes may use custom stacks.

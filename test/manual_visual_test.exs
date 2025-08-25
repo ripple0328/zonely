@@ -3,7 +3,7 @@ defmodule ManualVisualTest do
   Manual test to verify loading state behavior.
   This helps understand the flow of loading states.
   """
-  
+
   def simulate_loading_flow do
     IO.puts("=== Pronunciation Loading Flow Simulation ===")
     IO.puts("1. User clicks English pronunciation button")

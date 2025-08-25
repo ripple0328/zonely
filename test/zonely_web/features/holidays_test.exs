@@ -68,7 +68,7 @@ defmodule ZonelyWeb.Features.HolidaysTest do
       }
     end
 
-    # TODO: Country display currently shows codes; adjust UI or keep loose assertions
+    # NOTE: Country display currently shows codes; UI may need adjustment for better UX
     @tag :skip
     feature "displays holidays grouped by country", %{session: session} do
       session
@@ -195,7 +195,7 @@ defmodule ZonelyWeb.Features.HolidaysTest do
       # Should only show holidays in first half of year
     end
 
-    # TODO: Depends on country text; re-align to final UI
+    # NOTE: Test depends on country text format; may need alignment with final UI
     @tag :skip
     feature "shows all countries by default", %{session: session} do
       session

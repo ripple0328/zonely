@@ -1067,19 +1067,31 @@ defmodule ZonelyWeb.CoreComponents do
 
   attr(:playing_pronunciation, :map,
     default: %{},
-    doc: "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
+    doc:
+      "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
   )
 
   def pronunciation_buttons(assigns) do
     # Generate size-specific classes
     assigns = assign(assigns, :size_classes, size_classes_for_pronunciation(assigns.size))
-    
+
     # Determine button states
     user_id = assigns.user.id
     playing_info = Map.get(assigns.playing_pronunciation, user_id, %{})
-    
-    assigns = assign(assigns, :english_state, get_button_state("english", assigns.loading_pronunciation, playing_info))
-    assigns = assign(assigns, :native_state, get_button_state("native", assigns.loading_pronunciation, playing_info))
+
+    assigns =
+      assign(
+        assigns,
+        :english_state,
+        get_button_state("english", assigns.loading_pronunciation, playing_info)
+      )
+
+    assigns =
+      assign(
+        assigns,
+        :native_state,
+        get_button_state("native", assigns.loading_pronunciation, playing_info)
+      )
 
     ~H"""
     <div class="flex items-center gap-1">
@@ -1255,7 +1267,7 @@ defmodule ZonelyWeb.CoreComponents do
       </div>
 
       <div :if={@show_local_time} class="text-xs font-medium text-gray-700">
-        <!-- TODO: Calculate actual local time based on timezone -->
+        <!-- Currently shows UTC time - timezone conversion would be implemented here -->
         Local: 2:30 PM
       </div>
     </div>
@@ -1469,7 +1481,8 @@ defmodule ZonelyWeb.CoreComponents do
 
   attr(:playing_pronunciation, :map,
     default: %{},
-    doc: "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
+    doc:
+      "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
   )
 
   def profile_card(assigns) do
@@ -1549,7 +1562,8 @@ defmodule ZonelyWeb.CoreComponents do
 
   attr(:playing_pronunciation, :map,
     default: %{},
-    doc: "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
+    doc:
+      "Map of user_id to playing state: %{user_id => %{type: english/native, source: audio/tts}}"
   )
 
   def user_card(assigns) do
@@ -1826,23 +1840,59 @@ defmodule ZonelyWeb.CoreComponents do
   defp get_button_state(button_type, loading_pronunciation, playing_info) do
     cond do
       loading_pronunciation == button_type ->
-        %{state: :loading, icon: :spinner, class: "animate-pulse bg-blue-100 text-blue-600", tooltip: "Loading..."}
-      
+        %{
+          state: :loading,
+          icon: :spinner,
+          class: "animate-pulse bg-blue-100 text-blue-600",
+          tooltip: "Loading..."
+        }
+
       Map.get(playing_info, :type) == button_type ->
         source = Map.get(playing_info, :source, "unknown")
+
         case source do
-          "audio" -> 
-            %{state: :playing, icon: :user, class: "animate-pulse bg-green-100 text-green-600", tooltip: "Real person voice"}
-          "tts" -> 
-            %{state: :playing, icon: :robot, class: "animate-pulse bg-orange-100 text-orange-600", tooltip: "AI synthesized pronunciation"}
+          "audio" ->
+            %{
+              state: :playing,
+              icon: :user,
+              class: "animate-pulse bg-green-100 text-green-600",
+              tooltip: "Real person voice"
+            }
+
+          "tts" ->
+            %{
+              state: :playing,
+              icon: :robot,
+              class: "animate-pulse bg-orange-100 text-orange-600",
+              tooltip: "AI synthesized pronunciation"
+            }
+
           _ ->
-            %{state: :playing, icon: :sound_waves, class: "animate-pulse bg-green-100 text-green-600", tooltip: "Playing"}
+            %{
+              state: :playing,
+              icon: :sound_waves,
+              class: "animate-pulse bg-green-100 text-green-600",
+              tooltip: "Playing"
+            }
         end
-      
+
       true ->
         case button_type do
-          "english" -> %{state: :idle, icon: :play, class: "hover:text-blue-600 hover:bg-blue-50", tooltip: "Play English pronunciation"}
-          "native" -> %{state: :idle, icon: :play, class: "hover:text-emerald-600 hover:bg-emerald-50", tooltip: "Play native pronunciation"}
+          "english" ->
+            %{
+              state: :idle,
+              icon: :play,
+              class: "hover:text-blue-600 hover:bg-blue-50",
+              tooltip: "Play English pronunciation"
+            }
+
+          "native" ->
+            %{
+              state: :idle,
+              icon: :play,
+              class: "hover:text-emerald-600 hover:bg-emerald-50",
+              tooltip: "Play native pronunciation"
+            }
         end
     end
   end

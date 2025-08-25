@@ -15,7 +15,7 @@ defmodule ZonelyWeb.Features.TeamMapTest do
       |> assert_has(css(".fixed.left-0.top-16"))
     end
 
-    # TODO: Fix intermittent nav click handling under LV; re-enable after adding test helpers
+    # NOTE: Intermittent nav click handling under LiveView - needs test helper stabilization
     @tag :skip
     feature "user can navigate between different sections", %{session: session} do
       session

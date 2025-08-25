@@ -1,7 +1,9 @@
 defmodule ZonelyWeb.WorkHoursLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, DateUtils, WorkingHours}
+  alias Zonely.Accounts
+  alias Zonely.DateUtils
+  alias Zonely.WorkingHours
 
   @impl true
   def mount(_params, _session, socket) do

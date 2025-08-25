@@ -1,7 +1,8 @@
 defmodule ZonelyWeb.DirectoryLive do
   use ZonelyWeb, :live_view
 
-  alias Zonely.{Accounts, Audio}
+  alias Zonely.Accounts
+  alias Zonely.Audio
 
   @impl true
   def mount(_params, _session, socket) do
@@ -42,7 +43,11 @@ defmodule ZonelyWeb.DirectoryLive do
   @impl true
   def handle_event("play_native_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "native"))
+
+    socket =
+      assign(socket,
+        loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "native")
+      )
 
     # Send message to self to process audio after UI update
     send(self(), {:process_pronunciation, :native, user})
@@ -52,10 +57,24 @@ defmodule ZonelyWeb.DirectoryLive do
   @impl true
   def handle_event("play_english_pronunciation", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-    socket = assign(socket, loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "english"))
+
+    socket =
+      assign(socket,
+        loading_pronunciation: Map.put(socket.assigns.loading_pronunciation, user_id, "english")
+      )
 
     # Send message to self to process audio after UI update
     send(self(), {:process_pronunciation, :english, user})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("audio_ended", %{"user_id" => user_id}, socket) do
+    socket =
+      assign(socket,
+        playing_pronunciation: Map.delete(socket.assigns.playing_pronunciation, user_id)
+      )
+
     {:noreply, socket}
   end
 
@@ -64,16 +83,25 @@ defmodule ZonelyWeb.DirectoryLive do
     {event_type, event_data} = Audio.play_native_pronunciation(user)
 
     # Determine audio source type
-    source = case event_type do
-      :play_audio -> "audio"      # Real person
-      :play_tts_audio -> "tts"    # AI synthetic (pre-generated audio file)
-      :play_tts -> "tts"          # AI synthetic (browser TTS)
-      :play_sequence -> "audio"   # Sequence of real person parts
-    end
+    source =
+      case event_type do
+        # Real person
+        :play_audio -> "audio"
+        # AI synthetic (pre-generated audio file)
+        :play_tts_audio -> "tts"
+        # AI synthetic (browser TTS)
+        :play_tts -> "tts"
+        # Sequence of real person parts
+        :play_sequence -> "audio"
+      end
 
-    socket = socket
-    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
-    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "native", source: source}))
+    socket =
+      socket
+      |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+      |> assign(
+        playing_pronunciation:
+          Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "native", source: source})
+      )
 
     # Add user_id to the event data for JavaScript callback
     enhanced_event_data = Map.put(event_data, :user_id, user.id)
@@ -85,26 +113,28 @@ defmodule ZonelyWeb.DirectoryLive do
     {event_type, event_data} = Audio.play_english_pronunciation(user)
 
     # Determine audio source type
-    source = case event_type do
-      :play_audio -> "audio"
-      :play_tts_audio -> "tts"
-      :play_tts -> "tts"
-      :play_sequence -> "audio"
-    end
+    source =
+      case event_type do
+        :play_audio -> "audio"
+        :play_tts_audio -> "tts"
+        :play_tts -> "tts"
+        :play_sequence -> "audio"
+      end
 
-    socket = socket
-    |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
-    |> assign(playing_pronunciation: Map.put(socket.assigns.playing_pronunciation, user.id, %{type: "english", source: source}))
+    socket =
+      socket
+      |> assign(loading_pronunciation: Map.delete(socket.assigns.loading_pronunciation, user.id))
+      |> assign(
+        playing_pronunciation:
+          Map.put(socket.assigns.playing_pronunciation, user.id, %{
+            type: "english",
+            source: source
+          })
+      )
 
     # Add user_id to the event data for JavaScript callback
     enhanced_event_data = Map.put(event_data, :user_id, user.id)
     {:noreply, push_event(socket, event_type, enhanced_event_data)}
-  end
-
-  @impl true
-  def handle_event("audio_ended", %{"user_id" => user_id}, socket) do
-    socket = assign(socket, playing_pronunciation: Map.delete(socket.assigns.playing_pronunciation, user_id))
-    {:noreply, socket}
   end
 
   # Inline Actions Event Handlers

@@ -11,6 +11,7 @@ defmodule Zonely.Storage do
   def config do
     cfg = Application.get_env(:zonely, :audio_cache, [])
     backend = (cfg[:backend] || "s3") |> String.downcase()
+
     %{
       backend: backend,
       bucket: cfg[:s3_bucket] || "zonely-cache",
@@ -48,11 +49,14 @@ defmodule Zonely.Storage do
 
   defp put_s3(key, bin) do
     cfg = config()
+
     opts =
       []
       |> maybe_endpoint(cfg.s3_endpoint)
 
-    case ExAws.S3.put_object(cfg.bucket, key, bin, content_type: MIME.from_path(key) || "audio/mpeg")
+    case ExAws.S3.put_object(cfg.bucket, key, bin,
+           content_type: MIME.from_path(key) || "audio/mpeg"
+         )
          |> ExAws.request(opts) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
@@ -66,6 +70,7 @@ defmodule Zonely.Storage do
     dir = Zonely.AudioCache.dir()
     filename = Path.basename(key)
     path = Path.join(dir, filename)
+
     case File.write(path, bin) do
       :ok -> :ok
       {:error, reason} -> {:error, reason}

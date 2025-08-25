@@ -9,7 +9,7 @@ defmodule Zonely.PronunceName.Providers.Forvo do
   def fetch(name, language) do
     fetch_single(name, language, name)
   end
-  
+
   # Simplified function that handles a single name request
   @spec fetch_single(String.t(), String.t(), String.t()) :: {:ok, String.t()} | {:error, atom()}
   def fetch_single(name, language, original_name) do
@@ -21,7 +21,7 @@ defmodule Zonely.PronunceName.Providers.Forvo do
     else
       forvo_lang = String.split(language, "-") |> List.first()
       Logger.info("🌐 Forvo request for #{inspect(name)} (#{forvo_lang})")
-      
+
       try_forvo_request(name, forvo_lang, api_key, original_name, language)
     end
   end
@@ -40,39 +40,65 @@ defmodule Zonely.PronunceName.Providers.Forvo do
               is_binary(item["pathogg"]) ->
                 audio_url = item["pathogg"]
                 Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
-                
-                cache_name = if name == original_name do
-                  Logger.info("✅ Found full name pronunciation for: #{original_name}")
-                  original_name
-                else
-                  Logger.info("📝 Found partial name pronunciation: '#{name}' (part of '#{original_name}')")
-                  "#{original_name}_partial_#{name}"
-                end
-                
-                case Cache.write_external_and_cache_with_metadata(audio_url, cache_name, original_name, name, full_language, ".ogg") do
+
+                cache_name =
+                  if name == original_name do
+                    Logger.info("✅ Found full name pronunciation for: #{original_name}")
+                    original_name
+                  else
+                    Logger.info(
+                      "📝 Found partial name pronunciation: '#{name}' (part of '#{original_name}')"
+                    )
+
+                    "#{original_name}_partial_#{name}"
+                  end
+
+                case Cache.write_external_and_cache_with_metadata(
+                       audio_url,
+                       cache_name,
+                       original_name,
+                       name,
+                       full_language,
+                       ".ogg"
+                     ) do
                   {:ok, cached_url} ->
                     Logger.info("✅ Serving cached URL -> #{cached_url} (requested: #{name})")
                     {:ok, cached_url}
-                  other -> other
+
+                  other ->
+                    other
                 end
 
               is_binary(item["pathmp3"]) ->
                 audio_url = item["pathmp3"]
                 Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
-                
-                cache_name = if name == original_name do
-                  Logger.info("✅ Found full name pronunciation for: #{original_name}")
-                  original_name
-                else
-                  Logger.info("📝 Found partial name pronunciation: '#{name}' (part of '#{original_name}')")
-                  "#{original_name}_partial_#{name}"
-                end
-                
-                case Cache.write_external_and_cache_with_metadata(audio_url, cache_name, original_name, name, full_language, ".mp3") do
+
+                cache_name =
+                  if name == original_name do
+                    Logger.info("✅ Found full name pronunciation for: #{original_name}")
+                    original_name
+                  else
+                    Logger.info(
+                      "📝 Found partial name pronunciation: '#{name}' (part of '#{original_name}')"
+                    )
+
+                    "#{original_name}_partial_#{name}"
+                  end
+
+                case Cache.write_external_and_cache_with_metadata(
+                       audio_url,
+                       cache_name,
+                       original_name,
+                       name,
+                       full_language,
+                       ".mp3"
+                     ) do
                   {:ok, cached_url} ->
                     Logger.info("✅ Serving cached URL -> #{cached_url} (requested: #{name})")
                     {:ok, cached_url}
-                  other -> other
+
+                  other ->
+                    other
                 end
 
               true ->
