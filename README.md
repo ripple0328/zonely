@@ -1,167 +1,96 @@
 # Zonely
 
-A web app that helps distributed teams connect better by showing name pronunciation, work hour overlaps, and holiday awareness.
+**A distributed team collaboration app that helps teams connect better through name pronunciation, timezone awareness, and cultural understanding.**
 
-## Features (MVP)
+## Screenshots
 
-- **Team Directory**: View team members with pronunciation guides, roles, timezones, and countries
-- **Work Hour Overlaps**: Visualize working hours across timezones and find optimal meeting times
-- **Holiday Awareness**: Track public holidays across team locations with API integration
+*Screenshots coming soon - the app is currently in active development*
 
-## Tech Stack
+## What is Zonely?
 
-- **Backend**: Phoenix + LiveView (Elixir)
-- **Database**: PostgreSQL with Ecto
-- **Frontend**: TailwindCSS + Heroicons
-- **API Integration**: Nager.Date for holiday data
-- **Testing**: Wallaby for browser automation and user journey testing
-- **Development Tools**: Tidewave for AI-powered development assistance
+Zonely is designed for distributed teams who want to build stronger connections across time zones and cultures. Whether you're struggling to pronounce a teammate's name correctly, trying to find the best meeting time across multiple time zones, or want to be mindful of holidays in your colleagues' countries, Zonely has you covered.
+
+## Key Features
+
+### 🎯 **Name Pronunciation**
+- **Real Audio Pronunciation**: Get actual pronunciations from native speakers via Forvo and NameShouts APIs
+- **AI Fallback**: When real recordings aren't available, AWS Polly provides high-quality AI-generated pronunciation
+- **Multi-language Support**: Supports names in their native languages and English pronunciations
+- **Instant Playback**: Click to hear how to pronounce any team member's name correctly
+
+### 🌍 **Smart Timezone Management** 
+- **Visual Working Hours**: Interactive map showing who's working when
+- **Overlap Detection**: Find optimal meeting times that work for everyone
+- **Real-time Updates**: See availability status as time zones change throughout the day
+- **Golden Hours**: Automatically suggest the best meeting windows for your team
+
+### 🏖️ **Holiday Awareness**
+- **Global Holiday Tracking**: Know when teammates are celebrating holidays in their countries
+- **Team Impact View**: See how upcoming holidays affect your team's availability
+- **Automatic Updates**: Fresh holiday data from reliable APIs
+- **Cultural Sensitivity**: Be respectful of different cultural celebrations and observances
+
+## How to Use Zonely
+
+### For Team Members
+1. **Browse the Team Directory** - See all your colleagues with their roles, timezones, and pronunciation guides
+2. **Learn Name Pronunciation** - Click the play button to hear correct pronunciations
+3. **Check Availability** - Use the map view to see who's currently working
+4. **Plan Meetings** - Find overlap times that work across time zones
+5. **Stay Informed** - Check upcoming holidays that might affect your teammates
+
+### For Team Leads
+1. **Onboard New Members** - Add team members with their preferred name pronunciations
+2. **Schedule Effectively** - Use overlap detection to plan inclusive meetings
+3. **Cultural Awareness** - Stay informed about holidays affecting your team
+4. **Build Inclusion** - Encourage proper name pronunciation across the team
+
+## Why Zonely?
+
+**"Getting someone's name right is one of the most important things you can do to show respect and build connection."**
+
+In distributed teams, small details matter enormously. Zonely helps teams:
+
+- **Show Respect**: Pronounce names correctly from the start
+- **Save Time**: Quickly find meeting times that work for everyone  
+- **Build Culture**: Stay aware of cultural events and holidays
+- **Improve Communication**: Reduce timezone confusion and scheduling conflicts
+- **Foster Inclusion**: Make everyone feel heard and respected
+
+## Live Demo
+
+Try out Zonely's pronunciation feature at: **[Live Demo Coming Soon]**
+
+## Technology
+
+Built with modern, reliable technology:
+- **Elixir & Phoenix LiveView** for real-time, interactive experiences
+- **PostgreSQL** for reliable data storage
+- **Multiple APIs** for pronunciation and holiday data
+- **Responsive Design** that works on desktop and mobile
 
 ## Getting Started
 
-### Prerequisites
+Ready to improve your team's collaboration? Check out our [Developer Documentation](DEVELOPERS.md) for setup instructions.
 
-- Elixir 1.18+
-- Phoenix Framework
-- PostgreSQL
-- [direnv](https://direnv.net/) for environment variable management
+## Roadmap
 
-### Setup
+🚧 **Current Focus**: Core pronunciation and timezone features  
+🔮 **Coming Soon**: 
+- Calendar integration
+- Slack/Teams notifications  
+- Mobile app
+- Advanced analytics
+- Custom holiday tracking
 
-1. Install direnv and allow environment loading:
-   ```bash
-   # Install direnv (macOS)
-   brew install direnv
-   
-   # Add to your shell profile (~/.zshrc, ~/.bashrc, etc.)
-   eval "$(direnv hook zsh)"  # or bash/fish
-   
-   # Allow the .envrc file in this project
-   direnv allow
-   ```
+## Contributing
 
-2. Configure environment variables:
-   - The `.envrc` file contains development environment variables
-   - Update `SECRET_KEY_BASE` by running: `mix phx.gen.secret`
-   - Update `MAPTILER_API_KEY` with your actual API key from [MapTiler](https://www.maptiler.com/)
+We welcome contributions! See [DEVELOPERS.md](DEVELOPERS.md) for technical details and setup instructions.
 
-3. Install dependencies:
-   ```bash
-   mix deps.get
-   ```
+## Support
 
-4. Create and migrate database:
-   ```bash
-   mix ecto.setup
-   ```
+Having issues or suggestions? Please [open an issue](https://github.com/ripple0328/zonely/issues) on GitHub.
 
-5. Install npm dependencies:
-   ```bash
-   npm install --prefix assets
-   ```
+---
 
-6. Start the Phoenix server:
-   ```bash
-   mix phx.server
-   ```
-
-7. Visit [`localhost:4000`](http://localhost:4000) to see the app
-
-### Tidewave AI Development Assistant
-
-The project includes [Tidewave](https://github.com/tidewave-ai/tidewave_phoenix) for AI-powered development assistance. Once the Phoenix server is running, Tidewave is available at:
-
-- **MCP Endpoint**: `http://localhost:4000/tidewave/mcp`
-- **Compatible Editors**: Claude Code, VS Code (GitHub Copilot), Cursor, Zed, Neovim
-
-To connect your editor to Tidewave, follow the [editor-specific setup guides](https://github.com/tidewave-ai/tidewave_phoenix/tree/main/pages/editors).
-
-## Testing
-
-The project includes comprehensive browser testing with Wallaby for user journey validation.
-
-### Run Browser Tests
-
-```bash
-# Run all feature tests (headless)
-mix test.browser
-
-# Run with visible browser for debugging
-mix test.browser --show --max-failures=1
-
-# Run specific test file
-mix test.browser test/zonely_web/features/team_map_test.exs
-```
-
-For detailed testing documentation, see [BROWSER_TESTING.md](BROWSER_TESTING.md).
-
-### Run Unit Tests
-
-```bash
-# Run all unit tests
-mix test
-
-# Run tests with coverage
-mix test --cover
-```
-
-## Features
-### Working Hours Overlap (Map)
-
-The overlap panel shows who is available within a drag-selected time window.
-
-- The selection is interpreted in the viewer's timezone (sent from the browser) and converted to UTC.
-- For each user, the window is converted into the user's timezone and compared with their local `work_start`/`work_end`.
-- Overnight windows and overnight schedules are supported.
-
-Tuning thresholds (configure in `config/config.exs`):
-
-```elixir
-config :zonely, :overlap,
-  edge_minutes: 60,            # how close counts as edge
-  working_min_minutes: 60,     # minimum minutes overlapped to be Working
-  working_min_coverage: 0.5    # fraction of selected window that must overlap
-```
-
-Behavior:
-- Working: overlap minutes ≥ `working_min_minutes` AND coverage ≥ `working_min_coverage`.
-- Edge: any minimal overlap or within `edge_minutes` of start/end.
-- Off Work: no meaningful overlap.
-
-
-### Directory Page (`/`)
-- Browse team members with profile cards
-- Click on any member to see detailed pronunciation info
-- View roles, timezones, pronouns, and working hours
-
-### Work Hours Page (`/work-hours`)
-- Select multiple team members to see working hour overlaps
-- Visual timeline showing work hours in a 24-hour format
-- "Golden Hours" suggestions for optimal meeting times
-
-### Holidays Page (`/holidays`)
-- Overview of team members by country
-- Upcoming holidays with countdown
-- Click "Refresh" to fetch latest holiday data from Nager.Date API
-- Holiday impact dashboard
-
-## Sample Data
-
-The seed script creates 10 diverse team members across different:
-- Countries: US, GB, JP, IN, SE, ES, AU, EG, BR
-- Timezones: From Pacific to Tokyo
-- Roles: Frontend, Backend, Product, DevOps, UX, etc.
-- Working hours and pronunciation guides
-
-## API Integration
-
-Holiday data is fetched from the [Nager.Date API](https://date.nager.at/). Click the "Refresh" button on country cards to fetch current year holidays.
-
-## Next Steps (Phase 2+)
-
-- Enhanced timezone calculations with proper overlap detection
-- Custom holiday/leave entries
-- Slack/Teams integration
-- Calendar sync for automatic work hours
-- Audio pronunciation playback
-- Profile pictures and social links
+**Made with ❤️ for distributed teams everywhere**

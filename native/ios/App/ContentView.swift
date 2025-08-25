@@ -2,7 +2,7 @@ import SwiftUI
 import LiveViewNative
 
 struct ContentView: View {
-    // Update this to your server base (e.g., https://name.qingbo.us) when not on localhost
+    // Update this to your server base (e.g., https://name.yoursite.com) when not on localhost
     private let baseURL = URL(string: "http://localhost:4000")!
 
     var body: some View {

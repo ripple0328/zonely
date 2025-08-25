@@ -34,8 +34,8 @@ users = [
     longitude: -122.4194
   },
   %{
-    name: "Qingbo Zhang",
-    name_native: "张清波",
+    name: "Bob Wang",
+    name_native: "王明",
     native_language: "zh-CN",
     pronouns: "he/him",
     role: "Tech Lead",

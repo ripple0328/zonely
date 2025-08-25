@@ -1,0 +1,35 @@
+# Development environment variables
+# This file is managed by direnv - run 'direnv allow' after making changes
+# Copy this file to .envrc and fill in your actual values
+
+# Phoenix configuration
+export PHX_HOST="localhost"
+export PORT="4000"
+export PHX_SERVER="true"
+
+# Database configuration
+export DATABASE_URL="ecto://postgres:postgres@localhost/zonely_dev"
+export POOL_SIZE="10"
+
+# Security
+export SECRET_KEY_BASE="your_secret_key_base_here_run_mix_phx_gen_secret_to_generate"
+
+# MapTiler API key for maps
+# Get your free API key from: https://www.maptiler.com/
+export MAPTILER_API_KEY="your_maptiler_api_key_here"
+
+# Optional: Forvo API key for pronunciation
+# Get your API key from: https://api.forvo.com/
+export FORVO_API_KEY="your_forvo_api_key_here"
+
+# Optional: NameShouts API key for pronunciation
+# Get your API key from: https://nameshouts.com/
+export NS_API_KEY="your_nameshouts_api_key_here"
+
+# AWS configuration (optional, for S3 storage)
+export AWS_REGION="us-west-1"
+export AWS_ACCESS_KEY_ID="your_aws_access_key_id_here"
+export AWS_SECRET_ACCESS_KEY="your_aws_secret_access_key_here"
+
+# Optional: Enable IPv6 for database connections
+# export ECTO_IPV6="false"

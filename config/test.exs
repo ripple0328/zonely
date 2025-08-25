@@ -26,7 +26,7 @@ config :wallaby,
     headless: System.get_env("HEADLESS", "true") == "true"
   ],
   chromedriver: [
-    path: System.get_env("CHROMEDRIVER_PATH") || "/Users/qingbo/.local/share/mise/installs/chromedriver/139.0.7258.138/bin/chromedriver"
+    path: System.get_env("CHROMEDRIVER_PATH") || "chromedriver"
   ]
 
 config :logger, level: :warning

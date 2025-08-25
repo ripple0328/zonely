@@ -113,7 +113,7 @@ config :wallaby,
     headless: System.get_env("HEADLESS", "true") == "true"
   ],
   chromedriver: [
-    path: "/Users/qingbo/.local/share/mise/installs/chromedriver/139.0.7258.138/bin/chromedriver"
+    path: "/path/to/your/chromedriver"
   ]
 ```
 
