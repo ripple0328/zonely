@@ -200,7 +200,12 @@ defmodule ZonelyWeb.MapLive do
   # Demo driver
   @impl true
   def handle_info(:demo_tick, %{assigns: %{demo_on?: true}} = socket) do
-    {:noreply, perform_demo_step(socket)}
+    # If paused, skip executing current step and wait
+    if socket.assigns[:demo_paused?] do
+      {:noreply, socket}
+    else
+      {:noreply, perform_demo_step(socket)}
+    end
   end
 
   def handle_info(:demo_tick, socket), do: {:noreply, socket}
@@ -260,7 +265,7 @@ defmodule ZonelyWeb.MapLive do
       %{
         action: :open_avatar2,
         delay_ms: 1800,
-        highlight: "[data-user-id]",
+        highlight: nil,
         title: "Another teammate",
         desc: "Open a different profile to compare working hours."
       }
@@ -272,7 +277,9 @@ defmodule ZonelyWeb.MapLive do
 
     case Enum.at(demo_steps(), step_index) do
       nil ->
-        assign(socket, :demo_on?, false)
+        socket
+        |> assign(:demo_on?, false)
+        |> push_event("demo_highlight", %{selector: "__end__"})
 
       %{action: :open_day_tz, delay_ms: delay} = step ->
         socket
@@ -585,7 +592,7 @@ defmodule ZonelyWeb.MapLive do
       </div>
 
       <!-- Start Demo button (visible when demo not active) -->
-      <div :if={!@demo_on?} class="absolute top-4 right-4 z-[1500]">
+      <div :if={!@demo_on?} id="start-demo-cta" class="absolute top-4 right-4 z-[1500]">
         <button phx-click="start_demo" class="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm shadow" data-testid="start-demo">
           Start Demo
         </button>

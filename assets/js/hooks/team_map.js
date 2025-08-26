@@ -86,6 +86,13 @@ const TeamMap = {
           this.pushEvent('show_profile', { user_id: user.id })
         })
       })
+      // Hide CTA if cookie says so
+      try {
+        if (document.cookie.includes('map_demo_hide=1')) {
+          const cta = document.getElementById('start-demo-cta')
+          if (cta) cta.remove()
+        }
+      } catch (_) {}
     })
 
     // Server-driven demo: open timezone popup at coordinates
@@ -127,7 +134,50 @@ const TeamMap = {
         const prev = document.getElementById('demo-highlight')
         if (prev) prev.remove()
 
-        const target = selector && document.querySelector(selector)
+        // Special end signal clears everything
+        if (selector === '__end__') {
+          document.getElementById('demo-highlight')?.remove()
+          document.getElementById('demo-overlay')?.remove()
+          // Show end-of-demo prompt to remove CTA button and remember preference
+          try {
+            const cta = document.getElementById('start-demo-cta')
+            if (cta && !document.getElementById('end-demo-prompt')) {
+              const prompt = document.createElement('div')
+              prompt.id = 'end-demo-prompt'
+              prompt.style.position = 'absolute'
+              prompt.style.top = '0'
+              prompt.style.right = '0'
+              prompt.style.transform = 'translateY(calc(100% + 8px))'
+              prompt.style.background = '#ffffff'
+              prompt.style.border = '1px solid #e5e7eb'
+              prompt.style.borderRadius = '8px'
+              prompt.style.boxShadow = '0 10px 20px rgba(0,0,0,0.12)'
+              prompt.style.padding = '8px'
+              prompt.style.zIndex = '1600'
+              prompt.innerHTML = `
+                <div style="font-size:12px; color:#374151; margin-bottom:6px">Hide the Start Demo button next time?</div>
+                <div style="display:flex; gap:6px">
+                  <button id="hide-demo" style="padding:6px 8px; border-radius:6px; background:#ef4444; color:#fff; border:none; font-size:12px">Remove</button>
+                  <button id="keep-demo" style="padding:6px 8px; border-radius:6px; background:#e5e7eb; color:#111827; border:1px solid #d1d5db; font-size:12px">Keep</button>
+                </div>
+              `
+              cta.appendChild(prompt)
+              const hide = prompt.querySelector('#hide-demo')
+              const keep = prompt.querySelector('#keep-demo')
+              if (hide) hide.onclick = () => {
+                try { document.cookie = 'map_demo_hide=1; Max-Age=31536000; path=/; SameSite=Lax' } catch (_) {}
+                cta.remove()
+                prompt.remove()
+              }
+              if (keep) keep.onclick = () => {
+                prompt.remove()
+              }
+            }
+          } catch (_) {}
+          return
+        }
+
+        const target = selector ? document.querySelector(selector) : null
         if (target) {
           const rect = target.getBoundingClientRect()
           const highlight = document.createElement('div')
@@ -144,7 +194,7 @@ const TeamMap = {
           highlight.id = 'demo-highlight'
           document.body.appendChild(highlight)
         } else {
-          // No target: remove any highlight
+          // No target: remove any highlight but keep the overlay for consistency across steps
           document.getElementById('demo-highlight')?.remove()
         }
       } catch (e) {
