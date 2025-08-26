@@ -36,8 +36,8 @@ if config_env() == :prod do
       port: port
     ],
     check_origin: [
-      "https://#{host}",
-      "https://name.#{host}"
+      "//#{host}",
+      "//*.#{host}"
     ],
     secret_key_base: secret_key_base
 
