@@ -186,69 +186,66 @@ defmodule Zonely.PronunceName do
         Zonely.PronunceName.NegativeCache.failed_recently?(provider, variant, language)
       end)
 
-    result =
-      providers
-      |> Task.async_stream(
-        fn {tag, fun} ->
-          started_ms = System.monotonic_time(:millisecond)
-          value = fun.()
-          duration_ms = System.monotonic_time(:millisecond) - started_ms
-          {tag, duration_ms, value}
-        end,
-        ordered: false,
-        timeout: race_timeout_ms,
-        max_concurrency: 2,
-        on_timeout: :kill_task
-      )
-      |> Enum.reduce_while(%{ns: nil, fv: nil}, fn
-        {:ok, {:name_shouts, duration_ms, {:ok, {:sequence, _} = seq}}}, _acc ->
-          Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
-          {:halt, {:ok, seq}}
+    # Start tasks manually so we can attribute timeouts to providers
+    tasks =
+      Enum.map(providers, fn {tag, fun} ->
+        task =
+          Task.async(fn ->
+            started_ms = System.monotonic_time(:millisecond)
+            value = fun.()
+            duration_ms = System.monotonic_time(:millisecond) - started_ms
+            {tag, duration_ms, value}
+          end)
 
-        {:ok, {:name_shouts, duration_ms, {:ok, url}}}, _acc when is_binary(url) ->
-          Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)}")
-          {:halt, {:ok, url}}
-
-        {:ok, {:forvo, duration_ms, {:ok, {:sequence, _} = seq}}}, acc ->
-          Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
-          {:cont, %{acc | fv: {:ok, seq}}}
-
-        {:ok, {:forvo, duration_ms, {:ok, url}}}, acc when is_binary(url) ->
-          Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)}")
-          {:cont, %{acc | fv: {:ok, url}}}
-
-        {:ok, {tag, duration_ms, {:error, reason}}}, acc ->
-          Logger.info("⏭ Provider #{inspect(tag)} failed in #{duration_ms}ms (#{inspect(reason)}) for #{inspect(variant)}")
-          # record definitive failures in negative cache
-          Zonely.PronunceName.NegativeCache.put_failure(tag, variant, language, reason)
-          {:cont, acc}
-
-        {:exit, reason}, acc ->
-          Logger.warning("⛔ Provider task exited: #{inspect(reason)} for #{inspect(variant)}")
-          {:cont, acc}
+        {tag, task}
       end)
 
-    case result do
-      {:ok, {:sequence, _} = seq} ->
-        {:ok, seq}
+    # Wait up to race_timeout_ms for all tasks
+    results = Task.yield_many(Enum.map(tasks, &elem(&1, 1)), race_timeout_ms)
 
-      {:ok, url} when is_binary(url) ->
-        {:ok, url}
+    # Handle results, record negatives on failures/timeouts, and prefer NameShouts
+    acc =
+      Enum.reduce(results, %{ns: nil, fv: nil}, fn {task, res}, acc ->
+        {tag, _task} = Enum.find(tasks, fn {_t_tag, t} -> t.ref == task.ref end)
 
-      %{ns: {:ok, {:sequence, _} = seq}} ->
-        {:ok, seq}
+        case res do
+          {:ok, {:name_shouts, duration_ms, {:ok, {:sequence, _} = seq}}} ->
+            Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
+            Map.put(acc, :ns, {:ok, seq})
 
-      %{ns: {:ok, url}} when is_binary(url) ->
-        {:ok, url}
+          {:ok, {:name_shouts, duration_ms, {:ok, url}}} when is_binary(url) ->
+            Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)}")
+            Map.put(acc, :ns, {:ok, url})
 
-      %{fv: {:ok, {:sequence, _} = seq}} ->
-        {:ok, seq}
+          {:ok, {:forvo, duration_ms, {:ok, {:sequence, _} = seq}}} ->
+            Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
+            Map.put(acc, :fv, {:ok, seq})
 
-      %{fv: {:ok, url}} when is_binary(url) ->
-        {:ok, url}
+          {:ok, {:forvo, duration_ms, {:ok, url}}} when is_binary(url) ->
+            Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)}")
+            Map.put(acc, :fv, {:ok, url})
 
-      _ ->
-        {:error, :not_found}
+          {:ok, {^tag, duration_ms, {:error, reason}}} ->
+            Logger.info("⏭ Provider #{inspect(tag)} failed in #{duration_ms}ms (#{inspect(reason)}) for #{inspect(variant)}")
+            Zonely.PronunceName.NegativeCache.put_failure(tag, variant, language, reason)
+            acc
+
+          nil ->
+            Logger.warning("⛔ Provider task exited: :timeout for #{inspect(variant)} (#{inspect(tag)})")
+            Task.shutdown(task, :brutal_kill)
+            Zonely.PronunceName.NegativeCache.put_failure(tag, variant, language, :timeout)
+            acc
+
+          {:exit, reason} ->
+            Logger.warning("⛔ Provider task exited: #{inspect(reason)} for #{inspect(variant)} (#{inspect(tag)})")
+            acc
+        end
+      end)
+
+    cond do
+      match?({:ok, _}, acc.ns) -> acc.ns
+      match?({:ok, _}, acc.fv) -> acc.fv
+      true -> {:error, :not_found}
     end
   end
 

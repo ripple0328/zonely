@@ -10,12 +10,11 @@ defmodule Zonely.PronunceName.NegativeCache do
     ensure_table!()
 
     key = key(provider, name, language)
-    ttl_ms = ttl_ms()
     now = System.monotonic_time(:millisecond)
 
     case :ets.lookup(@table, key) do
-      [{^key, {ts, _reason}}] when is_integer(ts) ->
-        if now - ts <= ttl_ms do
+      [{^key, {ts, reason}}] when is_integer(ts) ->
+        if now - ts <= ttl_ms(reason) do
           true
         else
           :ets.delete(@table, key)
@@ -45,7 +44,7 @@ defmodule Zonely.PronunceName.NegativeCache do
   end
 
   defp definitive_reason?(reason) do
-    reason in [:not_found, :no_items, :partial_only]
+    reason in [:not_found, :no_items, :partial_only, :timeout]
   end
 
   defp key(provider, name, language) do
@@ -58,9 +57,8 @@ defmodule Zonely.PronunceName.NegativeCache do
     {provider, normalized_name, language}
   end
 
-  defp ttl_ms do
-    Application.get_env(:zonely, :negative_cache_ttl_ms, 86_400_000)
-  end
+  defp ttl_ms(:timeout), do: Application.get_env(:zonely, :negative_cache_soft_ttl_ms, 600_000)
+  defp ttl_ms(_), do: Application.get_env(:zonely, :negative_cache_ttl_ms, 86_400_000)
 
   defp ensure_table! do
     case :ets.whereis(@table) do

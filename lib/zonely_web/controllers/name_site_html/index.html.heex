@@ -453,9 +453,10 @@
             const name = item.dataset.name;
             const lang = pill.dataset.lang;
             const text = pill.dataset.text || name;
-            setPillState(pill, 'loading');
             // Ensure any previous playback is stopped and UI reset before starting a new one
             stopAllPronunciations();
+            // Now set current pill to loading so user sees immediate feedback
+            setPillState(pill, 'loading');
             const base = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0,-1) : window.location.pathname;
             const api = base.endsWith('/name') ? '/name/api/pronounce' : '/api/pronounce';
             const url = new URL(api, window.location.origin);
