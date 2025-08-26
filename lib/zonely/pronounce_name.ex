@@ -173,14 +173,18 @@ defmodule Zonely.PronunceName do
     # Race providers in parallel and return the first success
     race_timeout_ms = Application.get_env(:zonely, :provider_race_timeout_ms, 1500)
 
-    providers = [
-      {:name_shouts, fn ->
-         Zonely.PronunceName.Providers.NameShouts.fetch_single(variant, language, original_name)
-       end},
-      {:forvo, fn ->
-         Zonely.PronunceName.Providers.Forvo.fetch_single(variant, language, original_name)
-       end}
-    ]
+    providers =
+      [
+        {:name_shouts, fn ->
+           Zonely.PronunceName.Providers.NameShouts.fetch_single(variant, language, original_name)
+         end},
+        {:forvo, fn ->
+           Zonely.PronunceName.Providers.Forvo.fetch_single(variant, language, original_name)
+         end}
+      ]
+      |> Enum.reject(fn {provider, _fun} ->
+        Zonely.PronunceName.NegativeCache.failed_recently?(provider, variant, language)
+      end)
 
     result =
       providers
@@ -215,6 +219,8 @@ defmodule Zonely.PronunceName do
 
         {:ok, {tag, duration_ms, {:error, reason}}}, acc ->
           Logger.info("⏭ Provider #{inspect(tag)} failed in #{duration_ms}ms (#{inspect(reason)}) for #{inspect(variant)}")
+          # record definitive failures in negative cache
+          Zonely.PronunceName.NegativeCache.put_failure(tag, variant, language, reason)
           {:cont, acc}
 
         {:exit, reason}, acc ->

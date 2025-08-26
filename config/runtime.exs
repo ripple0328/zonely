@@ -69,6 +69,18 @@ if config_env() == :prod do
     config :zonely, :provider_race_timeout_ms, provider_race_timeout
   end
 
+  # Negative cache TTL (ms)
+  negative_cache_ttl =
+    case System.get_env("NEGATIVE_CACHE_TTL_MS") do
+      nil -> nil
+      "" -> nil
+      val -> String.to_integer(val)
+    end
+
+  if negative_cache_ttl do
+    config :zonely, :negative_cache_ttl_ms, negative_cache_ttl
+  end
+
   # MapTiler configuration
   config :zonely, :maptiler,
     api_key: System.get_env("MAPTILER_API_KEY") || "demo_key_get_your_own_at_maptiler_com"
