@@ -96,6 +96,9 @@ defmodule ZonelyWeb do
       import ZonelyWeb.CoreComponents
       use Gettext, backend: ZonelyWeb.Gettext
 
+      # Alias Layouts so templates can use <Layouts.app ...>
+      alias ZonelyWeb.Layouts
+
       unquote(verified_routes())
     end
   end

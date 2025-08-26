@@ -110,18 +110,24 @@ const TeamMap = {
     // Server-driven highlight: dims page and outlines a target selector
     this.handleEvent('demo_highlight', ({ selector }) => {
       try {
-        // Remove any existing overlay
-        document.getElementById('demo-overlay')?.remove()
-        const target = document.querySelector(selector)
-        const overlay = document.createElement('div')
-        overlay.id = 'demo-overlay'
-        overlay.style.position = 'fixed'
-        overlay.style.inset = '0'
-        overlay.style.background = 'rgba(0,0,0,0.35)'
-        overlay.style.zIndex = '999'
-        overlay.style.pointerEvents = 'none'
-        document.body.appendChild(overlay)
+        // Ensure only one overlay exists
+        let overlay = document.getElementById('demo-overlay')
+        if (!overlay) {
+          overlay = document.createElement('div')
+          overlay.id = 'demo-overlay'
+          overlay.style.position = 'fixed'
+          overlay.style.inset = '0'
+          overlay.style.background = 'rgba(0,0,0,0.35)'
+          overlay.style.zIndex = '999'
+          overlay.style.pointerEvents = 'none'
+          document.body.appendChild(overlay)
+        }
 
+        // Remove previous highlight to avoid stacking
+        const prev = document.getElementById('demo-highlight')
+        if (prev) prev.remove()
+
+        const target = selector && document.querySelector(selector)
         if (target) {
           const rect = target.getBoundingClientRect()
           const highlight = document.createElement('div')
@@ -137,6 +143,9 @@ const TeamMap = {
           highlight.style.zIndex = '1000'
           highlight.id = 'demo-highlight'
           document.body.appendChild(highlight)
+        } else {
+          // No target: remove any highlight
+          document.getElementById('demo-highlight')?.remove()
         }
       } catch (e) {
         console.warn('Failed to apply demo highlight', e)

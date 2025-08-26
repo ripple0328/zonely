@@ -252,10 +252,17 @@ defmodule ZonelyWeb.MapLive do
       },
       %{
         action: :select_overlap,
-        delay_ms: 2200,
+        delay_ms: 4200,
         highlight: "#time-scrubber",
         title: "Find overlap",
         desc: "Drag to select a window and instantly see who can meet."
+      },
+      %{
+        action: :open_avatar2,
+        delay_ms: 1800,
+        highlight: "[data-user-id]",
+        title: "Another teammate",
+        desc: "Open a different profile to compare working hours."
       }
     ]
   end
@@ -278,13 +285,16 @@ defmodule ZonelyWeb.MapLive do
         socket
         |> assign(:demo_ui, Map.take(step, [:title, :desc]))
         |> push_event("demo_highlight", %{selector: step.highlight})
-        |> push_event("open_tz_popup", %{tzid: "Pacific/Honolulu", lat: 21.3069, lng: -157.8583})
+        # Place popup over open ocean to avoid covering avatar markers
+        |> push_event("open_tz_popup", %{tzid: "Pacific/Honolulu", lat: 10.0, lng: -170.0})
         |> next_demo_step(delay)
 
       %{action: :open_avatar, delay_ms: delay} = step ->
+        # Choose a demo user whose marker is far from the previous popup areas to avoid overlap
         user =
-          socket.assigns.users |> Enum.find(&(&1.latitude && &1.longitude)) ||
-            List.first(socket.assigns.users)
+          pick_demo_user(socket.assigns.users) ||
+            (socket.assigns.users |> Enum.find(&(&1.latitude && &1.longitude)) ||
+               List.first(socket.assigns.users))
 
         socket
         |> assign(:demo_ui, Map.take(step, [:title, :desc]))
@@ -315,8 +325,77 @@ defmodule ZonelyWeb.MapLive do
         |> assign(:demo_ui, Map.take(step, [:title, :desc]))
         |> push_event("demo_highlight", %{selector: step.highlight})
         |> push_event("time_selection_set", %{a_frac: a, b_frac: b})
+        |> schedule_drag_sequence([{11/24, 13/24}, {15/24, 18/24}], 1800)
+        |> next_demo_step(delay)
+
+      %{action: :open_avatar2, delay_ms: delay} = step ->
+        alt_user =
+          pick_another_user(socket.assigns.users, socket.assigns.selected_user) ||
+            pick_demo_user(socket.assigns.users) || socket.assigns.selected_user
+
+        socket
+        |> assign(:demo_ui, Map.take(step, [:title, :desc]))
+        |> push_event("demo_highlight", %{selector: step.highlight})
+        |> assign(:selected_user, alt_user)
         |> next_demo_step(delay)
     end
+  end
+
+  # Drag sequence to showcase changing availability states
+  defp schedule_drag_sequence(socket, ranges, interval_ms) do
+    Enum.with_index(ranges)
+    |> Enum.reduce(socket, fn {{a, b}, idx}, s ->
+      Process.send_after(self(), {:demo_drag, a, b}, interval_ms * (idx + 1))
+      s
+    end)
+  end
+
+  @impl true
+  def handle_info({:demo_drag, a, b}, socket) do
+    {:noreply, push_event(socket, "time_selection_set", %{a_frac: a, b_frac: b})}
+  end
+
+  # Heuristic: pick user farthest from both Berlin and Honolulu to avoid popup overlap
+  defp pick_demo_user(users) do
+    berlin = {52.52, 13.405}
+    honolulu = {21.3069, -157.8583}
+
+    users
+    |> Enum.filter(& &1.latitude && &1.longitude)
+    |> Enum.map(fn u ->
+      lat = to_float(u.latitude)
+      lng = to_float(u.longitude)
+      d = approx_distance({lat, lng}, berlin) + approx_distance({lat, lng}, honolulu)
+      {d, u}
+    end)
+    |> Enum.max_by(fn {d, _u} -> d end, fn -> nil end)
+    |> case do
+      {_, u} -> u
+      _ -> nil
+    end
+  end
+
+  defp pick_another_user(users, current) do
+    users
+    |> Enum.filter(fn u -> u.id != (current && current.id) && u.latitude && u.longitude end)
+    |> Enum.random()
+  rescue
+    _ -> nil
+  end
+
+  defp to_float(%Decimal{} = d), do: Decimal.to_float(d)
+  defp to_float(v) when is_number(v), do: v
+  defp to_float(_), do: 0.0
+
+  # Equirectangular approximation is fine for demo selection
+  defp approx_distance({lat1, lon1}, {lat2, lon2}) do
+    rlat1 = :math.pi() * lat1 / 180
+    rlat2 = :math.pi() * lat2 / 180
+    rlon1 = :math.pi() * lon1 / 180
+    rlon2 = :math.pi() * lon2 / 180
+    x = (rlon2 - rlon1) * :math.cos((rlat1 + rlat2) / 2)
+    y = rlat2 - rlat1
+    :math.sqrt(x * x + y * y)
   end
 
   # Quick Actions Event Handlers
