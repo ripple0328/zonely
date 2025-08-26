@@ -29,13 +29,48 @@ defmodule ZonelyWeb.MapLive do
        selected_a_frac: nil,
        selected_b_frac: nil,
        loading_pronunciation: %{},
-       playing_pronunciation: %{}
+       playing_pronunciation: %{},
+       demo_on?: false,
+       demo_paused?: false,
+       demo_step_index: 0,
+       demo_timer_ref: nil,
+       demo_ui: nil
      )}
   end
 
   @impl true
   def handle_params(params, _url, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+    socket = apply_action(socket, socket.assigns.live_action, params)
+
+    # Autoplay demo mode for map page when ?demo=1 is present
+    socket =
+      case Map.get(params, "demo") do
+        "1" ->
+          socket
+          |> assign(:demo_on?, true)
+          |> assign(:demo_step_index, 0)
+          |> assign(:demo_paused?, false)
+          |> assign(:demo_timer_ref, nil)
+          |> schedule_demo_step(0)
+
+        _ ->
+          socket
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("start_demo", _params, socket) do
+    socket =
+      socket
+      |> assign(:demo_on?, true)
+      |> assign(:demo_step_index, 0)
+      |> assign(:demo_paused?, false)
+      |> assign(:demo_timer_ref, nil)
+      |> schedule_demo_step(0)
+
+    {:noreply, socket}
   end
 
   defp apply_action(socket, action, _params) when action in [:index, nil] do
@@ -162,12 +197,160 @@ defmodule ZonelyWeb.MapLive do
     {:noreply, assign(socket, users: users)}
   end
 
+  # Demo driver
+  @impl true
+  def handle_info(:demo_tick, %{assigns: %{demo_on?: true}} = socket) do
+    {:noreply, perform_demo_step(socket)}
+  end
+
+  def handle_info(:demo_tick, socket), do: {:noreply, socket}
+
+  defp schedule_demo_step(socket, ms) when is_integer(ms) do
+    if socket.assigns[:demo_paused?] do
+      socket
+    else
+      ref = Process.send_after(self(), :demo_tick, ms)
+      assign(socket, :demo_timer_ref, ref)
+    end
+  end
+
+  defp next_demo_step(socket, delay_ms) do
+    socket
+    |> assign(:demo_step_index, (socket.assigns.demo_step_index || 0) + 1)
+    |> schedule_demo_step(delay_ms)
+  end
+
+  defp demo_steps do
+    [
+      %{
+        action: :open_day_tz,
+        delay_ms: 1800,
+        highlight: "#map-container",
+        title: "Daytime timezone",
+        desc: "See live local time by clicking day regions. Great for quick checks."
+      },
+      %{
+        action: :open_night_tz,
+        delay_ms: 1800,
+        highlight: "#map-container",
+        title: "Nighttime timezone",
+        desc: "Night overlay shows who is off-hours now across the world."
+      },
+      %{
+        action: :open_avatar,
+        delay_ms: 1400,
+        highlight: "[data-user-id]",
+        title: "Open teammate profile",
+        desc: "Click an avatar to view profile, timezone and quick actions."
+      },
+      %{
+        action: :pronounce_name,
+        delay_ms: 2200,
+        highlight: "[data-testid=pronunciation-native]",
+        title: "Hear their name",
+        desc: "Play native or English name pronunciation to get it right."
+      },
+      %{
+        action: :select_overlap,
+        delay_ms: 2200,
+        highlight: "#time-scrubber",
+        title: "Find overlap",
+        desc: "Drag to select a window and instantly see who can meet."
+      }
+    ]
+  end
+
+  defp perform_demo_step(socket) do
+    step_index = socket.assigns.demo_step_index || 0
+
+    case Enum.at(demo_steps(), step_index) do
+      nil ->
+        assign(socket, :demo_on?, false)
+
+      %{action: :open_day_tz, delay_ms: delay} = step ->
+        socket
+        |> assign(:demo_ui, Map.take(step, [:title, :desc]))
+        |> push_event("demo_highlight", %{selector: step.highlight})
+        |> push_event("open_tz_popup", %{tzid: "Europe/Berlin", lat: 52.52, lng: 13.405})
+        |> next_demo_step(delay)
+
+      %{action: :open_night_tz, delay_ms: delay} = step ->
+        socket
+        |> assign(:demo_ui, Map.take(step, [:title, :desc]))
+        |> push_event("demo_highlight", %{selector: step.highlight})
+        |> push_event("open_tz_popup", %{tzid: "Pacific/Honolulu", lat: 21.3069, lng: -157.8583})
+        |> next_demo_step(delay)
+
+      %{action: :open_avatar, delay_ms: delay} = step ->
+        user =
+          socket.assigns.users |> Enum.find(&(&1.latitude && &1.longitude)) ||
+            List.first(socket.assigns.users)
+
+        socket
+        |> assign(:demo_ui, Map.take(step, [:title, :desc]))
+        |> push_event("demo_highlight", %{selector: step.highlight})
+        |> assign(:selected_user, user)
+        |> next_demo_step(delay)
+
+      %{action: :pronounce_name, delay_ms: delay} = step ->
+        user = socket.assigns.selected_user || socket.assigns.users |> Enum.at(0)
+
+        socket =
+          socket
+          |> assign(:demo_ui, Map.take(step, [:title, :desc]))
+          |> push_event("demo_highlight", %{selector: step.highlight})
+          |> assign(
+            :loading_pronunciation,
+            Map.put(socket.assigns.loading_pronunciation, user.id, "native")
+          )
+
+        send(self(), {:process_pronunciation, :native, user})
+        next_demo_step(socket, delay)
+
+      %{action: :select_overlap, delay_ms: delay} = step ->
+        a = 10 / 24
+        b = 14 / 24
+
+        socket
+        |> assign(:demo_ui, Map.take(step, [:title, :desc]))
+        |> push_event("demo_highlight", %{selector: step.highlight})
+        |> push_event("time_selection_set", %{a_frac: a, b_frac: b})
+        |> next_demo_step(delay)
+    end
+  end
+
   # Quick Actions Event Handlers
   @impl true
   def handle_event("toggle_quick_action", %{"action" => action, "user_id" => _user_id}, socket) do
     current_action = socket.assigns.expanded_action
     new_action = if current_action == action, do: nil, else: action
     {:noreply, assign(socket, expanded_action: new_action)}
+  end
+
+  # Demo overlay events
+  @impl true
+  def handle_event("demo_toggle", _params, socket) do
+    paused? = !(socket.assigns.demo_paused? || false)
+    socket = assign(socket, :demo_paused?, paused?)
+
+    # If resuming, schedule next step immediately
+    socket = if !paused?, do: schedule_demo_step(socket, 0), else: socket
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("demo_skip", _params, socket) do
+    {:noreply, next_demo_step(socket, 0)}
+  end
+
+  @impl true
+  def handle_event("demo_replay", _params, socket) do
+    socket =
+      socket
+      |> assign(:demo_step_index, 0)
+      |> assign(:demo_paused?, false)
+
+    {:noreply, schedule_demo_step(socket, 0)}
   end
 
   @impl true
@@ -284,6 +467,31 @@ defmodule ZonelyWeb.MapLive do
     <!-- Audio event hook for handling audio end events -->
     <div phx-hook="AudioHook" id="audio-hook" style="display: none;"></div>
 
+    <!-- Demo overlay controls -->
+    <div :if={@demo_on?} class="fixed top-4 right-4 z-[2000] w-96 rounded-lg bg-white/95 shadow-lg border border-gray-200 p-4 space-y-3" data-testid="demo-overlay">
+      <div class="text-sm font-semibold text-gray-800">
+        <%= @demo_ui && @demo_ui.title || "Guided Demo" %>
+      </div>
+      <div class="text-sm text-gray-600">
+        <%= @demo_ui && @demo_ui.desc || "Walkthrough of the map and overlap features" %>
+      </div>
+      <!-- Progress -->
+      <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          class="h-full bg-indigo-500 transition-all"
+          style={"width: #{Float.round(((min(@demo_step_index || 0, length(demo_steps()) - 1)) / max(length(demo_steps()) - 1, 1)) * 100.0, 1)}%"}
+        ></div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button phx-click="demo_toggle" class={["px-2 py-1 rounded text-xs", @demo_paused? && "bg-emerald-600 text-white" || "bg-gray-800 text-white"]} data-testid="demo-toggle">
+          <%= @demo_paused? && "Resume" || "Pause" %>
+        </button>
+        <button phx-click="demo_skip" class="px-2 py-1 rounded bg-gray-200 text-xs" data-testid="demo-skip">Skip</button>
+        <button phx-click="demo_replay" class="px-2 py-1 rounded bg-gray-200 text-xs" data-testid="demo-replay">Replay</button>
+      </div>
+      <div class="text-[11px] text-gray-400">Tip: You can move your mouse; the demo will continue.</div>
+    </div>
+
     <div class="fixed left-0 top-16 w-full h-[calc(100vh-4rem)] z-10">
       <!-- MapLibre GL JS Map Container -->
       <div
@@ -295,6 +503,13 @@ defmodule ZonelyWeb.MapLive do
         data-users={users_to_json(@users)}
         data-testid="team-map"
       >
+      </div>
+
+      <!-- Start Demo button (visible when demo not active) -->
+      <div :if={!@demo_on?} class="absolute top-4 right-4 z-[1500]">
+        <button phx-click="start_demo" class="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm shadow" data-testid="start-demo">
+          Start Demo
+        </button>
       </div>
 
       <!-- Profile Modal -->

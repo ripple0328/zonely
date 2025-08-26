@@ -47,6 +47,11 @@
       .footer{margin-top:18px;display:flex;gap:10px;justify-content:space-between;align-items:center}
       .muted{color:var(--muted)}
       .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+      /* Stylish copy button */
+      #share{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:none;border-radius:999px;background:#4f46e5;color:#fff;box-shadow:0 10px 20px rgba(79,70,229,.25);font-weight:600}
+      #share:hover{background:#4338ca}
+      #share:active{transform:translateY(1px)}
+      #share .icon{width:16px;height:16px}
       /* Mobile tweaks */
       @media (max-width: 640px){
         .wrap{padding:16px}
@@ -170,14 +175,17 @@
             <p><strong>Why sometimes only first name</strong>: if a full name isn’t found but a real voice for the first name is, we play the first name. If only the last name is found, we don’t mix it with AI for consistency—so we fall back instead.</p>
             <p><strong>Why it can be slow</strong>: the first time we search multiple providers; next time it’s fast from cache.</p>
             <p><strong>Different voices</strong>: crowd‑sourced data often has first/last names recorded by different people. We prefer real first‑name audio over mixing last‑name + AI in one playback.</p>
+            <p><strong>Privacy & sharing</strong>: we do not store your list on our servers. Names and languages are encoded in the page URL, so you can bookmark it or share the link to share your list.</p>
           </div>
         </div>
 
         <div class="footer">
-          <div class="muted">Bookmark this page to save your list.</div>
+          <div class="muted">Bookmark to save your list or share with others.</div>
           <div>
-            <button id="share">Copy link</button>
-            <a id="demo" href="#" target="_blank" rel="noopener" style="margin-left:8px; text-decoration:underline; cursor:pointer">Demo</a>
+            <button id="share" aria-label="Copy shareable link">
+              <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13 7H7a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2ZM5 9a2 2 0 0 1 2-2h.5V6A2.5 2.5 0 0 1 10 3.5h0A2.5 2.5 0 0 1 12.5 6v1H13a2 2 0 0 1 2 2" fill-opacity=".15"/><path d="M7.5 6V6A2.5 2.5 0 0 1 10 3.5h0A2.5 2.5 0 0 1 12.5 6V7H7.5V6Z"/></svg>
+              <span class="label">Copy link</span>
+            </button>
           </div>
         </div>
       </div>
@@ -258,7 +266,7 @@
         return url.toString();
       }
 
-      // Initialize demo link href on load
+      // footer demo link removed; keep fallback for cached pages
       if (demoEl) {
         demoEl.href = buildDemoUrl();
       }
@@ -382,6 +390,8 @@
         refreshURL();
       }
 
+      let currentPill = null;
+
       function setPillState(pill, state){
         pill.classList.remove('playing','loading','playing-user','playing-robot','animate');
         const icon = pill.querySelector('svg');
@@ -402,6 +412,14 @@
       }
 
       function resetPillState(pill){ setPillState(pill, 'idle'); }
+
+      function stopAllPronunciations(){
+        try { audio.pause(); audio.currentTime = 0; } catch(_){ }
+        try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(_){ }
+        document.querySelectorAll('.pill.playing-user, .pill.playing-robot, .pill.loading')
+          .forEach(p => setPillState(p, 'idle'));
+        currentPill = null;
+      }
 
       function attachItemEvents(item){
         item.querySelectorAll('.pill').forEach(pill => {
@@ -437,9 +455,8 @@
             const lang = pill.dataset.lang;
             const text = pill.dataset.text || name;
             setPillState(pill, 'loading');
-            // Ensure any previous playback is stopped before starting a new one
-            try { audio.pause(); audio.currentTime = 0; } catch(_) {}
-            try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(_) {}
+            // Ensure any previous playback is stopped and UI reset before starting a new one
+            stopAllPronunciations();
             const base = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0,-1) : window.location.pathname;
             const api = base.endsWith('/name') ? '/name/api/pronounce' : '/api/pronounce';
             const url = new URL(api, window.location.origin);
@@ -449,8 +466,8 @@
             const data = await res.json();
             if(data.type === 'audio' || data.type === 'tts_audio'){
               audio.src = data.url;
-              audio.onended = () => resetPillState(pill);
-              audio.onerror = () => resetPillState(pill);
+              audio.onended = () => { resetPillState(pill); if(currentPill===pill) currentPill=null; };
+              audio.onerror = () => { resetPillState(pill); if(currentPill===pill) currentPill=null; };
               try {
                 const playPromise = audio.play();
                 if (playPromise && typeof playPromise.then === 'function') {
@@ -459,6 +476,7 @@
                       console.error('Audio play error', err);
                     }
                     resetPillState(pill);
+                    if(currentPill===pill) currentPill=null;
                   });
                 }
               } catch (err) {
@@ -466,13 +484,15 @@
                   console.error('Audio play threw', err);
                 }
                 resetPillState(pill);
+                if(currentPill===pill) currentPill=null;
               }
               setPillState(pill, data.type === 'audio' ? 'playing-user' : 'playing-robot');
+              currentPill = pill;
             }else if(data.type === 'sequence'){
               const urls = data.urls || [];
               let idx = 0;
               const playNext = () => {
-                if(idx >= urls.length){ resetPillState(pill); return; }
+                if(idx >= urls.length){ resetPillState(pill); if(currentPill===pill) currentPill=null; return; }
                 audio.src = urls[idx++];
                 audio.onended = playNext;
                 audio.onerror = playNext;
@@ -480,16 +500,18 @@
               };
               setPillState(pill, 'playing-user');
               playNext();
+              currentPill = pill;
             }else if(data.type === 'tts'){
               // Stop audio first in case it was playing
               try { audio.pause(); audio.currentTime = 0; } catch(_) {}
               const u = new SpeechSynthesisUtterance(data.text);
               u.lang = data.lang;
-              u.onend = () => resetPillState(pill);
-              u.onerror = () => resetPillState(pill);
+              u.onend = () => { resetPillState(pill); if(currentPill===pill) currentPill=null; };
+              u.onerror = () => { resetPillState(pill); if(currentPill===pill) currentPill=null; };
               speechSynthesis.cancel();
               speechSynthesis.speak(u);
               setPillState(pill, 'playing-robot');
+              currentPill = pill;
             }
           });
         });
@@ -514,8 +536,8 @@
         const url = (shareEl && shareEl.dataset.url) ? shareEl.dataset.url : window.location.href;
         try{
           await navigator.clipboard.writeText(url);
-          shareEl.textContent = 'Copied';
-          setTimeout(()=> shareEl.textContent = 'Copy link', 1200);
+          const lbl = shareEl.querySelector('.label');
+          if(lbl){ lbl.textContent = 'Copied'; setTimeout(()=> lbl.textContent = 'Copy link', 1200); }
         }catch(_){
           prompt('Copy link', url);
         }
@@ -534,15 +556,243 @@
         });
       })();
 
-      demoEl.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const demoUrl = buildDemoUrl();
-        demoEl.href = demoUrl;
-        window.open(demoUrl, '_blank', 'noopener');
-      });
+      // footer demo link removed
+      // demoEl.addEventListener('click', async (e) => {
+      //   e.preventDefault();
+      //   const demoUrl = buildDemoUrl();
+      //   demoEl.href = demoUrl;
+      //   window.open(demoUrl, '_blank', 'noopener');
+      // });
+      // ... if demoEl exists in cached HTML; otherwise no-op
 
       // Attach existing items
       document.querySelectorAll('.item').forEach(attachItemEvents);
+
+      // --- Guided Demo Overlay ---
+      (function(){
+        const guided = null; // legacy link removed; use banner CTA instead
+        const HIDE_KEY = 'hide_name_guided_demo';
+        const SEEN_KEY = 'seen_name_guided_demo';
+        const BASE = 1.4; // slow down steps slightly for clarity
+
+        function makeOverlay(){
+          const wrap = document.createElement('div');
+          wrap.id = 'guide-overlay';
+          wrap.style.position = 'sticky';
+          wrap.style.top = '8px';
+          wrap.style.zIndex = '3000';
+          wrap.style.width = '100%';
+          wrap.style.maxWidth = '720px';
+          wrap.style.background = '#ffffff';
+          wrap.style.border = '1px solid #e5e7eb';
+          wrap.style.borderRadius = '12px';
+          wrap.style.boxShadow = '0 18px 36px rgba(0,0,0,0.18)';
+          wrap.style.padding = '12px';
+          wrap.innerHTML = `
+            <div style="font-weight:600; font-size:14px; color:#111827" id="guide-title">Guided Demo</div>
+            <div style="font-size:13px; color:#4b5563; margin-top:6px" id="guide-desc">Follow along</div>
+            <div style="height:6px; background:#f3f4f6; border-radius:999px; overflow:hidden; margin:8px 0 10px">
+              <div id="guide-progress" style="height:100%; width:0%; background:#6366f1; transition:width .25s"></div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap">
+              <button id="guide-toggle" style="padding:6px 10px; border-radius:8px; background:#111827; color:#ffffff; font-size:12px">Pause</button>
+              <button id="guide-skip" style="padding:6px 10px; border-radius:8px; background:#374151; color:#ffffff; font-size:12px">Skip</button>
+              <button id="guide-replay" style="padding:6px 10px; border-radius:8px; background:#374151; color:#ffffff; font-size:12px">Replay</button>
+            </div>
+          `;
+          const container = document.querySelector('.wrap') || document.body;
+          container.insertBefore(wrap, container.children[1] || null);
+
+          // Highlight box
+          const hi = document.createElement('div');
+          hi.id = 'guide-highlight';
+          hi.style.position = 'fixed';
+          hi.style.border = '3px solid #6366f1';
+          hi.style.borderRadius = '10px';
+          hi.style.boxShadow = '0 0 0 9999px rgba(0,0,0,0.35)';
+          hi.style.pointerEvents = 'none';
+          hi.style.zIndex = '2999';
+          hi.style.display = 'none';
+          document.body.appendChild(hi);
+          return wrap;
+        }
+
+        function setHighlight(selector){
+          const hi = document.getElementById('guide-highlight');
+          if(!hi) return;
+          const el = selector && document.querySelector(selector);
+          if(!el){ hi.style.display='none'; return; }
+          const r = el.getBoundingClientRect();
+          hi.style.left = (r.left - 8) + 'px';
+          hi.style.top = (r.top - 8) + 'px';
+          hi.style.width = (r.width + 16) + 'px';
+          hi.style.height = (r.height + 16) + 'px';
+          hi.style.display = 'block';
+        }
+
+        function typeInto(input, text, onDone){
+          try{ input.focus(); }catch(_){ }
+          input.value = '';
+          let i = 0;
+          function tick(){
+            if(i <= text.length){ input.value = text.slice(0, i++); setTimeout(tick, 40); }
+            else { onDone && onDone(); }
+          }
+          tick();
+        }
+
+        function progress(stepIdx, total){
+          const bar = document.getElementById('guide-progress');
+          if(bar){ bar.style.width = Math.min(100, Math.round(stepIdx / Math.max(1,total-1) * 100)) + '%'; }
+        }
+
+        const steps = [
+          { title: 'Enter English name', desc: 'Type the English rendering of the name', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ming Wang', res)), delay: 400 },
+          { title: 'Choose language', desc: 'Pick the language for this text (English)', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 400 },
+          { title: 'Enter native name', desc: 'Now type the native script name', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, '王明', res)), delay: 400 },
+          { title: 'Choose native language', desc: 'Set the correct native language', selector: '#lang_zh', run: async () => { langZhEl.value = 'zh-CN'; }, delay: 400 },
+          { title: 'Add to list', desc: 'Click Add to create the entry', selector: '#add', run: async () => { addEl.click(); }, delay: 600 },
+          { title: 'Play English pronunciation', desc: 'Click to hear the English version', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1500 },
+          { title: 'Play native pronunciation', desc: 'Now the native version', selector: '.item:last-of-type .pill[data-lang="zh-CN"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="zh-CN"]'); if(p) p.click(); }, delay: 1500 },
+          { title: 'Add another name', desc: 'Repeat: another row with two languages', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ana Garcia', res)), delay: 300 },
+          { title: 'Set English', desc: 'Keep English here', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 200 },
+          { title: 'Enter native', desc: 'Use accents in native language', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, 'Ana García', res)), delay: 300 },
+          { title: 'Set Spanish', desc: 'Choose Español for native', selector: '#lang_zh', run: async () => { langZhEl.value = 'es-ES'; }, delay: 200 },
+          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 600 },
+          { title: 'Play Spanish', desc: 'Play native (Spanish) pronunciation', selector: '.item:last-of-type .pill[data-lang="es-ES"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="es-ES"]'); if(p) p.click(); }, delay: 1500 },
+          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1500 },
+          // Hindi name
+          { title: 'Add Hindi example', desc: 'Type English rendering', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ravi Kumar', res)), delay: 400 },
+          { title: 'Keep English', desc: 'English text is set', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 300 },
+          { title: 'Type native Hindi', desc: 'Use Devanagari script', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, 'रवि कुमार', res)), delay: 400 },
+          { title: 'Choose Hindi', desc: 'Set native language to Hindi', selector: '#lang_zh', run: async () => { langZhEl.value = 'hi-IN'; }, delay: 300 },
+          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 700 },
+          { title: 'Play Hindi', desc: 'Play native Hindi pronunciation', selector: '.item:last-of-type .pill[data-lang="hi-IN"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="hi-IN"]'); if(p) p.click(); }, delay: 1600 },
+          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1600 },
+          // Arabic name
+          { title: 'Add Arabic example', desc: 'Type English rendering', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ahmed Ali', res)), delay: 400 },
+          { title: 'Keep English', desc: 'English text is set', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 300 },
+          { title: 'Type native Arabic', desc: 'Use Arabic script', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, 'أحمد علي', res)), delay: 400 },
+          { title: 'Choose Arabic', desc: 'Set native language to Arabic', selector: '#lang_zh', run: async () => { langZhEl.value = 'ar-SA'; }, delay: 300 },
+          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 700 },
+          { title: 'Play Arabic', desc: 'Play native Arabic pronunciation', selector: '.item:last-of-type .pill[data-lang="ar-SA"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="ar-SA"]'); if(p) p.click(); }, delay: 1600 },
+          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1600 },
+          // Japanese name
+          { title: 'Add Japanese example', desc: 'Type English rendering', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Yuki Tanaka', res)), delay: 400 },
+          { title: 'Keep English', desc: 'English text is set', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 300 },
+          { title: 'Type native Japanese', desc: 'Use Japanese script', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, '田中 友紀', res)), delay: 400 },
+          { title: 'Choose Japanese', desc: 'Set native language to Japanese', selector: '#lang_zh', run: async () => { langZhEl.value = 'ja-JP'; }, delay: 300 },
+          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 700 },
+          { title: 'Play Japanese', desc: 'Play native Japanese pronunciation', selector: '.item:last-of-type .pill[data-lang="ja-JP"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="ja-JP"]'); if(p) p.click(); }, delay: 1600 },
+          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1600 },
+          { title: 'That’s it', desc: 'You can add more rows and copy link to share.', selector: '.footer', run: async () => {}, delay: 1200 }
+        ];
+
+        let stepIndex = 0, paused = false, timer = null;
+
+        async function runStep(){
+          if(paused) return;
+          const step = steps[stepIndex];
+          if(!step){ finish(); return; }
+          document.getElementById('guide-title').textContent = step.title;
+          document.getElementById('guide-desc').textContent = step.desc;
+          progress(stepIndex, steps.length);
+          setHighlight(step.selector);
+          try { await step.run(); } catch(_){ }
+          timer = setTimeout(()=>{ stepIndex += 1; runStep(); }, Math.round((step.delay || 800) * BASE));
+        }
+
+        function start(){
+          if(!document.getElementById('guide-overlay')) makeOverlay();
+          stepIndex = 0; paused = false; clearTimeout(timer); runStep();
+          try{ localStorage.setItem(SEEN_KEY, '1'); }catch(_){ }
+          const cta = document.getElementById('guide-cta'); if(cta) cta.remove();
+          const t = document.getElementById('guide-toggle');
+          const s = document.getElementById('guide-skip');
+          const r = document.getElementById('guide-replay');
+          if(t){ t.onclick = ()=>{ paused = !paused; t.textContent = paused ? 'Resume' : 'Pause'; if(!paused) runStep(); else clearTimeout(timer); }; }
+          if(s){ s.onclick = ()=>{ clearTimeout(timer); stepIndex += 1; runStep(); }; }
+          if(r){ r.onclick = ()=>{ clearTimeout(timer); stepIndex = 0; paused = false; document.getElementById('guide-toggle').textContent = 'Pause'; runStep(); }; }
+        }
+
+        function finish(){
+          // Ask whether to remove demo permanently
+          const ov = document.getElementById('guide-overlay'); if(!ov) return;
+          const title = document.getElementById('guide-title');
+          const desc = document.getElementById('guide-desc');
+          if(title) title.textContent = 'Demo complete';
+          if(desc) desc.textContent = 'Would you like to hide the guided demo from this page?';
+          const bar = document.getElementById('guide-progress'); if(bar) bar.style.width = '100%';
+          const actions = document.createElement('div');
+          actions.style.display = 'flex';
+          actions.style.gap = '6px';
+          actions.style.marginTop = '8px';
+          actions.innerHTML = `
+            <button id="guide-remove" style="padding:6px 10px; border-radius:8px; background:#dc2626; color:#ffffff; font-size:12px">Remove</button>
+            <button id="guide-keep" style="padding:6px 10px; border-radius:8px; background:#10b981; color:#ffffff; font-size:12px">Keep</button>
+          `;
+          ov.appendChild(actions);
+          const rm = document.getElementById('guide-remove');
+          const kp = document.getElementById('guide-keep');
+          if(rm){ rm.onclick = ()=>{ try{ localStorage.setItem(HIDE_KEY, '1'); }catch(_){ } const cta = document.getElementById('guide-cta'); if(cta) cta.remove(); ov.remove(); const hi = document.getElementById('guide-highlight'); if(hi) hi.remove(); }; }
+          if(kp){ kp.onclick = ()=>{ ov.remove(); const hi = document.getElementById('guide-highlight'); if(hi) hi.remove(); showCTA(); }; }
+        }
+
+        function cleanup(){
+          const hi = document.getElementById('guide-highlight'); if(hi) hi.remove();
+          const ov = document.getElementById('guide-overlay'); if(ov) ov.remove();
+        }
+
+        function showCTA(){
+          try{ if(localStorage.getItem(HIDE_KEY) === '1') return; }catch(_){ }
+          if(document.getElementById('guide-cta')) return;
+          const banner = document.createElement('div');
+          banner.id = 'guide-cta';
+          banner.style.margin = '8px 0 12px';
+          banner.style.padding = '10px 12px';
+          banner.style.border = '1px solid #c7d2fe';
+          banner.style.background = '#eef2ff';
+          banner.style.borderRadius = '10px';
+          banner.style.display = 'flex';
+          banner.style.justifyContent = 'space-between';
+          banner.style.alignItems = 'center';
+          banner.style.gap = '8px';
+          banner.innerHTML = `
+            <div style="font-size:13px; color:#3730a3; font-weight:600">Try the guided demo</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap">
+              <button id="guide-start" style="padding:6px 10px; border-radius:8px; background:#4f46e5; color:#ffffff; font-size:12px; border:none">Start</button>
+              <button id="guide-dismiss" style="padding:6px 10px; border-radius:8px; background:#e0e7ff; color:#3730a3; font-size:12px; border:1px solid #c7d2fe">Dismiss</button>
+            </div>
+          `;
+          const container = document.querySelector('.wrap');
+          if(container){ container.insertBefore(banner, container.querySelector('.card') || container.firstChild); }
+          const startBtn = banner.querySelector('#guide-start');
+          const dismissBtn = banner.querySelector('#guide-dismiss');
+          if(startBtn){ startBtn.onclick = ()=> start(); }
+          if(dismissBtn){ dismissBtn.onclick = ()=> { try{ localStorage.setItem(HIDE_KEY, '1'); }catch(_){ } banner.remove(); } }
+        }
+
+        // legacy guided link removed
+        try {
+          const u = new URL(window.location.href);
+          if(u.searchParams.get('guide') === '1'){ start(); }
+          else {
+            // First visit hint: show CTA if not hidden
+            if(!localStorage.getItem(SEEN_KEY) && !localStorage.getItem(HIDE_KEY)){
+              showCTA();
+            }
+          }
+        } catch(_){ showCTA(); }
+
+        // When script finishes all steps (no more step), call finish
+        const _origRunStep = runStep;
+        runStep = async function(){
+          if(paused) return;
+          const step = steps[stepIndex];
+          if(!step){ finish(); return; }
+          await _origRunStep();
+        }
+      })();
     </script>
   </body>
   </html>

@@ -87,6 +87,61 @@ const TeamMap = {
         })
       })
     })
+
+    // Server-driven demo: open timezone popup at coordinates
+    this.handleEvent('open_tz_popup', ({ tzid, lat, lng }) => {
+      try {
+        const offsetHours = this.resolveOffsetHours(tzid, {})
+        const { timeStr, dateStr } = this.formatTimeAndDate(tzid, offsetHours)
+        const displayName = this.friendlyZoneName(tzid, offsetHours)
+        const theme = this.isDaytimeInZone(tzid, offsetHours) ? 'tzp-light' : 'tzp-dark'
+        const popup = new maplibregl.Popup({ className: 'tz-popup', closeButton: false, closeOnMove: true, offset: 18, maxWidth: '320px' })
+          .setLngLat([lng, lat])
+          .setHTML(this.renderPopup({ theme, flag: '', displayName, timeStr, dateStr, rel: '', weekend: this.isWeekendInZone(tzid, offsetHours) }))
+          .addTo(this.map)
+        const el = popup.getElement()
+        const btn = el && el.querySelector('.tzp-close')
+        if (btn) btn.onclick = () => popup.remove()
+      } catch (e) {
+        console.warn('Failed to open tz popup', e)
+      }
+    })
+
+    // Server-driven highlight: dims page and outlines a target selector
+    this.handleEvent('demo_highlight', ({ selector }) => {
+      try {
+        // Remove any existing overlay
+        document.getElementById('demo-overlay')?.remove()
+        const target = document.querySelector(selector)
+        const overlay = document.createElement('div')
+        overlay.id = 'demo-overlay'
+        overlay.style.position = 'fixed'
+        overlay.style.inset = '0'
+        overlay.style.background = 'rgba(0,0,0,0.35)'
+        overlay.style.zIndex = '999'
+        overlay.style.pointerEvents = 'none'
+        document.body.appendChild(overlay)
+
+        if (target) {
+          const rect = target.getBoundingClientRect()
+          const highlight = document.createElement('div')
+          highlight.style.position = 'fixed'
+          highlight.style.left = `${rect.left - 8}px`
+          highlight.style.top = `${rect.top - 8}px`
+          highlight.style.width = `${rect.width + 16}px`
+          highlight.style.height = `${rect.height + 16}px`
+          highlight.style.border = '4px solid #6366f1'
+          highlight.style.borderRadius = '10px'
+          highlight.style.boxShadow = '0 0 0 9999px rgba(0,0,0,0.35)'
+          highlight.style.pointerEvents = 'none'
+          highlight.style.zIndex = '1000'
+          highlight.id = 'demo-highlight'
+          document.body.appendChild(highlight)
+        }
+      } catch (e) {
+        console.warn('Failed to apply demo highlight', e)
+      }
+    })
   },
 
   async addTimezoneOverlay(map) {

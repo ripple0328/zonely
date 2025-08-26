@@ -55,6 +55,7 @@ defmodule ZonelyWeb.Router do
     # Serve runtime-cached audio safely
     get("/audio-cache/:filename", AudioCacheController, :show)
 
+    live("/demo", DemoLive)
     live("/directory", DirectoryLive)
     live("/work-hours", WorkHoursLive)
     live("/holidays", HolidaysLive)
