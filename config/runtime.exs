@@ -57,6 +57,18 @@ if config_env() == :prod do
         "https://zonely-cache.s3.amazonaws.com",
     s3_endpoint: System.get_env("AWS_S3_ENDPOINT")
 
+  # Provider race timeout override (ms)
+  provider_race_timeout =
+    case System.get_env("PROVIDER_RACE_TIMEOUT_MS") do
+      nil -> nil
+      "" -> nil
+      val -> String.to_integer(val)
+    end
+
+  if provider_race_timeout do
+    config :zonely, :provider_race_timeout_ms, provider_race_timeout
+  end
+
   # MapTiler configuration
   config :zonely, :maptiler,
     api_key: System.get_env("MAPTILER_API_KEY") || "demo_key_get_your_own_at_maptiler_com"

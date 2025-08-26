@@ -170,17 +170,79 @@ defmodule Zonely.PronunceName do
   @spec try_single_name_with_providers(String.t(), String.t(), String.t()) ::
           {:ok, String.t()} | {:error, atom()}
   defp try_single_name_with_providers(variant, language, original_name) do
-    # Try NameShouts first
-    case Zonely.PronunceName.Providers.NameShouts.fetch_single(variant, language, original_name) do
-      {:ok, audio_url} ->
-        {:ok, audio_url}
+    # Race providers in parallel and return the first success
+    race_timeout_ms = Application.get_env(:zonely, :provider_race_timeout_ms, 1500)
 
-      {:error, _} ->
-        # Try Forvo as fallback
-        case Zonely.PronunceName.Providers.Forvo.fetch_single(variant, language, original_name) do
-          {:ok, audio_url} -> {:ok, audio_url}
-          {:error, reason} -> {:error, reason}
-        end
+    providers = [
+      {:name_shouts, fn ->
+         Zonely.PronunceName.Providers.NameShouts.fetch_single(variant, language, original_name)
+       end},
+      {:forvo, fn ->
+         Zonely.PronunceName.Providers.Forvo.fetch_single(variant, language, original_name)
+       end}
+    ]
+
+    result =
+      providers
+      |> Task.async_stream(
+        fn {tag, fun} ->
+          started_ms = System.monotonic_time(:millisecond)
+          value = fun.()
+          duration_ms = System.monotonic_time(:millisecond) - started_ms
+          {tag, duration_ms, value}
+        end,
+        ordered: false,
+        timeout: race_timeout_ms,
+        max_concurrency: 2,
+        on_timeout: :kill_task
+      )
+      |> Enum.reduce_while(%{ns: nil, fv: nil}, fn
+        {:ok, {:name_shouts, duration_ms, {:ok, {:sequence, _} = seq}}}, _acc ->
+          Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
+          {:halt, {:ok, seq}}
+
+        {:ok, {:name_shouts, duration_ms, {:ok, url}}}, _acc when is_binary(url) ->
+          Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)}")
+          {:halt, {:ok, url}}
+
+        {:ok, {:forvo, duration_ms, {:ok, {:sequence, _} = seq}}}, acc ->
+          Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
+          {:cont, %{acc | fv: {:ok, seq}}}
+
+        {:ok, {:forvo, duration_ms, {:ok, url}}}, acc when is_binary(url) ->
+          Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)}")
+          {:cont, %{acc | fv: {:ok, url}}}
+
+        {:ok, {tag, duration_ms, {:error, reason}}}, acc ->
+          Logger.info("⏭ Provider #{inspect(tag)} failed in #{duration_ms}ms (#{inspect(reason)}) for #{inspect(variant)}")
+          {:cont, acc}
+
+        {:exit, reason}, acc ->
+          Logger.warning("⛔ Provider task exited: #{inspect(reason)} for #{inspect(variant)}")
+          {:cont, acc}
+      end)
+
+    case result do
+      {:ok, {:sequence, _} = seq} ->
+        {:ok, seq}
+
+      {:ok, url} when is_binary(url) ->
+        {:ok, url}
+
+      %{ns: {:ok, {:sequence, _} = seq}} ->
+        {:ok, seq}
+
+      %{ns: {:ok, url}} when is_binary(url) ->
+        {:ok, url}
+
+      %{fv: {:ok, {:sequence, _} = seq}} ->
+        {:ok, seq}
+
+      %{fv: {:ok, url}} when is_binary(url) ->
+        {:ok, url}
+
+      _ ->
+        {:error, :not_found}
     end
   end
 
