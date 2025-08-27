@@ -430,13 +430,7 @@ final class PronounceService {
     }
 
     private func currentBaseURL() -> String {
-        // Heuristics similar to web: supports /name path when running under that path
-        // For device builds, point to production hostname; override for local testing as needed.
-        #if DEBUG
-        return "http://studio:4000" // adjust if using device
-        #else
-        return "https://name.qingbo.us"
-        #endif
+        return AppConfig.baseURL
     }
 }
 
@@ -574,11 +568,7 @@ enum DeepLinkBuilder {
         }
         let data = try? JSONSerialization.data(withJSONObject: payload)
         let base64 = (data?.base64EncodedString() ?? "").replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
-        #if DEBUG
-        let base = "http://localhost:4000"
-        #else
-        let base = "https://name.qingbo.us"
-        #endif
+        let base = AppConfig.baseURL
         var comps = URLComponents(string: base)!
         comps.queryItems = [URLQueryItem(name: "s", value: base64)]
         return comps.url ?? URL(string: base)!
