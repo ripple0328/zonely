@@ -5,16 +5,11 @@ const TeamMap = {
   mounted() {
     console.log('TeamMap hook mounted!')
 
-    // Inform LiveView of the viewer's IANA timezone for correct overlap calculations
+    // Store initial timezone info - will calculate offset properly after map loads
     try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Etc/UTC'
-      this.viewerTz = tz
-      this.viewerOffsetHours = -new Date().getTimezoneOffset() / 60
-      this.pushEvent('set_viewer_tz', { tz })
+      this.viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Etc/UTC'
     } catch (_e) {
       this.viewerTz = 'Etc/UTC'
-      this.viewerOffsetHours = 0
-      this.pushEvent('set_viewer_tz', { tz: 'Etc/UTC' })
     }
 
     // Ensure custom popup styles are present
@@ -55,6 +50,12 @@ const TeamMap = {
     }
 
     map.on('load', () => {
+      // Now that all methods are available, properly calculate viewer offset
+      this.viewerOffsetHours = this.resolveOffsetHours(this.viewerTz, {})
+      
+      // Inform LiveView of the viewer's timezone
+      this.pushEvent('set_viewer_tz', { tz: this.viewerTz })
+      
       // Add timezone overlay with hover highlight
       this.addTimezoneOverlay(map)
       // Add day/night sunlight overlay
@@ -280,7 +281,7 @@ const TeamMap = {
         const displayName = baseName && baseName.length > 1 ? baseName : this.friendlyZoneName(tzid, offsetHours)
         const flag = this.flagFromProps(props) || this.flagFromTzid(tzid)
         const { timeStr, dateStr } = this.formatTimeAndDate(tzid, offsetHours)
-        const rel = this.relativeToViewer(offsetHours)
+        const rel = this.relativeToViewer(offsetHours, tzid)
         const weekend = this.isWeekendInZone(tzid, offsetHours)
         const isDay = this.isDaytimeInZone(tzid, offsetHours)
 
@@ -509,6 +510,16 @@ const TeamMap = {
 
   // Presentational helpers to match previous popup styling/content
   resolveOffsetHours(tzid, props) {
+    // Handle UTC±XX:XX format - use literal offset values
+    if (typeof tzid === 'string' && tzid.match(/^UTC[+-]\d{2}:\d{2}$/)) {
+      const m = tzid.match(/^UTC([+-])(\d{2}):(\d{2})$/)
+      if (m) {
+        const sign = m[1] === '-' ? -1 : 1
+        const standardOffset = sign * (parseInt(m[2], 10) + parseInt(m[3], 10) / 60)
+        return standardOffset
+      }
+    }
+    
     // Try IANA with formatToParts to get offset; fallback to parsing
     try {
       const fmt = new Intl.DateTimeFormat('en-US', { timeZone: tzid, timeZoneName: 'shortOffset' })
@@ -517,10 +528,9 @@ const TeamMap = {
       if (tzPart && tzPart.value) {
         const m = tzPart.value.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/)
         if (m) {
-          const sign = m[1].startsWith('-') ? -1 : 1
-          const h = parseInt(m[1].replace('+', ''), 10)
+          const h = parseInt(m[1], 10)
           const mm = m[2] ? parseInt(m[2], 10) : 0
-          return sign * (h + mm / 60)
+          return h + (h >= 0 ? mm : -mm) / 60
         }
       }
     } catch (_) {}
@@ -560,14 +570,70 @@ const TeamMap = {
     }
   },
 
-  relativeToViewer(zoneOffset) {
-    if (zoneOffset == null || this.viewerOffsetHours == null) return ''
-    const diff = Math.round((zoneOffset - this.viewerOffsetHours) * 10) / 10
+  relativeToViewer(zoneOffset, clickedTzid) {
+    // Always get the current actual offset for both viewer and clicked timezone
+    const currentClickedOffset = this.getCurrentActualOffset(clickedTzid, zoneOffset)
+    const currentViewerOffset = this.getCurrentActualOffset(this.viewerTz, this.viewerOffsetHours)
+    
+    if (currentClickedOffset == null || currentViewerOffset == null) return ''
+    
+    const diff = Math.round((currentClickedOffset - currentViewerOffset) * 10) / 10
     if (diff === 0) return 'same time as you'
+    
     const abs = Math.abs(diff)
     const units = abs === Math.floor(abs) ? `${abs} hours` : `${Math.floor(abs)} hours ${Math.round((abs - Math.floor(abs)) * 60)} min`
     return `${diff > 0 ? '+' : '-'}${units} ${diff > 0 ? 'ahead' : 'behind'} of you`
   },
+
+  getCurrentActualOffset(tzid, fallbackOffset) {
+    // For IANA timezone IDs, get the current actual offset (accounts for DST)
+    try {
+      if (tzid && typeof tzid === 'string' && !tzid.match(/^UTC[+-]/)) {
+        const fmt = new Intl.DateTimeFormat('en-US', { timeZone: tzid, timeZoneName: 'shortOffset' })
+        const parts = fmt.formatToParts(new Date())
+        const tzPart = parts.find(p => p.type === 'timeZoneName')
+        if (tzPart && tzPart.value) {
+          const m = tzPart.value.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/)
+          if (m) {
+            const h = parseInt(m[1], 10)
+            const mm = m[2] ? parseInt(m[2], 10) : 0
+            return h + (h >= 0 ? mm : -mm) / 60
+          }
+        }
+      }
+    } catch (_) {}
+
+    // For UTC±XX:XX format, try to map to a representative IANA timezone
+    if (typeof tzid === 'string' && tzid.match(/^UTC[+-]\d{2}:\d{2}$/)) {
+      const m = tzid.match(/^UTC([+-])(\d{2}):(\d{2})$/)
+      if (m) {
+        const standardOffset = parseInt(m[1] + m[2], 10)
+        
+        // Map to representative IANA timezones that follow DST rules
+        const offsetToTimezone = {
+          '-8': 'America/Los_Angeles',  // Pacific Time
+          '-7': 'America/Denver',       // Mountain Time  
+          '-6': 'America/Chicago',      // Central Time
+          '-5': 'America/New_York',     // Eastern Time
+          '-4': 'America/Halifax',      // Atlantic Time
+          '0': 'Europe/London',         // GMT/BST
+          '1': 'Europe/Berlin',         // CET/CEST
+          '2': 'Europe/Athens'          // EET/EEST
+        }
+        
+        const representativeTz = offsetToTimezone[standardOffset.toString()]
+        if (representativeTz) {
+          return this.getCurrentActualOffset(representativeTz, fallbackOffset)
+        }
+        
+        // For timezones without DST, use literal offset
+        return standardOffset
+      }
+    }
+    
+    return fallbackOffset
+  },
+
 
   isWeekendInZone(tzid, offsetHours) {
     try {
