@@ -32,8 +32,8 @@ defmodule ZonelyWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
-  # Standalone minimal site served on name.qingbo.us (host-specific must be before generic "/" scopes)
-  scope "/", ZonelyWeb, host: "name.qingbo.us" do
+  # Standalone minimal site served on saymyname.qingbo.us (host-specific must be before generic "/" scopes)
+  scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
     pipe_through(:bare)
 
     get("/", NameSiteController, :index)

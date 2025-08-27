@@ -79,13 +79,13 @@ final class AppViewModel: ObservableObject {
                 switch outcome {
                 case .audio(let url):
                     providerKinds[item.id] = .human
-                    try await audio.play(url: url)
+                    try await audio.play(url: url, lang: item.bcp47)
                 case .ttsAudio(let url):
                     providerKinds[item.id] = .tts
-                    try await audio.play(url: url)
+                    try await audio.play(url: url, lang: item.bcp47)
                 case .sequence(let urls):
                     providerKinds[item.id] = .human
-                    try await audio.playSequence(urls: urls)
+                    try await audio.playSequence(urls: urls, lang: item.bcp47)
                 case .tts(let text, let lang):
                     providerKinds[item.id] = .tts
                     try await audio.speak(text: text, bcp47: lang)
@@ -104,6 +104,64 @@ final class AppViewModel: ObservableObject {
 
     func save() {
         persistence.store(entries)
+    }
+    
+    func loadFromDeepLink(url: URL) {
+        // Handle both custom scheme (saymyname://) and https://saymyname.qingbo.us
+        let queryItems: [URLQueryItem]?
+        
+        if url.scheme == "saymyname" {
+            // Custom scheme: saymyname://?s=...
+            queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        } else if url.host == AppConfig.websiteDomain {
+            // HTTPS: https://saymyname.qingbo.us/?s=...
+            queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        } else {
+            return
+        }
+        
+        guard let items = queryItems,
+              let sParam = items.first(where: { $0.name == "s" })?.value else {
+            return
+        }
+        
+        // Decode Base64 URL-safe encoding
+        let base64 = sParam
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        
+        // Add padding if needed
+        let paddedBase64 = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        
+        guard let data = Data(base64Encoded: paddedBase64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return
+        }
+        
+        // Parse the shared data structure
+        var newEntries: [NameEntry] = []
+        for item in json {
+            guard let name = item["name"] as? String,
+                  let entriesArray = item["entries"] as? [[String: String]] else {
+                continue
+            }
+            
+            var langItems: [LangItem] = []
+            for entry in entriesArray {
+                guard let lang = entry["lang"], let text = entry["text"] else { continue }
+                langItems.append(LangItem(bcp47: lang, text: text))
+            }
+            
+            if !langItems.isEmpty {
+                newEntries.append(NameEntry(displayName: name, items: langItems))
+            }
+        }
+        
+        // Replace current entries with shared ones
+        if !newEntries.isEmpty {
+            entries = newEntries
+            save()
+        }
     }
 }
 
@@ -234,15 +292,21 @@ struct ContentView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Text("Share your list")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            ShareLink(item: DeepLinkBuilder.url(for: vm.entries)) {
-                Label("Share", systemImage: "square.and.arrow.up")
+        VStack(spacing: 12) {
+            // Share section
+            HStack {
+                Text("Share your list")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                ShareLink(item: DeepLinkBuilder.url(for: vm.entries)) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
+            
+            // Cache management section
+            CacheManagementView()
         }
         .padding(12)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -435,7 +499,7 @@ final class PronounceService {
 }
 
 final class AudioCoordinator: NSObject {
-    private let cache = AudioCache()
+    private let cacheManager = AudioCacheManager.shared
     private var player: AVAudioPlayer?
     var onFinish: (() -> Void)?
     private var remainingInSequence: Int = 0
@@ -452,16 +516,44 @@ final class AudioCoordinator: NSObject {
         synth.delegate = self
     }
 
-    func play(url: URL) async throws {
-        let local = try await cache.file(for: url)
+    func play(url: URL, lang: String? = nil) async throws {
+        let local = try await getCachedOrDownload(url: url, lang: lang)
         guard isSupported(url: local) else { throw URLError(.cannotDecodeContentData) }
         try playLocal(url: local)
     }
+    
+    private func getCachedOrDownload(url: URL, lang: String? = nil) async throws -> URL {
+        let urlString = url.absoluteString
+        
+        print("🎵 AudioCoordinator: Checking cache for URL: \(urlString), lang: \(lang ?? "nil")")
+        
+        // Check if already cached
+        if let cachedData = cacheManager.getCachedAudio(for: urlString, lang: lang) {
+            print("✅ AudioCoordinator: Found cached audio (\(cachedData.count) bytes)")
+            // Save cached data to temporary file for AVAudioPlayer
+            let tempDir = FileManager.default.temporaryDirectory
+            let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".mp3")
+            try cachedData.write(to: tempFile)
+            return tempFile
+        }
+        
+        print("📥 AudioCoordinator: Cache miss, downloading from server")
+        // Download and cache
+        let (data, _) = try await URLSession.shared.data(from: url)
+        print("💾 AudioCoordinator: Downloaded \(data.count) bytes, caching for next time")
+        cacheManager.cacheAudio(data: data, for: urlString, lang: lang)
+        
+        // Save to temporary file for AVAudioPlayer
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".mp3")
+        try data.write(to: tempFile)
+        return tempFile
+    }
 
-    func playSequence(urls: [URL]) async throws {
+    func playSequence(urls: [URL], lang: String? = nil) async throws {
         remainingInSequence = urls.count
         for u in urls {
-            try await play(url: u)
+            try await play(url: u, lang: lang)
             // wait for completion of each item
             while let p = player, p.isPlaying { try await Task.sleep(nanoseconds: 50_000_000) }
         }
@@ -504,43 +596,14 @@ extension AudioCoordinator: AVSpeechSynthesizerDelegate {
     }
 }
 
-final class AudioCache {
-    private let fm = FileManager.default
-
-    func file(for remote: URL) async throws -> URL {
-        let cacheDir = try cacheDirectory()
-        let name = cacheKey(for: remote)
-        let local = cacheDir.appendingPathComponent(name)
-        if fm.fileExists(atPath: local.path) {
-            return local
-        }
-        let (data, _) = try await URLSession.shared.data(from: remote)
-        try data.write(to: local, options: .atomic)
-        return local
-    }
-
-    private func cacheDirectory() throws -> URL {
-        let base = try fm.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let dir = base.appendingPathComponent("SayMyNameCache", isDirectory: true)
-        if !fm.fileExists(atPath: dir.path) {
-            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-        return dir
-    }
-
-    private func cacheKey(for url: URL) -> String {
-        let s = url.absoluteString
-        return s.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: ":", with: "-")
-    }
-}
 
 enum LangCatalog {
     static let allCodes: [String] = [
-        "en-US","es-ES","fr-FR","de-DE","pt-BR","zh-CN","ja-JP","hi-IN","bn-IN","ta-IN","te-IN","mr-IN","gu-IN","kn-IN","ml-IN","pa-IN","ar-SA"
+        "en-US","zh-CN","es-ES","hi-IN","ar-SA","bn-IN","fr-FR","pt-BR","ja-JP","de-DE"
     ]
     static func displayName(_ code: String) -> String {
         [
-            "en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","pt-BR":"Português","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","ta-IN":"தமிழ்","te-IN":"తెలుగు","mr-IN":"मराठी","gu-IN":"ગુજરાતી","kn-IN":"ಕನ್ನಡ","ml-IN":"മലയാളം","pa-IN":"ਪੰਜਾਬੀ"
+            "en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","pt-BR":"Português","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা",
         ][code] ?? code
     }
 }
@@ -572,6 +635,44 @@ enum DeepLinkBuilder {
         var comps = URLComponents(string: base)!
         comps.queryItems = [URLQueryItem(name: "s", value: base64)]
         return comps.url ?? URL(string: base)!
+    }
+}
+
+struct CacheManagementView: View {
+    @ObservedObject private var cacheManager = AudioCacheManager.shared
+    @State private var showingClearAlert = false
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Audio Cache")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                
+                let cacheInfo = cacheManager.getCacheInfo()
+                Text("\(cacheInfo.count) files • \(cacheManager.formattedCacheSize())")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            
+            Spacer()
+            
+            if cacheManager.getCacheInfo().count > 0 {
+                Button("Clear Cache") {
+                    showingClearAlert = true
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+            }
+        }
+        .alert("Clear Audio Cache", isPresented: $showingClearAlert) {
+            Button("Clear", role: .destructive) {
+                cacheManager.clearAllCache()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will remove all cached audio files. They will be downloaded again when needed.")
+        }
     }
 }
 

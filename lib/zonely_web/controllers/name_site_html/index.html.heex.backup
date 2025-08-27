@@ -110,6 +110,13 @@
               <option value="ja-JP">日本語</option>
               <option value="hi-IN">हिन्दी</option>
               <option value="bn-IN">বাংলা</option>
+              <option value="ta-IN">தமிழ்</option>
+              <option value="te-IN">తెలుగు</option>
+              <option value="mr-IN">मराठी</option>
+              <option value="gu-IN">ગુજરાતી</option>
+              <option value="kn-IN">ಕನ್ನಡ</option>
+              <option value="ml-IN">മലയാളം</option>
+              <option value="pa-IN">ਪੰਜਾਬੀ</option>
               <option value="ar-SA">العربية</option>
             </select>
             <span aria-hidden="true" style="align-self:center;color:var(--muted);">—</span>
@@ -124,6 +131,13 @@
               <option value="ja-JP">日本語</option>
               <option value="hi-IN">हिन्दी</option>
               <option value="bn-IN">বাংলা</option>
+              <option value="ta-IN">தமிழ்</option>
+              <option value="te-IN">తెలుగు</option>
+              <option value="mr-IN">मराठी</option>
+              <option value="gu-IN">ગુજરાતી</option>
+              <option value="kn-IN">ಕನ್ನಡ</option>
+              <option value="ml-IN">മലയാളം</option>
+              <option value="pa-IN">ਪੰਜਾਬੀ</option>
               <option value="ar-SA">العربية</option>
             </select>
           </div>
@@ -306,7 +320,7 @@
       }
 
       function setNativeLabelEl(el, lang){
-        const map = {"en-US":"English","zh-CN":"中文","es-ES":"Español","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","fr-FR":"Français","pt-BR":"Português","ja-JP":"日本語","de-DE":"Deutsch"};
+        const map = {"en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","pt-BR":"Português","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","ta-IN":"தமிழ்","te-IN":"తెలుగు","mr-IN":"मराठी","gu-IN":"ગુજરાતી","kn-IN":"ಕನ್ನಡ","ml-IN":"മലയാളം","pa-IN":"ਪੰਜਾਬੀ"};
         const label = map[lang] || lang;
         el.textContent = label;
         const pill = el.closest('.pill');
