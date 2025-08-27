@@ -61,6 +61,12 @@ defmodule ZonelyWeb.Router do
     live("/holidays", HolidaysLive)
   end
 
+  # Public API fallback for local development (so native app can call /api/pronounce at root)
+  scope "/", ZonelyWeb do
+    pipe_through(:api)
+    get("/api/pronounce", NameSiteController, :pronounce)
+  end
+
   # Local development access at /name
   scope "/name", ZonelyWeb do
     pipe_through(:bare)
