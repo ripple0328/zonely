@@ -29,33 +29,9 @@
 		2A4DC8212E5C28AF00D27636 /* say my nameUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "say my nameUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		2A4DC83C2E5C292400D27636 /* Exceptions for "say my name" folder in "say my name" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				ContentViewswift,
-			);
-			target = 2A4DC8092E5C28AC00D27636 /* say my name */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		2A4DC83D2E5C292400D27636 /* Exceptions for "say my name" folder in "Compile Sources" phase from "say my name" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = 2A4DC8062E5C28AC00D27636 /* Sources */;
-			membershipExceptions = (
-				ContentViewswift,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2A4DC80C2E5C28AD00D27636 /* say my name */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				2A4DC83C2E5C292400D27636 /* Exceptions for "say my name" folder in "say my name" target */,
-				2A4DC83D2E5C292400D27636 /* Exceptions for "say my name" folder in "Compile Sources" phase from "say my name" target */,
-			);
 			path = "say my name";
 			sourceTree = "<group>";
 		};
@@ -415,10 +391,12 @@
 		2A4DC82C2E5C28AF00D27636 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "http://studio:4000";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = E9FM8NGZM2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -442,10 +420,12 @@
 		2A4DC82D2E5C28AF00D27636 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "https://name.qingbo.us";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = E9FM8NGZM2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
