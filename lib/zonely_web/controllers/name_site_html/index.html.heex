@@ -10,8 +10,10 @@
     <!-- Replace YOUR_APP_ID with actual App Store ID after app approval -->
     <meta name="apple-itunes-app" content="app-id=YOUR_APP_ID, app-argument=https://saymyname.qingbo.us/" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
-    <link rel="icon" type="image/svg+xml" href={~p"/favicon-saymyname.svg?v=2"} />
-    <link rel="icon" sizes="any" type="image/svg+xml" href={~p"/favicon-saymyname.svg?v=2"} />
+    <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg?v=3"} />
+    <link rel="icon" sizes="any" type="image/svg+xml" href={~p"/favicon.svg?v=3"} />
+    <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32x32.png?v=3"} />
+    <link rel="apple-touch-icon" sizes="180x180" href={~p"/apple-touch-icon.png?v=3"} />
     <style>
       :root{--bg:#ffffff;--fg:#0f172a;--muted:#64748b;--ring:#e2e8f0;--accent:#111827;--card:#f8fafc}
       @media (prefers-color-scheme: dark){:root{--bg:#0b0f17;--fg:#e5e7eb;--muted:#9ca3af;--ring:#111827;--accent:#e5e7eb;--card:#111827}}
@@ -85,12 +87,7 @@
     <div class="wrap">
       <div class="header">
         <div class="brand">
-          <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="24" cy="24" r="22" fill="#111827"/>
-            <path d="M12 19c3-6 10-9 16-7 6 2 10 8 10 14 0 7-5 12-12 12h-1" stroke="#FDE68A" stroke-width="2.5" stroke-linecap="round"/>
-            <circle cx="18" cy="21" r="2" fill="#FDE68A"/>
-            <path d="M18 28c3 0 5 2 6 5" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <img class="logo" src={~p"/favicon-32x32.png?v=3"} alt="Say my name" />
           <div class="title">Say my name</div>
         </div>
         <div></div>

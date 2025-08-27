@@ -177,7 +177,6 @@ struct ContentView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
-                    header
                     inputCard
                     list
                     footer
@@ -189,30 +188,20 @@ struct ContentView: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            Image(systemName: "waveform.circle.fill")
-                .font(.system(size: 28))
-                .foregroundStyle(.ultraThickMaterial)
-                .symbolRenderingMode(.hierarchical)
-            Text("Say my name")
-                .font(.headline)
-            Spacer()
-        }
-        .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.15)))
-    }
-
+    // header removed to maximize content space
     private var inputCard: some View {
         VStack(spacing: 12) {
             HStack(spacing: 8) {
                 VStack(alignment: .leading) {
-                    TextField("Name for English (e.g., San Zhang)", text: $vm.enText)
+                    TextField("English Name", text: $vm.enText)
                         .textInputAutocapitalization(.words)
+                        .disableAutocorrection(true)
                         .submitLabel(.done)
                         .focused($focusedField, equals: .en)
                         .onSubmit { focusedField = nil }
+                        .padding(10)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.2)))
                     Picker("Language", selection: $vm.enLang) {
                         ForEach(LangCatalog.allCodes, id: \.self) { code in
                             Text(LangCatalog.displayName(code)).tag(code)
@@ -220,11 +209,15 @@ struct ContentView: View {
                     }.pickerStyle(.menu)
                 }
                 VStack(alignment: .leading) {
-                    TextField("Name for native language (e.g., 张三)", text: $vm.zhText)
+                    TextField("Native Name", text: $vm.zhText)
                         .textInputAutocapitalization(.words)
+                        .disableAutocorrection(true)
                         .submitLabel(.done)
                         .focused($focusedField, equals: .zh)
                         .onSubmit { focusedField = nil }
+                        .padding(10)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.2)))
                     Picker("Language", selection: $vm.zhLang) {
                         ForEach(LangCatalog.allCodes, id: \.self) { code in
                             Text(LangCatalog.displayName(code)).tag(code)
