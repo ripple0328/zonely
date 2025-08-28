@@ -8,6 +8,7 @@ class AudioCacheManager: ObservableObject {
     private let maxCacheSize: Int = 50 * 1024 * 1024 // 50MB
     private let maxCacheAge: TimeInterval = 30 * 24 * 60 * 60 // 30 days
     private let maxCacheEntries: Int = 100
+    @Published var statsVersion: Int = 0
     
     private init() {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -58,6 +59,7 @@ class AudioCacheManager: ObservableObject {
             
             // Cleanup if cache is getting too large
             cleanupIfNeeded()
+            DispatchQueue.main.async { self.statsVersion &+= 1 }
             
         } catch {
             print("❌ AudioCacheManager: Failed to cache audio: \(error)")
@@ -211,6 +213,7 @@ class AudioCacheManager: ObservableObject {
         for case let fileURL as URL in enumerator {
             try? fileManager.removeItem(at: fileURL)
         }
+        DispatchQueue.main.async { self.statsVersion &+= 1 }
     }
     
     // Format cache size for display

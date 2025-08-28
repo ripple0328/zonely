@@ -81,6 +81,17 @@
       .chev{transition:transform .2s ease}
       .how[aria-expanded="true"] .chev{transform:rotate(90deg)}
       .how-body{padding:10px 12px;padding-top:0;color:var(--muted)}
+      /* Inline validation without layout shift */
+      .field{position:relative}
+      .hint{position:absolute;left:10px;bottom:-16px;height:14px;font-size:11px;color:#f59e0b;opacity:0;pointer-events:none;}
+      .field.show-hint .hint{opacity:1}
+      input.invalid, select.invalid{
+        border-color:#f59e0b !important;
+        box-shadow: inset 0 0 0 1px #f59e0b, 0 0 0 3px rgba(245,158,11,0.25);
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23f59e0b'%3E%3Cpath fill-rule='evenodd' d='M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.516 11.59c.75 1.335-.214 2.99-1.743 2.99H3.484c-1.53 0-2.494-1.655-1.743-2.99L8.257 3.1zM9 7h2v5H9V7zm0 6h2v2H9v-2z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        background-repeat:no-repeat; background-position:right 10px center; background-size:14px;
+        padding-right:28px;
+      }
     </style>
   </head>
   <body>
@@ -96,8 +107,12 @@
       <div class="card">
         <div class="row">
           <div class="input">
-            <input id="text_en" placeholder="Name for English (e.g., San Zhang)" />
-            <select id="lang_en">
+            <div class="field" id="field_en">
+              <input id="text_en" placeholder="Name for English (e.g., San Zhang)" />
+              <div class="hint" id="hint_en">Text may not match English</div>
+            </div>
+            <div class="field" id="field_en_lang">
+              <select id="lang_en">
               <option value="en-US" selected>English</option>
               <option value="es-ES">Español</option>
               <option value="fr-FR">Français</option>
@@ -108,10 +123,15 @@
               <option value="hi-IN">हिन्दी</option>
               <option value="bn-IN">বাংলা</option>
               <option value="ar-SA">العربية</option>
-            </select>
+              </select>
+            </div>
             <span aria-hidden="true" style="align-self:center;color:var(--muted);">—</span>
-            <input id="text_zh" placeholder="Name for native language (e.g., 张三)" />
-            <select id="lang_zh">
+            <div class="field" id="field_zh">
+              <input id="text_zh" placeholder="Name for native language (e.g., 张三)" />
+              <div class="hint" id="hint_zh">Text may not match native</div>
+            </div>
+            <div class="field" id="field_zh_lang">
+              <select id="lang_zh">
               <option value="en-US">English</option>
               <option value="es-ES">Español</option>
               <option value="fr-FR">Français</option>
@@ -122,7 +142,9 @@
               <option value="hi-IN">हिन्दी</option>
               <option value="bn-IN">বাংলা</option>
               <option value="ar-SA">العربية</option>
-            </select>
+              </select>
+            </div>
+            
           </div>
           <button id="add" class="primary">Add</button>
         </div>
@@ -189,6 +211,74 @@
       const addEl = document.getElementById('add');
       const shareEl = document.getElementById('share');
       const demoEl = document.getElementById('demo');
+      const supportedLangs = ["en-US","es-ES","fr-FR","de-DE","pt-BR","zh-CN","ja-JP","hi-IN","bn-IN","ar-SA"];
+
+      // Lightweight script-based language check (same set as iOS)
+      function allowedScripts(code){
+        const base = (code||'').split('-')[0].toLowerCase();
+        switch(base){
+          case 'en': case 'es': case 'fr': case 'de': case 'it': case 'pt': case 'vi': case 'id': case 'nl': case 'sv': case 'no': case 'da': case 'fi': case 'pl': case 'cs': case 'ro': case 'tr':
+            return ['latin'];
+          case 'zh': return ['cjk'];
+          case 'ja': return ['hiragana','katakana','cjk'];
+          case 'ko': return ['hangul'];
+          case 'ru': case 'uk': case 'bg': case 'sr': return ['cyrillic'];
+          case 'ar': case 'fa': case 'ur': return ['arabic'];
+          case 'hi': return ['devanagari'];
+          case 'th': return ['thai'];
+          default: return ['latin','cjk','hiragana','katakana','hangul','cyrillic','arabic','devanagari','thai'];
+        }
+      }
+      function scriptOfScalar(cp){
+        if((cp>=0x41&&cp<=0x7A)||(cp>=0xC0&&cp<=0x24F)||(cp>=0x1E00&&cp<=0x1EFF)) return 'latin';
+        if((cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)||(cp>=0xF900&&cp<=0xFAFF)) return 'cjk';
+        if(cp>=0x3040&&cp<=0x309F) return 'hiragana';
+        if((cp>=0x30A0&&cp<=0x30FF)||(cp>=0x31F0&&cp<=0x31FF)) return 'katakana';
+        if((cp>=0xAC00&&cp<=0xD7AF)||(cp>=0x1100&&cp<=0x11FF)||(cp>=0x3130&&cp<=0x318F)) return 'hangul';
+        if((cp>=0x0400&&cp<=0x04FF)||(cp>=0x0500&&cp<=0x052F)) return 'cyrillic';
+        if((cp>=0x0600&&cp<=0x06FF)||(cp>=0x0750&&cp<=0x077F)||(cp>=0x08A0&&cp<=0x08FF)) return 'arabic';
+        if(cp>=0x0900&&cp<=0x097F) return 'devanagari';
+        if(cp>=0x0E00&&cp<=0x0E7F) return 'thai';
+        return 'unknown';
+      }
+      function dominantScript(str){
+        const counts={};
+        for(const ch of str){ const s=scriptOfScalar(ch.codePointAt(0)); if(s!=='unknown'){ counts[s]=(counts[s]||0)+1; } }
+        let best=null, max=0; for(const k in counts){ if(counts[k]>max){ max=counts[k]; best=k; } }
+        return best;
+      }
+      function matchesTextToLang(text, lang){
+        const t = (text||'').trim(); if(!t) return true;
+        if(!supportedLangs.includes(lang)) return true;
+        const dom = dominantScript(t); if(!dom) return true;
+        return allowedScripts(lang).includes(dom) || dom==='unknown';
+      }
+      function toggleInvalid(el, flag){ el.classList.toggle('invalid', !!flag); }
+      function validateInputs(){
+        const en = textEnEl.value.trim();
+        const zh = textZhEl.value.trim();
+        const le = langEnEl.value; const lz = langZhEl.value;
+        const enMismatch = en && !matchesTextToLang(en, le);
+        const zhMismatch = zh && !matchesTextToLang(zh, lz);
+        toggleInvalid(textEnEl, enMismatch); toggleInvalid(langEnEl, enMismatch);
+        toggleInvalid(textZhEl, zhMismatch); toggleInvalid(langZhEl, zhMismatch);
+        addEl.disabled = enMismatch || zhMismatch || (!en && !zh);
+        const map = {"en-US":"English","zh-CN":"中文","es-ES":"Español","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","fr-FR":"Français","pt-BR":"Português","ja-JP":"日本語","de-DE":"Deutsch"};
+        const hintEn = document.getElementById('hint_en');
+        const hintZh = document.getElementById('hint_zh');
+        if(hintEn){ hintEn.textContent = `Text may not match ${map[le]||le}`; hintEn.style.opacity = enMismatch ? '1' : '0'; }
+        if(hintZh){ hintZh.textContent = `Text may not match ${map[lz]||lz}`; hintZh.style.opacity = zhMismatch ? '1' : '0'; }
+        return !(enMismatch || zhMismatch);
+      }
+      [textEnEl, textZhEl].forEach(el=>{
+        el.addEventListener('input', validateInputs);
+        el.addEventListener('blur', validateInputs);
+      });
+      [langEnEl, langZhEl].forEach(el=>{
+        el.addEventListener('change', validateInputs);
+        el.addEventListener('blur', validateInputs);
+      });
+      validateInputs();
       // Unicode-safe Base64 URL helpers (for names with non-Latin chars)
       function utf8ToB64(str){
         const bytes = new TextEncoder().encode(str);
@@ -340,36 +430,42 @@
           <div class="langs"></div>
           <button class="remove" title="Remove">✕</button>`;
         el.querySelector('.name').textContent = zhText || enText || '';
-        const entry1 = document.createElement('div');
-        entry1.className = 'entry';
-        const pill = document.createElement('button');
-        pill.className = 'pill';
-        pill.dataset.lang = langEn || 'en-US';
-        pill.dataset.text = enText || (zhText || '');
-        pill.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
-        entry1.appendChild(pill);
-        const textSpan1 = document.createElement('span');
-        textSpan1.className = 'text';
-        textSpan1.textContent = pill.dataset.text;
-        entry1.appendChild(textSpan1);
-        el.querySelector('.langs').appendChild(entry1);
-        setNativeLabelEl(pill.querySelector('.label'), pill.dataset.lang);
-        if(zhText){
-          const entry2 = document.createElement('div');
-          entry2.className = 'entry';
-          const pill2 = document.createElement('button');
-          pill2.className = 'pill';
-          pill2.dataset.lang = langZh || 'zh-CN';
-          pill2.dataset.text = zhText;
-          pill2.innerHTML = `<span class=\"label\"></span> <svg class=\"icon\" width=\"16\" height=\"16\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z\" clip-rule=\"evenodd\"></path></svg>`;
-          entry2.appendChild(pill2);
-          const textSpan2 = document.createElement('span');
-          textSpan2.className = 'text';
-          textSpan2.textContent = pill2.dataset.text;
-          entry2.appendChild(textSpan2);
-          el.querySelector('.langs').appendChild(entry2);
-          setNativeLabelEl(pill2.querySelector('.label'), pill2.dataset.lang);
+
+        // Only add the languages the user actually typed
+        if(enText){
+          const entryEn = document.createElement('div');
+          entryEn.className = 'entry';
+          const pillEn = document.createElement('button');
+          pillEn.className = 'pill';
+          pillEn.dataset.lang = langEn || 'en-US';
+          pillEn.dataset.text = enText;
+          pillEn.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
+          entryEn.appendChild(pillEn);
+          const textSpanEn = document.createElement('span');
+          textSpanEn.className = 'text';
+          textSpanEn.textContent = pillEn.dataset.text;
+          entryEn.appendChild(textSpanEn);
+          el.querySelector('.langs').appendChild(entryEn);
+          setNativeLabelEl(pillEn.querySelector('.label'), pillEn.dataset.lang);
         }
+
+        if(zhText){
+          const entryZh = document.createElement('div');
+          entryZh.className = 'entry';
+          const pillZh = document.createElement('button');
+          pillZh.className = 'pill';
+          pillZh.dataset.lang = langZh || 'zh-CN';
+          pillZh.dataset.text = zhText;
+          pillZh.innerHTML = `<span class=\"label\"></span> <svg class=\"icon\" width=\"16\" height=\"16\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z\" clip-rule=\"evenodd\"></path></svg>`;
+          entryZh.appendChild(pillZh);
+          const textSpanZh = document.createElement('span');
+          textSpanZh.className = 'text';
+          textSpanZh.textContent = pillZh.dataset.text;
+          entryZh.appendChild(textSpanZh);
+          el.querySelector('.langs').appendChild(entryZh);
+          setNativeLabelEl(pillZh.querySelector('.label'), pillZh.dataset.lang);
+        }
+
         listEl.appendChild(el);
         attachItemEvents(el);
         const empty = listEl.querySelector('.empty'); if(empty) empty.remove();
@@ -506,6 +602,7 @@
       }
 
       addEl.addEventListener('click', () => {
+        if(!validateInputs()) return;
         const en = textEnEl.value.trim();
         const zh = textZhEl.value.trim();
         const langEn = langEnEl.value;
@@ -515,6 +612,7 @@
         textZhEl.value = '';
         textEnEl.focus();
         refreshURL();
+        validateInputs();
       });
 
       [textEnEl, textZhEl].forEach(inp => inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addEl.click(); }}));

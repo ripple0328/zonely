@@ -56,8 +56,17 @@ defmodule Zonely.PronunceName.Cache do
 
     with true <- length(candidate_lists) > 0 do
       # Find matches in each directory
-      # Use the same safe-name transformation used when writing files
-      safe_name_for_hash = String.replace(name, ~r/[^a-zA-Z0-9_-]/, "_")
+      # Compute expected real-person hashed filename prefixes for this name/language
+      cache_name_candidates =
+        [name | Enum.map(local_variants(name), fn part -> "#{name}_partial_#{part}" end)]
+        |> Enum.uniq()
+
+      real_hash_prefixes =
+        Enum.map(cache_name_candidates, fn cache_name ->
+          :crypto.hash(:sha256, Enum.join([cache_name, language], ":"))
+          |> Base.encode16(case: :lower)
+        end)
+        |> Enum.map(&("real_" <> &1))
 
       matches =
         Enum.flat_map(candidate_lists, fn {dir, entries} ->
@@ -65,11 +74,8 @@ defmodule Zonely.PronunceName.Cache do
           regular_files =
             entries
             |> Enum.filter(fn filename ->
-              Enum.any?(variant_safe_names, fn vn ->
-                Enum.any?(lang_candidates, fn lc ->
-                  String.starts_with?(filename, vn <> "_" <> lc <> "_")
-                end)
-              end)
+              # Only recognize new hashed real-person files matching this name/language
+              Enum.any?(real_hash_prefixes, fn prefix -> String.starts_with?(filename, prefix) end)
             end)
             |> Enum.map(&{dir, &1, :regular})
 
@@ -77,7 +83,8 @@ defmodule Zonely.PronunceName.Cache do
           polly_voice = Zonely.PronunceName.pick_polly_voice(language)
 
           polly_key =
-            :crypto.hash(:sha256, Enum.join([safe_name_for_hash, language, polly_voice], ":"))
+            # Use original name to avoid collisions for non-Latin characters
+            :crypto.hash(:sha256, Enum.join([name, language, polly_voice], ":"))
             |> Base.encode16(case: :lower)
 
           expected_polly_prefix = "polly_#{polly_key}"
@@ -141,54 +148,20 @@ defmodule Zonely.PronunceName.Cache do
   # Build the best S3 object key for a name/language pair if present.
   # Prefers real-person audio under "real/" prefix, falls back to deterministic
   # Polly key under "polly/".
-  defp s3_lookup_key(name, language, variant_safe_names, lang_candidates, bucket) do
-    safe_name_for_hash = String.replace(name, ~r/[^a-zA-Z0-9_-]/, "_")
+  defp s3_lookup_key(name, language, _variant_safe_names, _lang_candidates, bucket) do
+    hashed =
+      :crypto.hash(:sha256, Enum.join([name, language], ":"))
+      |> Base.encode16(case: :lower)
 
-    # First, try deterministic real-person key
-    deterministic_real_key = "real/#{safe_name_for_hash}_#{language}.mp3"
+    key = "real/real_#{hashed}.mp3"
 
-    case ExAws.S3.head_object(bucket, deterministic_real_key) |> ExAws.request() do
-      {:ok, _} ->
-        deterministic_real_key
+    Logger.info(
+      "🔐 S3 real key check: name=#{inspect(name)} lang=#{language} hash=#{hashed} key=#{key}"
+    )
 
-      _ ->
-        # Fallback to legacy timestamped objects
-        real_prefixes =
-          for vn <- variant_safe_names, lc <- lang_candidates, do: "real/#{vn}_#{lc}_"
-
-        list_keys = fn prefix ->
-          case ExAws.S3.list_objects_v2(bucket, prefix: prefix) |> ExAws.request() do
-            {:ok, %{body: %{contents: contents}}} when is_list(contents) ->
-              Enum.map(contents, & &1.key)
-
-            {:ok, %{body: %{contents: nil}}} ->
-              []
-
-            _ ->
-              []
-          end
-        end
-
-        real_keys = real_prefixes |> Enum.flat_map(list_keys)
-        best_real = real_keys |> Enum.sort() |> List.last()
-
-        if is_binary(best_real) do
-          best_real
-        else
-          # Try Polly hash key (deterministic)
-          polly_voice = Zonely.PronunceName.pick_polly_voice(language)
-
-          polly_key =
-            :crypto.hash(:sha256, Enum.join([safe_name_for_hash, language, polly_voice], ":"))
-            |> Base.encode16(case: :lower)
-
-          key = "polly/polly_#{polly_key}.mp3"
-
-          case ExAws.S3.head_object(bucket, key) |> ExAws.request() do
-            {:ok, _} -> key
-            _ -> nil
-          end
-        end
+    case ExAws.S3.head_object(bucket, key) |> ExAws.request() do
+      {:ok, _} -> key
+      _ -> nil
     end
   end
 
@@ -248,9 +221,15 @@ defmodule Zonely.PronunceName.Cache do
         language,
         ext
       ) do
-    safe_cache_name = String.replace(cache_name, ~r/[^a-zA-Z0-9_-]/, "_")
-    # Deterministic filename (no timestamp) so we only store one per cache_name/lang
-    filename = "#{safe_cache_name}_#{language}#{ext}"
+    # Collision-free deterministic filename for real-person audio
+    hashed =
+      :crypto.hash(:sha256, Enum.join([cache_name, language], ":"))
+      |> Base.encode16(case: :lower)
+    filename = "real_#{hashed}#{ext}"
+
+    Logger.info(
+      "🔐 Real filename computed: cache_name=#{inspect(cache_name)} lang=#{language} => #{filename}"
+    )
 
     # Log which part of the name was actually found
     if found_variant != original_name do
@@ -264,22 +243,11 @@ defmodule Zonely.PronunceName.Cache do
 
     if backend == "s3" and is_binary(cfg[:s3_bucket]) do
       bucket = cfg[:s3_bucket]
-      key = "real/#{filename}"
+      key = "real/" <> filename
 
       # If it already exists, return URL immediately
       case ExAws.S3.head_object(bucket, key) |> ExAws.request() do
-        {:ok, _} ->
-          url = Zonely.Storage.public_url(key)
-
-          if found_variant != original_name do
-            Logger.info(
-              "📦 Cache hit (S3, partial match): #{filename} (#{found_variant} for #{original_name}) -> #{url}"
-            )
-          else
-            Logger.info("📦 Cache hit (S3, deterministic) -> #{url}")
-          end
-
-          {:ok, url}
+        {:ok, _} -> {:ok, Zonely.Storage.public_url(key)}
 
         _ ->
           # Download from provider then upload to S3 once
@@ -305,12 +273,6 @@ defmodule Zonely.PronunceName.Cache do
       web_path = "/audio-cache/#{filename}"
 
       if File.exists?(local_path) do
-        if found_variant != original_name do
-          Logger.info(
-            "📦 Cache hit for partial match: #{filename} (#{found_variant} for #{original_name})"
-          )
-        end
-
         {:ok, web_path}
       else
         case Zonely.PronunceName.http_client().get(audio_url) do

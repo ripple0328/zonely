@@ -1,34 +1,8 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
-struct NameEntry: Identifiable, Codable, Hashable {
-    let id: UUID
-    var displayName: String
-    var items: [LangItem]
-
-    init(id: UUID = UUID(), displayName: String, items: [LangItem]) {
-        self.id = id
-        self.displayName = displayName
-        self.items = items
-    }
-}
-
-struct LangItem: Identifiable, Codable, Hashable {
-    let id: UUID
-    var bcp47: String
-    var text: String
-
-    init(id: UUID = UUID(), bcp47: String, text: String) {
-        self.id = id
-        self.bcp47 = bcp47
-        self.text = text
-    }
-}
-
-enum ProviderKind: Equatable {
-    case human
-    case tts
-}
+// Types moved to Models.swift: NameEntry, LangItem, ProviderKind
 
 final class AppViewModel: ObservableObject {
     @Published var entries: [NameEntry] = []
@@ -39,12 +13,17 @@ final class AppViewModel: ObservableObject {
     @Published var loadingPill: UUID?
     @Published var playingPill: UUID?
     @Published var providerKinds: [UUID: ProviderKind] = [:]
+    @Published var englishMismatch: Bool = false
+    @Published var nativeMismatch: Bool = false
 
-    private let network = PronounceService()
-    private let audio = AudioCoordinator()
+
+    private var network: PronounceNetworking
+    private var audio: AudioPlaying
     private let persistence = StatePersistence()
 
-    init() {
+    init(network: PronounceNetworking = PronounceService(), audio: AudioPlaying = AudioCoordinator()) {
+        self.network = network
+        self.audio = audio
         entries = persistence.restore() ?? []
         audio.onFinish = { [weak self] in
             Task { @MainActor in
@@ -55,6 +34,10 @@ final class AppViewModel: ObservableObject {
 
     func addEntry() {
         guard !enText.trimmingCharacters(in: .whitespaces).isEmpty || !zhText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        englishMismatch = !LanguageHeuristics.matches(text: enText, bcp47: enLang)
+        nativeMismatch = !LanguageHeuristics.matches(text: zhText, bcp47: zhLang)
+        // Prevent adding when mismatched
+        guard !(englishMismatch || nativeMismatch) else { return }
         var items: [LangItem] = []
         if !enText.isEmpty { items.append(LangItem(bcp47: enLang, text: enText)) }
         if !zhText.isEmpty { items.append(LangItem(bcp47: zhLang, text: zhText)) }
@@ -104,6 +87,11 @@ final class AppViewModel: ObservableObject {
 
     func save() {
         persistence.store(entries)
+    }
+    
+    func recomputeMismatches() {
+        englishMismatch = !LanguageHeuristics.matches(text: enText, bcp47: enLang)
+        nativeMismatch = !LanguageHeuristics.matches(text: zhText, bcp47: zhLang)
     }
     
     func loadFromDeepLink(url: URL) {
@@ -172,7 +160,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Glass background
-            LinearGradient(colors: [Color.black.opacity(0.25), Color.blue.opacity(0.25)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color.black.opacity(0.22), Color.blue.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
 
             ScrollView {
@@ -185,6 +173,9 @@ struct ContentView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { focusedField = nil }
+            .onChange(of: focusedField) { _ in
+                vm.recomputeMismatches()
+            }
         }
     }
 
@@ -199,14 +190,30 @@ struct ContentView: View {
                         .submitLabel(.done)
                         .focused($focusedField, equals: .en)
                         .onSubmit { focusedField = nil }
-                        .padding(10)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.2)))
+                        .padding(12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(vm.englishMismatch ? Color.orange.opacity(0.9) : Color.white.opacity(0.22)))
+                        .overlay(alignment: .trailing) {
+                            if vm.englishMismatch {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                    .imageScale(.small)
+                                    .padding(.trailing, 8)
+                            }
+                        }
+                    Text("Text may not match \(LangCatalog.displayName(vm.enLang))")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .frame(height: 14)
+                        .opacity(vm.englishMismatch ? 1 : 0)
                     Picker("Language", selection: $vm.enLang) {
                         ForEach(LangCatalog.allCodes, id: \.self) { code in
                             Text(LangCatalog.displayName(code)).tag(code)
                         }
-                    }.pickerStyle(.menu)
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: vm.enLang) { _ in vm.recomputeMismatches() }
+                    
                 }
                 VStack(alignment: .leading) {
                     TextField("Native Name", text: $vm.zhText)
@@ -215,26 +222,58 @@ struct ContentView: View {
                         .submitLabel(.done)
                         .focused($focusedField, equals: .zh)
                         .onSubmit { focusedField = nil }
-                        .padding(10)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.2)))
+                        .padding(12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(vm.nativeMismatch ? Color.orange.opacity(0.9) : Color.white.opacity(0.22)))
+                        .overlay(alignment: .trailing) {
+                            if vm.nativeMismatch {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                    .imageScale(.small)
+                                    .padding(.trailing, 8)
+                            }
+                        }
+                    Text("Text may not match \(LangCatalog.displayName(vm.zhLang))")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .frame(height: 14)
+                        .opacity(vm.nativeMismatch ? 1 : 0)
                     Picker("Language", selection: $vm.zhLang) {
                         ForEach(LangCatalog.allCodes, id: \.self) { code in
                             Text(LangCatalog.displayName(code)).tag(code)
                         }
-                    }.pickerStyle(.menu)
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: vm.zhLang) { _ in vm.recomputeMismatches() }
+                    
                 }
             }
-            Button(action: vm.addEntry) {
+            Button(action: {
+                if vm.englishMismatch || vm.nativeMismatch {
+                    Haptics.shared.notification(.warning)
+                } else {
+                    Haptics.shared.impact(.medium)
+                    vm.addEntry()
+                }
+            }) {
                 Text("Add")
                     .bold()
                     .frame(maxWidth: .infinity)
             }
+            .disabled(vm.englishMismatch || vm.nativeMismatch)
             .buttonStyle(.borderedProminent)
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.12)))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(.white.opacity(0.14))
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.white.opacity(0.05))
+                    .blur(radius: 1)
+            }
+        )
     }
 
     private var list: some View {
@@ -278,8 +317,16 @@ struct ContentView: View {
                     }
                 }
                 .padding(12)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.10)))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(.white.opacity(0.12))
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(.white.opacity(0.04))
+                            .blur(radius: 1)
+                    }
+                )
             }
         }
     }
@@ -297,365 +344,64 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
-            
-            // Cache management section
+
+            // Cache management with clear action pinned to bottom feel
             CacheManagementView()
         }
         .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.12)))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(.white.opacity(0.12))
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.white.opacity(0.04))
+                    .blur(radius: 1)
+            }
+        )
     }
 }
 
 private enum Field: Hashable { case en, zh }
 
-struct LangPill: View {
-    let item: LangItem
-    let isLoading: Bool
-    let isPlaying: Bool
-    let onTap: () -> Void
-    @EnvironmentObject private var vm: AppViewModel
+// moved to LangPill.swift
 
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(LangCatalog.displayName(item.bcp47))
-                        .font(.caption)
-                        .foregroundStyle(isPlaying ? .white.opacity(0.9) : .secondary)
-                    Text(item.text.isEmpty ? "" : item.text)
-                        .font(.callout)
-                        .lineLimit(1)
-                        .foregroundStyle(isPlaying ? .white : .primary)
-                }
-                if isLoading {
-                    ProgressView().progressViewStyle(.circular)
-                } else if isPlaying {
-                    Image(systemName: vm.providerKinds[item.id] == .tts ? "sparkles" : "person.wave.2.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.white)
-                } else {
-                    Image(systemName: "play.circle.fill")
-                        .foregroundStyle(.blue)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-        }
-        .background {
-            if isPlaying {
-                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(
-                    LinearGradient(colors: [Color.blue.opacity(0.85), Color.purple.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-            } else {
-                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.ultraThinMaterial)
-            }
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(isPlaying ? Color.white.opacity(0.35) : Color.white.opacity(0.15))
-        )
-        .shadow(color: (isPlaying ? Color.blue.opacity(0.25) : Color.black.opacity(0.08)), radius: 12, x: 0, y: 6)
-        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-}
+// moved to AvatarView.swift
 
-struct AvatarView: View {
-    let seed: String
-    var body: some View {
-        let normalized = seed
-            .lowercased()
-            .replacingOccurrences(of: "[^\\w\\s]+", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+", with: "-", options: .regularExpression)
-        let seedParam = normalized.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? normalized
-        // Use PNG because AsyncImage/UIImage cannot render SVG by default
-        let url = URL(string: "https://api.dicebear.com/7.x/avataaars/png?seed=\(seedParam)&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64")
-        AsyncImage(url: url) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            ZStack { Color.gray.opacity(0.2); ProgressView() }
-        }
-        .frame(width: 48, height: 48)
-        .clipShape(Circle())
-        .overlay(Circle().strokeBorder(.white.opacity(0.15)))
-    }
-}
+// moved to FlowLayout.swift
 
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-    var runSpacing: CGFloat = 8
+// Networking moved to PronounceService.swift
 
-    init(spacing: CGFloat = 8, runSpacing: CGFloat = 8) {
-        self.spacing = spacing
-        self.runSpacing = runSpacing
-    }
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var width: CGFloat = 0
-        var height: CGFloat = 0
-        var rowWidth: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if rowWidth + size.width > maxWidth {
-                width = max(width, rowWidth)
-                height += rowHeight + runSpacing
-                rowWidth = size.width + spacing
-                rowHeight = size.height
-            } else {
-                rowWidth += size.width + spacing
-                rowHeight = max(rowHeight, size.height)
-            }
-        }
-
-        width = max(width, rowWidth)
-        height += rowHeight
-        return CGSize(width: min(width, maxWidth), height: height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let maxWidth = bounds.width
-        var x: CGFloat = bounds.minX
-        var y: CGFloat = bounds.minY
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > bounds.minX + maxWidth {
-                x = bounds.minX
-                y += rowHeight + runSpacing
-                rowHeight = 0
-            }
-
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-    }
-}
-
-enum PronounceOutcome: Equatable {
-    case audio(URL)
-    case ttsAudio(URL)
-    case sequence([URL])
-    case tts(text: String, lang: String)
-}
-
-final class PronounceService {
-    func pronounce(text: String, lang: String) async throws -> PronounceOutcome {
-        let base = URL(string: currentBaseURL())!
-        var url = base.appendingPathComponent("api/pronounce")
-        var comps = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-        comps.queryItems = [
-            URLQueryItem(name: "name", value: text),
-            URLQueryItem(name: "lang", value: lang)
-        ]
-        url = comps.url!
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-
-        let (data, _) = try await URLSession.shared.data(for: req)
-        let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        let type = obj?["type"] as? String ?? ""
-        switch type {
-        case "audio":
-            guard let s = obj?["url"] as? String, let u = resolveURL(s, base: base) else { throw URLError(.badServerResponse) }
-            return .audio(u)
-        case "tts_audio":
-            guard let s = obj?["url"] as? String, let u = resolveURL(s, base: base) else { throw URLError(.badServerResponse) }
-            return .ttsAudio(u)
-        case "sequence":
-            guard let arr = obj?["urls"] as? [String] else { throw URLError(.badServerResponse) }
-            return .sequence(arr.compactMap { resolveURL($0, base: base) })
-        case "tts":
-            let text = obj?["text"] as? String ?? text
-            let lang = obj?["lang"] as? String ?? lang
-            return .tts(text: text, lang: lang)
-        default:
-            throw URLError(.badServerResponse)
-        }
-    }
-
-    private func resolveURL(_ s: String, base: URL) -> URL? {
-        if let u = URL(string: s), u.scheme != nil {
-            return u
-        }
-        return URL(string: s, relativeTo: base)?.absoluteURL
-    }
-
-    private func currentBaseURL() -> String {
-        return AppConfig.baseURL
-    }
-}
-
-final class AudioCoordinator: NSObject {
-    private let cacheManager = AudioCacheManager.shared
-    private var player: AVAudioPlayer?
-    var onFinish: (() -> Void)?
-    private var remainingInSequence: Int = 0
-    private let synth = AVSpeechSynthesizer()
-
-    override init() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.duckOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            // ignore session errors
-        }
-        super.init()
-        synth.delegate = self
-    }
-
-    func play(url: URL, lang: String? = nil) async throws {
-        let local = try await getCachedOrDownload(url: url, lang: lang)
-        guard isSupported(url: local) else { throw URLError(.cannotDecodeContentData) }
-        try playLocal(url: local)
-    }
-    
-    private func getCachedOrDownload(url: URL, lang: String? = nil) async throws -> URL {
-        let urlString = url.absoluteString
-        
-        print("🎵 AudioCoordinator: Checking cache for URL: \(urlString), lang: \(lang ?? "nil")")
-        
-        // Check if already cached
-        if let cachedData = cacheManager.getCachedAudio(for: urlString, lang: lang) {
-            print("✅ AudioCoordinator: Found cached audio (\(cachedData.count) bytes)")
-            // Save cached data to temporary file for AVAudioPlayer
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".mp3")
-            try cachedData.write(to: tempFile)
-            return tempFile
-        }
-        
-        print("📥 AudioCoordinator: Cache miss, downloading from server")
-        // Download and cache
-        let (data, _) = try await URLSession.shared.data(from: url)
-        print("💾 AudioCoordinator: Downloaded \(data.count) bytes, caching for next time")
-        cacheManager.cacheAudio(data: data, for: urlString, lang: lang)
-        
-        // Save to temporary file for AVAudioPlayer
-        let tempDir = FileManager.default.temporaryDirectory
-        let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".mp3")
-        try data.write(to: tempFile)
-        return tempFile
-    }
-
-    func playSequence(urls: [URL], lang: String? = nil) async throws {
-        remainingInSequence = urls.count
-        for u in urls {
-            try await play(url: u, lang: lang)
-            // wait for completion of each item
-            while let p = player, p.isPlaying { try await Task.sleep(nanoseconds: 50_000_000) }
-        }
-    }
-
-    func speak(text: String, bcp47: String) async throws {
-        let utter = AVSpeechUtterance(string: text)
-        utter.voice = AVSpeechSynthesisVoice(language: bcp47)
-        synth.speak(utter)
-    }
-
-    private func playLocal(url: URL) throws {
-        player = try AVAudioPlayer(contentsOf: url)
-        player?.prepareToPlay()
-        player?.delegate = self
-        player?.play()
-    }
-
-    private func isSupported(url: URL) -> Bool {
-        let ext = url.pathExtension.lowercased()
-        let supported = ["mp3","m4a","aac","caf","aif","aiff","wav","mp4"]
-        return supported.contains(ext)
-    }
-}
-
-extension AudioCoordinator: AVAudioPlayerDelegate {
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        if remainingInSequence > 0 {
-            remainingInSequence -= 1
-            if remainingInSequence == 0 { onFinish?() }
-        } else {
-            onFinish?()
-        }
-    }
-}
-
-extension AudioCoordinator: AVSpeechSynthesizerDelegate {
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        onFinish?()
-    }
-}
+// AudioCoordinator moved to AudioCoordinator.swift
 
 
-enum LangCatalog {
-    static let allCodes: [String] = [
-        "en-US","zh-CN","es-ES","hi-IN","ar-SA","bn-IN","fr-FR","pt-BR","ja-JP","de-DE"
-    ]
-    static func displayName(_ code: String) -> String {
-        [
-            "en-US":"English","zh-CN":"中文","ja-JP":"日本語","es-ES":"Español","fr-FR":"Français","de-DE":"Deutsch","pt-BR":"Português","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা",
-        ][code] ?? code
-    }
-}
+// moved to LangCatalog.swift
 
-final class StatePersistence {
-    private let key = "names_state_v1"
-    func restore() -> [NameEntry]? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode([NameEntry].self, from: data)
-    }
-    func store(_ entries: [NameEntry]) {
-        if let data = try? JSONEncoder().encode(entries) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
-    }
-}
+// moved to StatePersistence.swift
 
-enum DeepLinkBuilder {
-    static func url(for entries: [NameEntry]) -> URL {
-        let payload: [[String: Any]] = entries.map { entry in
-            [
-                "name": entry.displayName,
-                "entries": entry.items.map { ["lang": $0.bcp47, "text": $0.text] }
-            ]
-        }
-        let data = try? JSONSerialization.data(withJSONObject: payload)
-        let base64 = (data?.base64EncodedString() ?? "").replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
-        let base = AppConfig.baseURL
-        var comps = URLComponents(string: base)!
-        comps.queryItems = [URLQueryItem(name: "s", value: base64)]
-        return comps.url ?? URL(string: base)!
-    }
-}
+// moved to DeepLinkBuilder.swift
 
 struct CacheManagementView: View {
     @ObservedObject private var cacheManager = AudioCacheManager.shared
     @State private var showingClearAlert = false
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Audio Cache")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
-                let cacheInfo = cacheManager.getCacheInfo()
-                Text("\(cacheInfo.count) files • \(cacheManager.formattedCacheSize())")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            
+        HStack(spacing: 12) {
+            let cacheInfo = cacheManager.getCacheInfo()
+            Text("\(cacheInfo.count) pronunciations cached")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             Spacer()
-            
-            if cacheManager.getCacheInfo().count > 0 {
-                Button("Clear Cache") {
+            if cacheInfo.count > 0 {
+                Button {
+                    Haptics.shared.impact(.light)
                     showingClearAlert = true
+                } label: {
+                    Label("Clear", systemImage: "trash")
                 }
-                .font(.caption)
+                .controlSize(.small)
                 .buttonStyle(.bordered)
+                .tint(.red)
             }
         }
         .alert("Clear Audio Cache", isPresented: $showingClearAlert) {
@@ -668,5 +414,27 @@ struct CacheManagementView: View {
         }
     }
 }
+
+struct CacheSummaryView: View {
+    @ObservedObject private var cacheManager = AudioCacheManager.shared
+    var body: some View {
+        // trigger updates when statsVersion changes
+        let _ = cacheManager.statsVersion
+        let info = cacheManager.getCacheInfo()
+        return HStack {
+            Text("\(info.count) pronunciations cached")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if info.count > 0 {
+                Text(cacheManager.formattedCacheSize())
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+// moved to Haptics.swift
 
 
