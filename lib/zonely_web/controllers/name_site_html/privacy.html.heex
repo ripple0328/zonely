@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy · Say my name</title>
+    <meta name="color-scheme" content="light dark" />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+    <style>
+      :root{--bg:#ffffff;--fg:#0f172a;--muted:#64748b;--ring:#e2e8f0;--card:#f8fafc}
+      @media (prefers-color-scheme: dark){:root{--bg:#0b0f17;--fg:#e5e7eb;--muted:#9ca3af;--ring:#111827;--card:#111827}}
+      *{box-sizing:border-box}
+      html,body{padding:0;margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+      a{color:inherit}
+      .wrap{max-width:820px;margin:0 auto;padding:24px}
+      .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+      .brand{display:flex;align-items:center;gap:10px}
+      .logo{width:28px;height:28px}
+      .title{font-size:18px;font-weight:600;letter-spacing:0.2px}
+      .card{background:var(--card);border:1px solid var(--ring);border-radius:12px;padding:16px}
+      h1{font-size:24px;margin:0 0 12px;font-weight:700}
+      h2{font-size:18px;margin:20px 0 8px;font-weight:700}
+      p{margin:10px 0}
+      ul{margin:8px 0 8px 18px}
+      .muted{color:var(--muted)}
+      .footer{margin-top:18px;display:flex;gap:10px;justify-content:space-between;align-items:center}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div class="brand">
+          <img class="logo" src={~p"/favicon-32x32.png?v=3"} alt="Say my name" />
+          <div class="title">Say my name</div>
+        </div>
+        <div><a href={~p"/"} aria-label="Back to home">Home</a></div>
+      </div>
+
+      <div class="card">
+        <h1>Privacy Policy</h1>
+        <p class="muted">Effective date: {Date.utc_today() |> Date.to_iso8601()}</p>
+
+        <p>Say my name (the “Service”) helps you and your teammates hear name pronunciations in multiple languages.</p>
+
+        <h2>Information we collect</h2>
+        <ul>
+          <li>Names and language selections are encoded in the page URL on your device. They are not stored on our servers.</li>
+          <li>When you press play, we may fetch audio from third‑party providers to deliver pronunciations.</li>
+          <li>Server logs may include standard request metadata (IP address, user‑agent) for reliability and security.</li>
+        </ul>
+
+        <h2>How we use information</h2>
+        <ul>
+          <li>To serve audio pronunciations and improve performance with caching.</li>
+          <li>To operate, maintain, and secure the Service.</li>
+        </ul>
+
+        <h2>Third‑party services</h2>
+        <p>To provide pronunciations, we may query third‑party services (e.g., pronunciation data sources or text‑to‑speech). Requests share only what’s needed to retrieve audio, such as a name and language code.</p>
+
+        <h2>Data retention</h2>
+        <p>We do not persist your list of names on our servers. Cached audio and standard server logs are retained for a limited period for performance and operational purposes.</p>
+
+        <h2>Your choices</h2>
+        <ul>
+          <li>Do not share URLs that contain names if you consider them sensitive.</li>
+          <li>Clear your browser history or cookies if you want to remove saved state.</li>
+        </ul>
+
+        <h2>Contact</h2>
+        <p>Questions or requests? Email <a href="mailto:saymyname@qingbo.us">saymyname@qingbo.us</a>.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>We may update this Privacy Policy to reflect changes to the Service. We will revise the “Effective date” above when updates are made.</p>
+
+        <div class="footer">
+          <div class="muted">© {Date.utc_today() |> Date.to_string() |> String.slice(0,4)} Say my name</div>
+          <div><a href={~p"/"}>Home</a></div>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+
+

@@ -13,7 +13,7 @@
     <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg?v=3"} />
     <link rel="icon" sizes="any" type="image/svg+xml" href={~p"/favicon.svg?v=3"} />
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32x32.png?v=3"} />
-    <link rel="apple-touch-icon" sizes="180x180" href={~p"/apple-touch-icon.png?v=3"} />
+    <link rel="apple-touch-icon" sizes="180x180" href={~p"/favicon-32x32.png?v=3"} />
     <style>
       :root{--bg:#ffffff;--fg:#0f172a;--muted:#64748b;--ring:#e2e8f0;--accent:#111827;--card:#f8fafc}
       @media (prefers-color-scheme: dark){:root{--bg:#0b0f17;--fg:#e5e7eb;--muted:#9ca3af;--ring:#111827;--accent:#e5e7eb;--card:#111827}}
@@ -189,7 +189,9 @@
 
         <div class="footer">
           <div class="muted">Bookmark to save your list or share with others.</div>
-          <div>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+            <a href={~p"/privacy"} class="muted" style="text-decoration:underline">Privacy</a>
+            <a href="mailto:saymyname@qingbo.us" class="muted" style="text-decoration:underline">saymyname@qingbo.us</a>
             <button id="share" aria-label="Copy shareable link">
               <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13 7H7a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2ZM5 9a2 2 0 0 1 2-2h.5V6A2.5 2.5 0 0 1 10 3.5h0A2.5 2.5 0 0 1 12.5 6v1H13a2 2 0 0 1 2 2" fill-opacity=".15"/><path d="M7.5 6V6A2.5 2.5 0 0 1 10 3.5h0A2.5 2.5 0 0 1 12.5 6V7H7.5V6Z"/></svg>
               <span class="label">Copy link</span>
