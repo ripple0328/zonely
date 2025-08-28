@@ -2,7 +2,6 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
   @moduledoc false
   require Logger
   alias Zonely.PronunceName
-  alias Zonely.PronunceName.Cache
 
   # Legacy function for backward compatibility - delegates to fetch_single
   @spec fetch(String.t(), String.t()) :: {:ok, String.t()} | {:error, atom()}
@@ -90,7 +89,7 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
 
       {:ok, path} when is_binary(path) ->
         audio_url = "https://nslibrary01.blob.core.windows.net/ns-audio/#{path}.mp3"
-        Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
+        Logger.info("✅ NameShouts found audio for #{inspect(original_name)}; returning direct URL")
 
         Logger.info(
           "🔍 DEBUG: NameShouts returned path '#{path}' for requested name '#{requested_name}'"
@@ -117,33 +116,7 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
 
           {:error, :partial_only}
         else
-          cache_name =
-            if actual_name_part == original_name do
-              Logger.info("✅ NameShouts returned full name pronunciation for: #{original_name}")
-              original_name
-            else
-              Logger.info(
-                "📝 NameShouts returned pronunciation for '#{actual_name_part}' (part of '#{original_name}')"
-              )
-
-              "#{original_name}_partial_#{actual_name_part}"
-            end
-
-          case Cache.write_external_and_cache_with_metadata(
-                 audio_url,
-                 cache_name,
-                 original_name,
-                 actual_name_part,
-                 language,
-                 ".mp3"
-               ) do
-            {:ok, cached_url} ->
-              Logger.info("✅ Serving cached URL -> #{cached_url} (actual: #{actual_name_part})")
-              {:ok, cached_url}
-
-            other ->
-              other
-          end
+          {:ok, audio_url}
         end
 
       {:error, reason} ->

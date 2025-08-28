@@ -47,13 +47,21 @@ defmodule Zonely.PronunceNameTest do
       assert String.ends_with?(url_jp, ".mp3")
     end
 
-    test "cache hit returns cached audio without external calls" do
-      cache_dir = Zonely.AudioCache.dir()
-      filename = "Test_Name_en-US_12345.mp3"
-      File.write!(Path.join(cache_dir, filename), "FAKE")
+    test "cache hit returns AI TTS audio without external calls" do
+      # Write a fake Polly file that matches language/voice hashing
+      Application.put_env(:zonely, :aws_request_fun, fn _req -> {:error, :no_call_expected} end)
+      on_exit(fn -> Application.delete_env(:zonely, :aws_request_fun) end)
+
+      # Simulate Polly cached file by calling write_binary_to_cache directly
+      # Use local backend so the file is written to the local cache directory
+      Application.put_env(:zonely, :audio_cache, [backend: "local"])
+      on_exit(fn -> Application.delete_env(:zonely, :audio_cache) end)
+
+      {:ok, url} = Zonely.PronunceName.Cache.write_binary_to_cache("FAKE_MP3", "Test Name", "en-US", ".mp3")
+      assert String.ends_with?(url, ".mp3")
 
       result = PronunceName.play("Test Name", "en-US")
-      assert {:play_audio, %{url: "/audio-cache/" <> ^filename}} = result
+      assert match?({:play_tts_audio, %{url: ^url}}, result)
     end
 
     test "nameshouts success returns audio and caches mp3" do
@@ -62,7 +70,7 @@ defmodule Zonely.PronunceNameTest do
       on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
 
       {:play_audio, %{url: url}} = PronunceName.play("Alice", "en-US")
-      assert String.ends_with?(url, ".mp3")
+      assert String.starts_with?(url, "http")
     end
 
     test "forvo success when nameshouts fails" do
@@ -72,7 +80,7 @@ defmodule Zonely.PronunceNameTest do
       on_exit(fn -> Application.delete_env(:zonely, :http_fake_scenario) end)
 
       {:play_audio, %{url: url}} = PronunceName.play("Bob", "en-US")
-      assert String.starts_with?(url, "http") or String.starts_with?(url, "/audio-cache/")
+      assert String.starts_with?(url, "http")
     end
 
     test "falls back to browser TTS when Polly fails" do

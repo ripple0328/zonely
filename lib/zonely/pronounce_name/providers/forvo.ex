@@ -2,7 +2,6 @@ defmodule Zonely.PronunceName.Providers.Forvo do
   @moduledoc false
   require Logger
   alias Zonely.PronunceName
-  alias Zonely.PronunceName.Cache
 
   # Legacy function for backward compatibility - delegates to fetch_single
   @spec fetch(String.t(), String.t()) :: {:ok, String.t()} | {:error, atom()}
@@ -26,7 +25,7 @@ defmodule Zonely.PronunceName.Providers.Forvo do
     end
   end
 
-  defp try_forvo_request(name, language, api_key, original_name, full_language) do
+  defp try_forvo_request(name, language, api_key, original_name, _full_language) do
     url =
       "https://apifree.forvo.com/key/#{api_key}/format/json/action/standard-pronunciation/word/#{URI.encode(name)}/language/#{language}"
 
@@ -37,71 +36,16 @@ defmodule Zonely.PronunceName.Providers.Forvo do
         case body do
           %{"items" => [item | _]} ->
             cond do
-              # Prefer MP3 for broadest client compatibility (iOS/Android)
               is_binary(item["pathmp3"]) ->
-                audio_url = item["pathmp3"]
-                Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
+                Logger.info("✅ Forvo found MP3 for #{inspect(original_name)}; returning direct URL")
+                {:ok, item["pathmp3"]}
 
-                cache_name =
-                  if name == original_name do
-                    Logger.info("✅ Found full name pronunciation for: #{original_name}")
-                    original_name
-                  else
-                    Logger.info(
-                      "📝 Found partial name pronunciation: '#{name}' (part of '#{original_name}')"
-                    )
-
-                    "#{original_name}_partial_#{name}"
-                  end
-
-                case Cache.write_external_and_cache_with_metadata(
-                       audio_url,
-                       cache_name,
-                       original_name,
-                       name,
-                       full_language,
-                       ".mp3"
-                     ) do
-                  {:ok, cached_url} ->
-                    Logger.info("✅ Serving cached URL -> #{cached_url} (requested: #{name})")
-                    {:ok, cached_url}
-
-                  other ->
-                    other
-                end
-
-              # Fallback to OGG when MP3 is not available
+              # OGG is not supported on iOS/Safari; do not return OGG
               is_binary(item["pathogg"]) ->
-                audio_url = item["pathogg"]
-                Logger.info("☁️  Uploading to cache (S3/local) -> #{audio_url}")
-
-                cache_name =
-                  if name == original_name do
-                    Logger.info("✅ Found full name pronunciation for: #{original_name}")
-                    original_name
-                  else
-                    Logger.info(
-                      "📝 Found partial name pronunciation: '#{name}' (part of '#{original_name}')"
-                    )
-
-                    "#{original_name}_partial_#{name}"
-                  end
-
-                case Cache.write_external_and_cache_with_metadata(
-                       audio_url,
-                       cache_name,
-                       original_name,
-                       name,
-                       full_language,
-                       ".ogg"
-                     ) do
-                  {:ok, cached_url} ->
-                    Logger.info("✅ Serving cached URL -> #{cached_url} (requested: #{name})")
-                    {:ok, cached_url}
-
-                  other ->
-                    other
-                end
+                Logger.info(
+                  "🚫 Forvo returned only OGG for #{inspect(original_name)}; skipping unsupported format"
+                )
+                {:error, :no_audio_url}
 
               true ->
                 {:error, :no_audio_url}

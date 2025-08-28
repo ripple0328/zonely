@@ -15,6 +15,10 @@ defmodule ZonelyWeb.NameSiteController do
     render(conn, :privacy)
   end
 
+  def about(conn, _params) do
+    render(conn, :about)
+  end
+
   def pronounce(conn, %{"name" => name, "lang" => lang}) do
     case PronunceName.play(name, lang) do
       {:play_audio, %{url: url}} ->
