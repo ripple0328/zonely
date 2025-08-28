@@ -37,6 +37,8 @@ defmodule ZonelyWeb.Router do
     pipe_through(:bare)
 
     get("/", NameSiteController, :index)
+    # Apple App Site Association for Universal Links
+    get("/.well-known/apple-app-site-association", NameSiteController, :aasa)
     # Ensure audio-cache is reachable from the standalone host
     get("/audio-cache/:filename", AudioCacheController, :show)
     get("/api/pronounce", NameSiteController, :pronounce)

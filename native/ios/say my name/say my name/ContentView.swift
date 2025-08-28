@@ -112,6 +112,11 @@ final class AppViewModel: ObservableObject {
               let sParam = items.first(where: { $0.name == "s" })?.value else {
             return
         }
+        // Enforce a conservative size limit to avoid excessive payloads
+        if sParam.count > 4096 {
+            showDeepLinkError()
+            return
+        }
         
         // Decode Base64 URL-safe encoding
         let base64 = sParam
@@ -121,10 +126,8 @@ final class AppViewModel: ObservableObject {
         // Add padding if needed
         let paddedBase64 = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
         
-        guard let data = Data(base64Encoded: paddedBase64),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return
-        }
+        guard let data = Data(base64Encoded: paddedBase64) else { showDeepLinkError(); return }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { showDeepLinkError(); return }
         
         // Parse the shared data structure
         var newEntries: [NameEntry] = []
@@ -149,7 +152,15 @@ final class AppViewModel: ObservableObject {
         if !newEntries.isEmpty {
             entries = newEntries
             save()
+        } else {
+            showDeepLinkError()
         }
+    }
+
+    private func showDeepLinkError() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.error)
+        print("Invalid or too-large deep link data")
     }
 }
 
@@ -184,7 +195,7 @@ struct ContentView: View {
         VStack(spacing: 12) {
             HStack(spacing: 8) {
                 VStack(alignment: .leading) {
-                    TextField("English Name", text: $vm.enText)
+                    TextField(NSLocalizedString("english_name_placeholder", comment: "English name placeholder"), text: $vm.enText)
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(true)
                         .submitLabel(.done)
@@ -201,12 +212,12 @@ struct ContentView: View {
                                     .padding(.trailing, 8)
                             }
                         }
-                    Text("Text may not match \(LangCatalog.displayName(vm.enLang))")
+                    Text(String(format: NSLocalizedString("text_may_not_match_lang", comment: "mismatch warning"), LangCatalog.displayName(vm.enLang)))
                         .font(.caption2)
                         .foregroundStyle(.orange)
                         .frame(height: 14)
                         .opacity(vm.englishMismatch ? 1 : 0)
-                    Picker("Language", selection: $vm.enLang) {
+                    Picker(NSLocalizedString("language", comment: "Language label"), selection: $vm.enLang) {
                         ForEach(LangCatalog.allCodes, id: \.self) { code in
                             Text(LangCatalog.displayName(code)).tag(code)
                         }
@@ -216,7 +227,7 @@ struct ContentView: View {
                     
                 }
                 VStack(alignment: .leading) {
-                    TextField("Native Name", text: $vm.zhText)
+                    TextField(NSLocalizedString("native_name_placeholder", comment: "Native name placeholder"), text: $vm.zhText)
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(true)
                         .submitLabel(.done)
@@ -233,12 +244,12 @@ struct ContentView: View {
                                     .padding(.trailing, 8)
                             }
                         }
-                    Text("Text may not match \(LangCatalog.displayName(vm.zhLang))")
+                    Text(String(format: NSLocalizedString("text_may_not_match_lang", comment: "mismatch warning"), LangCatalog.displayName(vm.zhLang)))
                         .font(.caption2)
                         .foregroundStyle(.orange)
                         .frame(height: 14)
                         .opacity(vm.nativeMismatch ? 1 : 0)
-                    Picker("Language", selection: $vm.zhLang) {
+                    Picker(NSLocalizedString("language", comment: "Language label"), selection: $vm.zhLang) {
                         ForEach(LangCatalog.allCodes, id: \.self) { code in
                             Text(LangCatalog.displayName(code)).tag(code)
                         }
@@ -256,7 +267,7 @@ struct ContentView: View {
                     vm.addEntry()
                 }
             }) {
-                Text("Add")
+                Text(NSLocalizedString("add", comment: "Add button"))
                     .bold()
                     .frame(maxWidth: .infinity)
             }
@@ -279,7 +290,7 @@ struct ContentView: View {
     private var list: some View {
         VStack(spacing: 10) {
             if vm.entries.isEmpty {
-                Text("No names yet. Add a name and language to begin.")
+                Text(NSLocalizedString("empty_list_message", comment: "Empty state message"))
                     .foregroundStyle(.secondary)
                     .padding()
             }
@@ -335,12 +346,12 @@ struct ContentView: View {
         VStack(spacing: 12) {
             // Share section
             HStack {
-                Text("Share your list")
+                Text(NSLocalizedString("share_your_list", comment: "Share header"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
                 ShareLink(item: DeepLinkBuilder.url(for: vm.entries)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                    Label(NSLocalizedString("share", comment: "Share button"), systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -388,7 +399,7 @@ struct CacheManagementView: View {
     var body: some View {
         HStack(spacing: 12) {
             let cacheInfo = cacheManager.getCacheInfo()
-            Text("\(cacheInfo.count) pronunciations cached")
+            Text(String(format: NSLocalizedString("pronunciations_cached_count", comment: "cache count"), cacheInfo.count))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -397,20 +408,20 @@ struct CacheManagementView: View {
                     Haptics.shared.impact(.light)
                     showingClearAlert = true
                 } label: {
-                    Label("Clear", systemImage: "trash")
+                    Label(NSLocalizedString("clear", comment: "Clear button"), systemImage: "trash")
                 }
                 .controlSize(.small)
                 .buttonStyle(.bordered)
                 .tint(.red)
             }
         }
-        .alert("Clear Audio Cache", isPresented: $showingClearAlert) {
-            Button("Clear", role: .destructive) {
+        .alert(NSLocalizedString("clear_audio_cache_title", comment: "clear title"), isPresented: $showingClearAlert) {
+            Button(NSLocalizedString("clear", comment: "Clear button"), role: .destructive) {
                 cacheManager.clearAllCache()
             }
-            Button("Cancel", role: .cancel) { }
+            Button(NSLocalizedString("cancel", comment: "Cancel"), role: .cancel) { }
         } message: {
-            Text("This will remove all cached audio files. They will be downloaded again when needed.")
+            Text(NSLocalizedString("clear_audio_cache_message", comment: "clear message"))
         }
     }
 }
@@ -422,7 +433,7 @@ struct CacheSummaryView: View {
         let _ = cacheManager.statsVersion
         let info = cacheManager.getCacheInfo()
         return HStack {
-            Text("\(info.count) pronunciations cached")
+            Text(String(format: NSLocalizedString("pronunciations_cached_count", comment: "cache count"), info.count))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer()

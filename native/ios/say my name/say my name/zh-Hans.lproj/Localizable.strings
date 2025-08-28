@@ -1,0 +1,14 @@
+"english_name_placeholder" = "英文名";
+"native_name_placeholder" = "本名";
+"text_may_not_match_lang" = "文本可能与%@不匹配";
+"language" = "语言";
+"add" = "添加";
+"empty_list_message" = "还没有名字。请先添加名字和语言。";
+"share_your_list" = "分享你的列表";
+"share" = "分享";
+"pronunciations_cached_count" = "%d 条发音已缓存";
+"clear" = "清除";
+"clear_audio_cache_title" = "清除音频缓存";
+"clear_audio_cache_message" = "这将移除所有已缓存的音频文件。需要时会重新下载。";
+"cancel" = "取消";
+
