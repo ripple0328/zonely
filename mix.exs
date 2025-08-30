@@ -33,6 +33,7 @@ defmodule Zonely.MixProject do
 
   defp deps do
     [
+      {:usage_rules, "~> 0.1", only: [:dev]},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.6"},
       {:ecto_sql, "~> 3.13"},
@@ -65,6 +66,7 @@ defmodule Zonely.MixProject do
       {:req, "~> 0.5"},
       {:tzdata, "~> 1.1"},
       {:tidewave, "~> 0.4.1", only: :dev},
+      {:igniter, "~> 0.6", only: [:dev, :test]},
       {:wallaby, "~> 0.30", runtime: false, only: :test}
     ]
   end
