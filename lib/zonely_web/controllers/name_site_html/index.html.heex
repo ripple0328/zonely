@@ -49,9 +49,9 @@
       .text{font-weight:600;color:var(--fg)}
       @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
       .empty{color:var(--muted);text-align:center;padding:28px}
-      .footer{margin-top:18px}
+      .footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--ring)}
       .footer-actions{display:flex;gap:10px;justify-content:space-between;align-items:center}
-      .site-links{font-size:12px;opacity:.85;margin-top:8px;padding-top:8px;border-top:1px solid var(--ring);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-start}
+      .site-links{font-size:12px;opacity:.7;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
       .muted{color:var(--muted)}
       .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
       /* Stylish copy button */
@@ -183,15 +183,10 @@
         
 
         <div class="footer">
-          <div class="footer-actions">
-            <div class="muted">Bookmark this page to save, or share the link with others.</div>
-          </div>
           <div class="muted site-links">
             <a href={~p"/privacy"} class="muted" style="text-decoration:underline">Privacy</a>
             <span aria-hidden="true">·</span>
-            <a href={~p"/about"} class="muted" style="text-decoration:underline">Acknowledgments</a>
-            <span aria-hidden="true">·</span>
-
+            <a href={~p"/about"} class="muted" style="text-decoration:underline">About</a>
           </div>
         </div>
       </div>
