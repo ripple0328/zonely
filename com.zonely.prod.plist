@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.zonely.prod</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd /Users/qingbo/Projects/Personal/zonely && /opt/homebrew/bin/direnv exec . mix prod.tunnel</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qingbo/Projects/Personal/zonely</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/qingbo/Projects/Personal/zonely/logs/prod.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/qingbo/Projects/Personal/zonely/logs/prod.error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/qingbo/.local/share/mise/installs/elixir/1.18.4-otp-28/bin:/Users/qingbo/.local/share/mise/installs/erlang/28.0.2/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/qingbo</string>
+        <key>USER</key>
+        <string>qingbo</string>
+    </dict>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+</dict>
+</plist>

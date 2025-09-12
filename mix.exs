@@ -86,7 +86,17 @@ defmodule Zonely.MixProject do
       ],
       "db.up": ["cmd docker compose up -d db"],
       "db.down": ["cmd docker compose down db"],
-      "db.logs": ["cmd docker compose logs db"]
+      "db.logs": ["cmd docker compose logs db"],
+      "db.prod.up": ["cmd docker compose -f docker-compose.prod.yml up -d"],
+      "db.prod.down": ["cmd docker compose -f docker-compose.prod.yml down"],
+      "db.prod.logs": ["cmd docker compose -f docker-compose.prod.yml logs"],
+      "db.prod.reset": [
+        "cmd docker compose -f docker-compose.prod.yml down -v",
+        "cmd docker compose -f docker-compose.prod.yml up -d"
+      ],
+       
+      
+      "prod.tunnel": ["db.prod.up", "cmd ./start_prod_tunnel.sh"]
     ]
   end
 end
