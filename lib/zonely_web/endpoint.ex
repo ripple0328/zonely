@@ -13,15 +13,15 @@ defmodule ZonelyWeb.Endpoint do
     longpoll: [connect_info: [session: @session_options]]
   )
 
+  # Tidewave should be placed after code reloading but before static assets
+  if Code.ensure_loaded?(Tidewave) do
+    plug(Tidewave)
+  end
+
   if code_reloading? do
     socket("/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket)
     plug(Phoenix.LiveReloader)
     plug(Phoenix.CodeReloader)
-  end
-
-  # Tidewave should be placed after code reloading but before static assets
-  if Code.ensure_loaded?(Tidewave) do
-    plug(Tidewave)
   end
 
   plug(Plug.Static,

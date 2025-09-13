@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Say my name</title>
     <meta name="color-scheme" content="light dark" />
-    
+
     <!-- Smart App Banner for iOS -->
-    <!-- Replace YOUR_APP_ID with actual App Store ID after app approval -->
-    <meta name="apple-itunes-app" content="app-id=YOUR_APP_ID, app-argument=https://saymyname.qingbo.us/" />
+    <!-- App Store ID: 6751617647 -->
+    <meta name="apple-itunes-app" content="app-id=6751617647, app-argument=https://saymyname.qingbo.us/" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg?v=3"} />
     <link rel="icon" sizes="any" type="image/svg+xml" href={~p"/favicon.svg?v=3"} />
@@ -151,7 +151,7 @@
               <option value="ar-SA">العربية</option>
               </select>
             </div>
-            
+
           </div>
           <button id="add" class="primary">Add</button>
         </div>
@@ -180,7 +180,7 @@
           <% end %>
         </div>
 
-        
+
 
         <div class="footer">
           <div class="muted site-links">
@@ -656,16 +656,16 @@
         try {
           const url = new URL(window.location.href);
           const sharedData = url.searchParams.get('s');
-          
+
           if (sharedData) {
             // Update Smart App Banner with shared data
             const metaTag = document.querySelector('meta[name="apple-itunes-app"]');
             if (metaTag) {
-              metaTag.setAttribute('content', 
-                `app-id=YOUR_APP_ID, app-argument=https://saymyname.qingbo.us/?s=${sharedData}`
+              metaTag.setAttribute('content',
+                `app-id=6751617647, app-argument=https://saymyname.qingbo.us/?s=${sharedData}`
               );
             }
-            
+
             // Try to trigger custom scheme URL for direct app opening
             // This creates an invisible iframe that attempts to open the app
             const customSchemeUrl = `saymyname://?s=${sharedData}`;
@@ -673,38 +673,8 @@
             iframe.style.display = 'none';
             iframe.src = customSchemeUrl;
             document.body.appendChild(iframe);
-            
-            // iOS blocks auto-open without a user gesture. Add a visible CTA for iOS.
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            if (isIOS) {
-              const existing = document.getElementById('open-in-app-cta');
-              if (!existing) {
-                const cta = document.createElement('a');
-                cta.id = 'open-in-app-cta';
-                cta.href = customSchemeUrl;
-                cta.textContent = 'Open in App';
-                cta.style.cssText = [
-                  'position: fixed',
-                  'bottom: 16px',
-                  'left: 16px',
-                  'right: 16px',
-                  'z-index: 3000',
-                  'display: inline-block',
-                  'text-align: center',
-                  'padding: 12px 16px',
-                  'border-radius: 12px',
-                  'background: #111827',
-                  'color: #ffffff',
-                  'font-weight: 600',
-                  'box-shadow: 0 10px 20px rgba(0,0,0,0.15)'
-                ].join(';');
-                cta.addEventListener('click', function(ev){
-                  ev.preventDefault();
-                  try { window.location.href = customSchemeUrl; } catch(_) {}
-                });
-                document.body.appendChild(cta);
-              }
-            }
+
+
 
             // Clean up iframe after attempt
             setTimeout(() => {
@@ -947,5 +917,3 @@
     </script>
   </body>
   </html>
-
-

@@ -65,7 +65,7 @@ defmodule Zonely.MixProject do
       {:countries, "~> 1.6"},
       {:req, "~> 0.5"},
       {:tzdata, "~> 1.1"},
-      {:tidewave, "~> 0.4.1", only: :dev},
+      {:tidewave, "~> 0.5", only: :dev},
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:wallaby, "~> 0.30", runtime: false, only: :test}
     ]
@@ -94,8 +94,6 @@ defmodule Zonely.MixProject do
         "cmd docker compose -f docker-compose.prod.yml down -v",
         "cmd docker compose -f docker-compose.prod.yml up -d"
       ],
-       
-      
       "prod.tunnel": ["db.prod.up", "cmd ./start_prod_tunnel.sh"]
     ]
   end
