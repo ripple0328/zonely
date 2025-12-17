@@ -42,6 +42,11 @@ config :tidewave,
   enabled: true,
   path: "/tidewave/mcp"
 
+# Enable LiveView debug features for better Tidewave integration
+config :phoenix_live_view,
+  debug_heex_annotations: true,
+  debug_attributes: true
+
 # Audio cache directory (runtime-generated files)
 config :zonely, :audio_cache_dir, Path.expand("priv/static/audio/cache", File.cwd!())
 
