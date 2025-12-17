@@ -37,7 +37,12 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
-    check_origin: false,
+    # Allow WebSocket connections from the configured host
+    # Using a more permissive check_origin for Cloudflare Tunnel compatibility
+    check_origin: [
+      "https://#{host}",
+      "//#{host}"
+    ],
     secret_key_base: secret_key_base
 
   # Audio cache directory for runtime-generated files
