@@ -37,12 +37,7 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
-    check_origin: [
-      "//#{host}",
-      "//*.#{host}",
-      "https://#{host}",
-      "wss://#{host}"
-    ],
+    check_origin: false,
     secret_key_base: secret_key_base
 
   # Audio cache directory for runtime-generated files
