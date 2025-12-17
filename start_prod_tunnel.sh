@@ -112,8 +112,11 @@ generate_env_vars() {
     DATABASE_URL="postgresql://postgres:postgres@localhost:5433/zonely_prod"
     print_info "Using production DATABASE_URL: $DATABASE_URL"
 
-    # Set PHX_HOST for tunnel
-    PHX_HOST="localhost"
+    # Set PHX_HOST for tunnel (use actual domain for Cloudflare tunnel)
+    PHX_HOST="${PHX_HOST:-zonely.qingbo.us}"
+
+    # Set Cloudflare tunnel name for production
+    CLOUDFLARE_TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME:-zonely-multi}"
 
     # Export environment variables for production
     export MIX_ENV=prod
@@ -122,6 +125,7 @@ generate_env_vars() {
     export DATABASE_URL="$DATABASE_URL"
     export PHX_HOST="$PHX_HOST"
     export PORT="$port"
+    export CLOUDFLARE_TUNNEL_NAME="$CLOUDFLARE_TUNNEL_NAME"
 
     # Explicitly set individual database components to ensure they override dev config
     export DB_HOST="localhost"
@@ -129,6 +133,14 @@ generate_env_vars() {
     export DB_NAME="zonely_prod"
     export DB_USER="postgres"
     export DB_PASSWORD="postgres"
+
+    # Set API keys and AWS credentials (use environment variables if set, otherwise use defaults)
+    export MAPTILER_API_KEY="${MAPTILER_API_KEY:-}"
+    export FORVO_API_KEY="${FORVO_API_KEY:-}"
+    export NS_API_KEY="${NS_API_KEY:-}"
+    export AWS_REGION="${AWS_REGION:-us-west-1}"
+    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}"
+    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}"
 
     print_success "Environment variables configured for production on port $port"
     print_info "Database URL: $DATABASE_URL"
@@ -139,6 +151,7 @@ generate_env_vars() {
     echo "  DATABASE_URL=$DATABASE_URL"
     echo "  PHX_HOST=$PHX_HOST"
     echo "  PORT=$PORT"
+    echo "  CLOUDFLARE_TUNNEL_NAME=$CLOUDFLARE_TUNNEL_NAME"
 }
 
 # Function to setup database
@@ -225,6 +238,8 @@ update_cloudflare_config() {
 start_cloudflare_tunnel() {
     local port=$1
     print_info "Starting Cloudflare tunnel for port $port..."
+    print_info "DEBUG: CLOUDFLARE_TUNNEL_NAME='$CLOUDFLARE_TUNNEL_NAME'"
+    print_info "DEBUG: Config file exists: $([ -f "$HOME/.cloudflared/config.yml" ] && echo 'yes' || echo 'no')"
 
     # Check if named tunnel is configured
     if [ -f "$HOME/.cloudflared/config.yml" ] && [ ! -z "$CLOUDFLARE_TUNNEL_NAME" ]; then

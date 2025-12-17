@@ -50,6 +50,9 @@ npm-debug.log
 .env.local
 .envrc
 
+# Production environment files (contains secrets)
+.env.prod
+
 # IDE and editor files
 .vscode/
 .idea/

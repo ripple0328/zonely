@@ -39,7 +39,9 @@ if config_env() == :prod do
     ],
     check_origin: [
       "//#{host}",
-      "//*.#{host}"
+      "//*.#{host}",
+      "https://#{host}",
+      "wss://#{host}"
     ],
     secret_key_base: secret_key_base
 

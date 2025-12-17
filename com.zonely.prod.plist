@@ -31,7 +31,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/qingbo/.local/share/mise/installs/elixir/1.18.4-otp-28/bin:/Users/qingbo/.local/share/mise/installs/erlang/28.0.2/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/Applications/Docker.app/Contents/Resources/bin</string>
+        <string>/Users/qingbo/.local/share/mise/installs/elixir/1.19.4-otp-28/bin:/Users/qingbo/.local/share/mise/installs/erlang/28.3/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/Applications/Docker.app/Contents/Resources/bin</string>
         <key>HOME</key>
         <string>/Users/qingbo</string>
         <key>USER</key>
