@@ -1,43 +1,28 @@
 services:
-  db_prod:
-    image: postgres:17
-    container_name: zonely_db_prod
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: zonely_prod
-    ports:
-      - "5433:5432"  # Different port to avoid conflicts with dev db
-    volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  # Redis for production (optional, on different port)
-  redis_prod:
-    image: redis:7-alpine
-    container_name: zonely_redis_prod
-    ports:
-      - "6380:6379"  # Different port to avoid conflicts
-    volumes:
-      - redis_prod_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    restart: unless-stopped
+    db_prod:
+        image: postgres:17
+        container_name: zonely_db_prod
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: zonely_prod
+        ports:
+            - "5433:5432" # Different port to avoid conflicts with dev db
+        volumes:
+            - postgres_prod_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
 
 volumes:
-  postgres_prod_data:
-    driver: local
-  redis_prod_data:
-    driver: local
+    postgres_prod_data:
+        driver: local
+    redis_prod_data:
+        driver: local
 
 networks:
-  default:
-    name: zonely_prod_network
+    default:
+        name: zonely_prod_network
