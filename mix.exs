@@ -5,7 +5,7 @@ defmodule Zonely.MixProject do
     [
       app: :zonely,
       version: "0.1.0",
-      elixir: "~> 1.18",
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -53,7 +53,7 @@ defmodule Zonely.MixProject do
        depth: 1},
       {:telemetry_metrics, "~> 1.1"},
       {:telemetry_poller, "~> 1.3"},
-      {:gettext, "~> 0.26"},
+      {:gettext, "~> 1.0"},
       {:jason, "~> 1.4"},
       {:ex_aws, "~> 2.5"},
       {:ex_aws_s3, "~> 2.5"},

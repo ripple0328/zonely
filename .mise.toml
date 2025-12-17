@@ -1,7 +1,7 @@
 [tools]
 # Using system Erlang/Elixir for compatibility
-erlang = "28.0.2"
-elixir = "1.18.4-otp-28"
+erlang = "28.3"
+elixir = "1.19.4-otp-28"
 
 [env]
 MIX_ENV = "dev"
