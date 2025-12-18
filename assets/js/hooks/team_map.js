@@ -423,20 +423,45 @@ const TeamMap = {
 
   // Close the polygon to the night side
   createNightPolygon(terminatorPoints, now) {
-    const noonUTC = new Date(now)
-    noonUTC.setUTCHours(12, 0, 0, 0)
-    const isAfterNoon = now.getTime() >= noonUTC.getTime()
+    // Determine which side is night based on solar position
+    // At longitude 0 (Greenwich), if UTC hour is < 6 or >= 18, it's roughly nighttime
+    // More accurately: check if sun subsolar point longitude is on the opposite side
+    const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60
+    // Sun subsolar longitude: (12 - utcHours) * 15 degrees
+    // Earth rotates west to east, so sun appears to move east to west
+    const sunLongitude = (12 - utcHours) * 15
+
+    // The night side is opposite to where the sun is
+    // When sun is west (negative), night should be east
+    // When sun is east (positive), night should be west
+    // IMPORTANT: Polygon winding fills the OPPOSITE side from where you start
+    // So when we want to shade WEST, we start from EAST (-180) and vice versa
+    const nightIsWest = sunLongitude > 0
+
+    console.log('[Night Overlay Debug]', {
+      utcHours: utcHours.toFixed(2),
+      sunLongitude: sunLongitude.toFixed(2),
+      sunPosition: sunLongitude < 0 ? 'WEST' : 'EAST',
+      nightIsWest,
+      actualShading: nightIsWest ? 'Shading WEST side' : 'Shading EAST side'
+    })
 
     const nightSide = []
-    if (isAfterNoon) {
-      nightSide.push([-180, 85])
-      terminatorPoints.forEach(p => nightSide.push(p))
-      nightSide.push([180, 85], [180, -85], [-180, -85], [-180, 85])
-    } else {
+    if (nightIsWest) {
+      // Shade the western side (when sun is east)
+      // Polygon fills OPPOSITE side from start, so start from EAST to fill WEST
       nightSide.push([180, 85])
       terminatorPoints.slice().reverse().forEach(p => nightSide.push(p))
       nightSide.push([-180, 85], [-180, -85], [180, -85], [180, 85])
+    } else {
+      // Shade the eastern side (when sun is west)
+      // Polygon fills OPPOSITE side from start, so start from WEST to fill EAST
+      nightSide.push([-180, 85])
+      terminatorPoints.forEach(p => nightSide.push(p))
+      nightSide.push([180, 85], [180, -85], [-180, -85], [-180, 85])
     }
+
+    console.log('[Night Overlay Debug] First polygon point:', nightSide[0])
     return nightSide
   },
 
