@@ -33,6 +33,15 @@ defmodule ZonelyWeb.Router do
   end
 
   # Standalone minimal site served on saymyname.qingbo.us (host-specific must be before generic "/" scopes)
+
+  # Health endpoints (used by uptime checks)
+  scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
+    pipe_through(:api)
+
+    get("/healthz", HealthController, :healthz)
+    get("/readyz", HealthController, :readyz)
+  end
+
   scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
     pipe_through(:bare)
 
