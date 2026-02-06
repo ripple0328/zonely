@@ -32,6 +32,15 @@ defmodule ZonelyWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
+  # Health check endpoints (no auth, minimal overhead)
+  scope "/", ZonelyWeb do
+    pipe_through(:api)
+    
+    get("/healthz", HealthController, :liveness)
+    get("/readyz", HealthController, :readiness)
+    get("/version", HealthController, :version)
+  end
+
   # Standalone minimal site served on saymyname.qingbo.us (host-specific must be before generic "/" scopes)
   scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
     pipe_through(:bare)
