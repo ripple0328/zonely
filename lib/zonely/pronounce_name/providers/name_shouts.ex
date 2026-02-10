@@ -2,6 +2,7 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
   @moduledoc false
   require Logger
   alias Zonely.PronunceName
+  alias Zonely.Analytics
 
   # Legacy function for backward compatibility - delegates to fetch_single
   @spec fetch(String.t(), String.t()) :: {:ok, String.t()} | {:error, atom()}
@@ -40,8 +41,10 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
 
     Logger.info("🌐 NameShouts single request to: #{url_with_lang}")
 
+    started_ms = System.monotonic_time(:millisecond)
     case PronunceName.http_client().get(url_with_lang, headers) do
       {:ok, %{status: 200, body: body}} ->
+        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: 200, duration_ms: System.monotonic_time(:millisecond) - started_ms})
         Logger.info("🔍 DEBUG: NameShouts response body for '#{name}': #{inspect(body)}")
         handle_nameshouts_response(body, name, original_name, language)
 
@@ -57,16 +60,23 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
         end
 
       {:ok, %{status: 403}} ->
+        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: 403, duration_ms: System.monotonic_time(:millisecond) - started_ms})
         {:error, :invalid_api_key}
 
       {:ok, %{status: 404}} ->
+        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: 404, duration_ms: System.monotonic_time(:millisecond) - started_ms})
         Logger.info("❌ NameShouts: No pronunciation found for '#{name}'")
         {:error, :not_found}
 
-      {:ok, %{status: _}} ->
+      {:ok, %{status: status}} ->
+        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: status, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        if status == 429 do
+          Analytics.track_async("external_api_rate_limited", %{provider: "name_shouts", status: status})
+        end
         {:error, :api_error}
 
-      {:error, _} ->
+      {:error, reason} ->
+        Analytics.track_async("external_api_error", %{provider: "name_shouts", reason: inspect(reason)})
         {:error, :request_failed}
     end
   end

@@ -2,6 +2,7 @@ defmodule Zonely.PronunceName.Providers.Forvo do
   @moduledoc false
   require Logger
   alias Zonely.PronunceName
+  alias Zonely.Analytics
 
   # Legacy function for backward compatibility - delegates to fetch_single
   @spec fetch(String.t(), String.t()) :: {:ok, String.t()} | {:error, atom()}
@@ -31,8 +32,10 @@ defmodule Zonely.PronunceName.Providers.Forvo do
 
     Logger.debug("🌐 Forvo request: #{name} (#{language})")
 
+    started_ms = System.monotonic_time(:millisecond)
     case PronunceName.http_client().get(url) do
       {:ok, %{status: 200, body: body}} ->
+        Analytics.track_async("external_api_call", %{provider: "forvo", status: 200, duration_ms: System.monotonic_time(:millisecond) - started_ms})
         case body do
           %{"items" => [item | _]} ->
             cond do
@@ -58,10 +61,15 @@ defmodule Zonely.PronunceName.Providers.Forvo do
             {:error, :unexpected_format}
         end
 
-      {:ok, %{status: _}} ->
+      {:ok, %{status: status}} ->
+        Analytics.track_async("external_api_call", %{provider: "forvo", status: status, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        if status == 429 do
+          Analytics.track_async("external_api_rate_limited", %{provider: "forvo", status: status})
+        end
         {:error, :api_error}
 
-      {:error, _} ->
+      {:error, reason} ->
+        Analytics.track_async("external_api_error", %{provider: "forvo", reason: inspect(reason)})
         {:error, :request_failed}
     end
   end

@@ -36,6 +36,38 @@ defmodule Zonely.Analytics do
   end
 
   @doc """
+  Fire-and-forget event logging (async).
+  """
+  def track_async(event_name, properties, opts \ []) do
+    Task.start(fn -> track(event_name, properties, opts) end)
+    :ok
+  end
+
+  @doc """
+  Hash a name for privacy-safe analytics.
+  """
+  def hash_name(name) when is_binary(name) do
+    :crypto.hash(:sha256, name)
+    |> Base.encode16(case: :lower)
+  end
+
+  @doc """
+  Build a minimal user context map from request headers.
+  """
+  def user_context_from_headers(headers) when is_list(headers) do
+    ua = headers |> Enum.find_value("", fn {k, v} -> if String.downcase(k) == "user-agent", do: v end)
+    country = headers |> Enum.find_value(nil, fn {k, v} -> if String.downcase(k) == "cf-ipcountry", do: v end)
+
+    %{
+      user_agent: if(ua == "", do: nil, else: hash_name(ua)),
+      country: country
+    }
+    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+    |> Enum.into(%{})
+  end
+
+
+  @doc """
   Get total pronunciation count for a date range.
   """
   def total_pronunciations(start_date, end_date) do
@@ -223,23 +255,29 @@ defmodule Zonely.Analytics do
   Returns list of {hour, count} tuples.
   """
   def pronunciations_time_series(start_date, end_date, granularity \\ "hour") do
-    trunc_fn =
+    query =
       case granularity do
-        "hour" -> "hour"
-        "day" -> "day"
-        _ -> "hour"
+        "day" ->
+          from(e in Event,
+            where: e.event_name == "pronunciation_generated",
+            where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+            select: {fragment("DATE_TRUNC('day', ?)", e.timestamp), count(e.id)},
+            group_by: fragment("DATE_TRUNC('day', ?)", e.timestamp),
+            order_by: [asc: fragment("DATE_TRUNC('day', ?)", e.timestamp)]
+          )
+
+        _ ->
+          from(e in Event,
+            where: e.event_name == "pronunciation_generated",
+            where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+            select: {fragment("DATE_TRUNC('hour', ?)", e.timestamp), count(e.id)},
+            group_by: fragment("DATE_TRUNC('hour', ?)", e.timestamp),
+            order_by: [asc: fragment("DATE_TRUNC('hour', ?)", e.timestamp)]
+          )
       end
 
-    from(e in Event,
-      where: e.event_name == "pronunciation_generated",
-      where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
-      select: {fragment("DATE_TRUNC(?, ?)", ^trunc_fn, e.timestamp), count(e.id)},
-      group_by: fragment("DATE_TRUNC(?, ?)", ^trunc_fn, e.timestamp),
-      order_by: [asc: fragment("DATE_TRUNC(?, ?)", ^trunc_fn, e.timestamp)]
-    )
-    |> Repo.all()
+    Repo.all(query)
   end
-
   # Private helpers
 
   defp generate_session_id do

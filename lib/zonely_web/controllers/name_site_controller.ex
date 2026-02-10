@@ -3,23 +3,28 @@ defmodule ZonelyWeb.NameSiteController do
 
   alias Zonely.PronunceName
   alias Zonely.AvatarService
+  alias Zonely.Analytics
 
   def index(conn, params) do
     # URL state encoded as base64 JSON in `s` query param for bookmarking
     state = decode_state(params["s"]) || []
 
+    Analytics.track_async("page_view_landing", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
     render(conn, :index, names: state)
   end
 
   def privacy(conn, _params) do
+    Analytics.track_async("page_view_privacy", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
     render(conn, :privacy)
   end
 
   def about(conn, _params) do
+    Analytics.track_async("page_view_about", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
     render(conn, :about)
   end
 
   def pronounce(conn, %{"name" => name, "lang" => lang}) do
+    Analytics.track_async("pronunciation_request", %{name_hash: Analytics.hash_name(name), lang: lang}, user_context: Analytics.user_context_from_headers(conn.req_headers))
     case PronunceName.play(name, lang) do
       {:play_audio, %{url: url}} ->
         json(conn, %{type: "audio", url: absolute_url(conn, url)})

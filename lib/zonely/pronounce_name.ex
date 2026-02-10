@@ -76,10 +76,12 @@ defmodule Zonely.PronunceName do
     case Zonely.PronunceName.Cache.lookup_cached_audio(name, language) do
       {:ok, cached_url} ->
         Logger.info("📦 Cache hit for name=#{inspect(name)} lang=#{language} -> #{cached_url}")
+        Analytics.track_async("pronunciation_cache_hit", %{name_hash: Analytics.hash_name(name), lang: language, provider: "cache"})
         {:audio_url, cached_url}
 
       :not_found ->
         Logger.info("📦 Cache miss for name=#{inspect(name)} lang=#{language}")
+        Analytics.track_async("pronunciation_cache_miss", %{name_hash: Analytics.hash_name(name), lang: language})
         # 2) Try name variants systematically: full name first, then decide on fallback strategy
         case try_name_variants_with_providers(name, language) do
           {:ok, {:sequence, urls}} ->
@@ -87,6 +89,7 @@ defmodule Zonely.PronunceName do
 
           {:ok, audio_url} ->
             Logger.info("🌐 External audio found -> #{audio_url}")
+            Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), lang: language, provider: "external"})
             {:audio_url, audio_url}
 
           {:error, :use_ai_fallback} ->
@@ -103,6 +106,7 @@ defmodule Zonely.PronunceName do
                 Logger.warning(
                   "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
                 )
+                Analytics.track_async("pronunciation_error", %{name_hash: Analytics.hash_name(name), lang: language, provider: "polly", reason: inspect(reason)})
 
                 {:tts, name, language}
             end
@@ -115,12 +119,14 @@ defmodule Zonely.PronunceName do
             case Zonely.PronunceName.Providers.Polly.synthesize(name, language) do
               {:ok, web_path} ->
                 Logger.info("✅ Polly synth success -> #{web_path}")
+                Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), lang: language, provider: "polly"})
                 {:audio_url, web_path}
 
               {:error, reason} ->
                 Logger.warning(
                   "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
                 )
+                Analytics.track_async("pronunciation_error", %{name_hash: Analytics.hash_name(name), lang: language, provider: "polly", reason: inspect(reason)})
 
                 {:tts, name, language}
             end
