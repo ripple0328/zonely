@@ -24,6 +24,10 @@ defmodule ZonelyWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :no_cache do
+    plug(:no_cache_headers)
+  end
+
   # Minimal, layout-free pipeline for standalone host
   pipeline :bare do
     plug(:accepts, ["html"])
@@ -96,7 +100,7 @@ defmodule ZonelyWeb.Router do
   # Admin routes (protected, internal only)
   # TODO: Add authentication plug for production
   scope "/admin", ZonelyWeb.Admin do
-    pipe_through(:browser)
+    pipe_through([:browser, :no_cache])
 
     live("/analytics", AnalyticsDashboardLive)
   end
@@ -105,6 +109,13 @@ defmodule ZonelyWeb.Router do
   # scope "/api", ZonelyWeb do
   #   pipe_through :api
   # end
+
+  defp no_cache_headers(conn, _opts) do
+    conn
+    |> put_resp_header("cache-control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+    |> put_resp_header("pragma", "no-cache")
+    |> put_resp_header("expires", "0")
+  end
 
   # Enable LiveDashboard in development
   if Application.compile_env(:zonely, :dev_routes) do

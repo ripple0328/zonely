@@ -39,6 +39,13 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
   @impl true
   def handle_event("change_range", %{"range" => range}, socket) do
+    range = if Map.has_key?(@time_ranges, range), do: range, else: "24h"
+
+    socket =
+      socket
+      |> assign(:time_range, range)
+      |> load_dashboard_data()
+
     {:noreply, push_patch(socket, to: ~p"/admin/analytics?range=#{range}")}
   end
 
@@ -59,7 +66,8 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     cache_hit_rate = Analytics.cache_hit_rate(start_date, end_date)
     top_names = Analytics.top_requested_names(start_date, end_date, 10)
     geo_distribution = Analytics.geographic_distribution(start_date, end_date, 10)
-    provider_performance = Analytics.tts_provider_performance(start_date, end_date)
+    top_languages = Analytics.top_languages(start_date, end_date, 5)
+    provider_performance = Analytics.provider_usage(start_date, end_date)
     error_stats = Analytics.error_rate(start_date, end_date)
     errors_by_type = Analytics.errors_by_type(start_date, end_date)
     conversion = Analytics.conversion_funnel(start_date, end_date)
@@ -76,6 +84,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     |> assign(:cache_hit_rate, cache_hit_rate)
     |> assign(:top_names, top_names)
     |> assign(:geo_distribution, geo_distribution)
+    |> assign(:top_languages, top_languages)
     |> assign(:provider_performance, provider_performance)
     |> assign(:error_stats, error_stats)
     |> assign(:errors_by_type, errors_by_type)
@@ -160,7 +169,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
             <!-- Pronunciations Over Time -->
             <div class="bg-white rounded-lg shadow p-6">
               <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Pronunciations Over Time
+                Pronunciations Over Time (2-hour frequency)
               </h2>
               <.simple_time_chart data={@time_series} />
             </div>
@@ -168,7 +177,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
             <!-- Provider Performance -->
             <div class="bg-white rounded-lg shadow p-6">
               <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                TTS Provider Performance
+                Provider Performance
               </h2>
               <.provider_performance_table providers={@provider_performance} />
             </div>
@@ -184,13 +193,21 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
               <.top_names_table names={@top_names} />
             </div>
 
-            <!-- Geographic Distribution -->
+            <!-- Top Languages -->
             <div class="bg-white rounded-lg shadow p-6">
               <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Geographic Distribution
+                Top Languages (Pronunciations)
               </h2>
-              <.geo_distribution_table countries={@geo_distribution} />
+              <.top_languages_chart languages={@top_languages} />
             </div>
+          </div>
+
+          <!-- Geographic Distribution -->
+          <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">
+              Geographic Distribution
+            </h2>
+            <.geo_distribution_map countries={@geo_distribution} />
           </div>
 
           <!-- Errors Row -->
@@ -297,13 +314,13 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
             <%= for provider <- @providers do %>
               <tr>
                 <td class="px-3 py-2 text-sm font-medium text-gray-900">
-                  <%= provider.provider || "Unknown" %>
+                  <%= provider_label(provider.provider) %>
                 </td>
                 <td class="px-3 py-2 text-sm text-gray-600 text-right">
-                  <%= provider.avg_generation_time_ms %>
+                  <%= provider.avg_generation_time_ms || "—" %>
                 </td>
                 <td class="px-3 py-2 text-sm text-gray-600 text-right">
-                  <%= provider.p95_generation_time_ms %>
+                  <%= provider.p95_generation_time_ms || "—" %>
                 </td>
                 <td class="px-3 py-2 text-sm text-gray-600 text-right">
                   <%= provider.total_requests %>
@@ -324,16 +341,29 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <%= if @names == [] do %>
       <p class="text-gray-500 text-center py-8">No data available</p>
     <% else %>
-      <div class="space-y-2">
-        <%= for {{name_hash, count}, index} <- Enum.with_index(@names, 1) do %>
-          <div class="flex items-center justify-between py-2 border-b border-gray-100">
-            <div class="flex items-center space-x-3">
-              <span class="text-sm font-medium text-gray-500 w-6"><%= index %>.</span>
-              <span class="text-sm text-gray-900 font-mono"><%= name_hash %></span>
-            </div>
-            <span class="text-sm font-semibold text-blue-600"><%= count %></span>
-          </div>
-        <% end %>
+      <div class="overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Language</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Source</th>
+              <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Count</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <%= for {row, index} <- Enum.with_index(@names, 1) do %>
+              <tr>
+                <td class="px-3 py-2 text-sm text-gray-500"><%= index %>.</td>
+                <td class="px-3 py-2 text-sm text-gray-900"><%= row.name %></td>
+                <td class="px-3 py-2 text-sm text-gray-600"><%= language_label(row.lang) %></td>
+                <td class="px-3 py-2 text-center text-lg"><%= provider_icon(row.provider) %></td>
+                <td class="px-3 py-2 text-sm text-gray-600 text-right"><%= row.count %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
     <% end %>
     """
@@ -341,21 +371,58 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
   attr :countries, :list, required: true
 
-  defp geo_distribution_table(assigns) do
+  defp geo_distribution_map(assigns) do
+    max = assigns.countries |> Enum.map(fn {_, c} -> c end) |> Enum.max(fn -> 1 end)
+    coords = country_coordinates()
+
+    assigns = assign(assigns, :max_count, max)
+    assigns = assign(assigns, :coords, coords)
+
     ~H"""
     <%= if @countries == [] do %>
       <p class="text-gray-500 text-center py-8">No data available</p>
     <% else %>
-      <div class="space-y-2">
-        <%= for {{country_code, session_count}, index} <- Enum.with_index(@countries, 1) do %>
-          <div class="flex items-center justify-between py-2 border-b border-gray-100">
-            <div class="flex items-center space-x-3">
-              <span class="text-sm font-medium text-gray-500 w-6"><%= index %>.</span>
-              <span class="text-sm text-gray-900">
-                <%= country_name(country_code) %> (<%= country_code %>)
-              </span>
+      <div class="w-full">
+        <svg viewBox="0 0 1000 500" class="w-full h-64">
+          <image href="/images/world.svg" x="0" y="0" width="1000" height="500" />
+          <%= for {country_code, session_count} <- @countries do %>
+            <%= if Map.has_key?(@coords, country_code) do %>
+              <% {x, y} = Map.get(@coords, country_code) %>
+              <% size = 6 + (session_count / @max_count) * 10 %>
+              <circle cx={x} cy={y} r={size} fill="#2563EB" fill-opacity="0.7" />
+              <text x={x} y={y - 10} text-anchor="middle" font-size="12" fill="#111">
+                <%= session_count %>
+              </text>
+            <% end %>
+          <% end %>
+        </svg>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <%= for {country_code, session_count} <- @countries do %>
+            <div class="text-sm text-gray-600">
+              <span class="font-medium"><%= country_name(country_code) %> (<%= country_code %>)</span>: <%= session_count %>
             </div>
-            <span class="text-sm font-semibold text-blue-600"><%= session_count %></span>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+    """
+  end
+
+  attr :languages, :list, required: true
+
+  defp top_languages_chart(assigns) do
+    ~H"""
+    <%= if @languages == [] do %>
+      <p class="text-gray-500 text-center py-8">No data available</p>
+    <% else %>
+      <div class="space-y-2">
+        <%= for {lang, count} <- @languages do %>
+          <div class="flex items-center space-x-2">
+            <div class="text-xs text-gray-600 w-32"><%= language_label(lang) %></div>
+            <div class="flex-1 bg-gray-200 rounded-full h-3 relative">
+              <div class="bg-indigo-600 h-3 rounded-full" style={"width: #{language_bar_width(@languages, count)}%"}></div>
+            </div>
+            <div class="text-sm font-medium text-gray-900 w-10 text-right"><%= count %></div>
           </div>
         <% end %>
       </div>
@@ -399,6 +466,26 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
       %DateTime{} ->
         Calendar.strftime(timestamp, "%b %d %H:%M")
 
+      %NaiveDateTime{} = naive ->
+        naive
+        |> DateTime.from_naive!("Etc/UTC")
+        |> Calendar.strftime("%b %d %H:%M")
+
+      binary when is_binary(binary) ->
+        case DateTime.from_iso8601(binary) do
+          {:ok, dt, _} -> Calendar.strftime(dt, "%b %d %H:%M")
+          _ ->
+            case NaiveDateTime.from_iso8601(binary) do
+              {:ok, naive} ->
+                naive
+                |> DateTime.from_naive!("Etc/UTC")
+                |> Calendar.strftime("%b %d %H:%M")
+
+              _ ->
+                "N/A"
+            end
+        end
+
       _ ->
         "N/A"
     end
@@ -409,8 +496,61 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     if max_count > 0, do: Float.round(count / max_count * 100, 1), else: 0
   end
 
+  defp language_bar_width(data, count) do
+    max_count = data |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 1 end)
+    if max_count > 0, do: Float.round(count / max_count * 100, 1), else: 0
+  end
+
+  defp provider_label(provider) do
+    case provider do
+      "polly" -> "AI (Polly)"
+      "forvo" -> "Forvo"
+      "name_shouts" -> "NameShouts"
+      "external" -> "External"
+      nil -> "Unknown"
+      other ->
+        other
+        |> to_string()
+        |> String.replace("_", " ")
+        |> String.split()
+        |> Enum.map(&String.capitalize/1)
+        |> Enum.join(" ")
+    end
+  end
+
+  defp provider_icon(provider) do
+    case provider do
+      "polly" -> "🤖"
+      "external" -> "👤"
+      "forvo" -> "👤"
+      "name_shouts" -> "👤"
+      _ -> "•"
+    end
+  end
+
+  defp language_label(nil), do: "Unknown"
+
+  defp language_label(lang) when is_binary(lang) do
+    Zonely.NameShoutsParser.language_display_name(lang)
+  end
+
+  defp country_coordinates do
+    %{
+      "US" => {200, 210},
+      "CA" => {200, 150},
+      "GB" => {460, 160},
+      "FR" => {480, 185},
+      "DE" => {500, 170},
+      "NL" => {495, 165},
+      "AU" => {820, 360},
+      "JP" => {820, 190},
+      "CN" => {750, 210},
+      "IN" => {690, 260},
+      "BR" => {350, 320}
+    }
+  end
+
   defp country_name(code) do
-    # Simple mapping - could be expanded
     %{
       "US" => "United States",
       "GB" => "United Kingdom",
@@ -421,7 +561,8 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
       "JP" => "Japan",
       "CN" => "China",
       "IN" => "India",
-      "BR" => "Brazil"
+      "BR" => "Brazil",
+      "NL" => "Netherlands"
     }
     |> Map.get(code, code)
   end

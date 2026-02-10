@@ -11,6 +11,7 @@ defmodule Zonely.Analytics do
   """
 
   import Ecto.Query, warn: false
+  require Logger
   alias Zonely.Repo
   alias Zonely.Analytics.Event
 
@@ -38,8 +39,17 @@ defmodule Zonely.Analytics do
   @doc """
   Fire-and-forget event logging (async).
   """
-  def track_async(event_name, properties, opts \ []) do
-    Task.start(fn -> track(event_name, properties, opts) end)
+  def track_async(event_name, properties, opts \\ []) do
+    Task.start(fn ->
+      case track(event_name, properties, opts) do
+        {:ok, _event} ->
+          :ok
+
+        {:error, changeset} ->
+          Logger.error("Analytics track failed: #{inspect(changeset.errors)}")
+      end
+    end)
+
     :ok
   end
 
@@ -112,15 +122,43 @@ defmodule Zonely.Analytics do
   Returns list of {name_hash, count} tuples.
   """
   def top_requested_names(start_date, end_date, limit \\ 10) do
-    from(e in Event,
-      where: e.event_name == "pronunciation_generated",
-      where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
-      select: {fragment("properties->>'name_hash'"), count(e.id)},
-      group_by: fragment("properties->>'name_hash'"),
-      order_by: [desc: count(e.id)],
-      limit: ^limit
-    )
-    |> Repo.all()
+    rows =
+      from(e in Event,
+        where: e.event_name == "pronunciation_generated",
+        where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        select: %{
+          name: fragment("COALESCE(properties->>'name_text', properties->>'name_hash')"),
+          lang: fragment("properties->>'lang'"),
+          provider: fragment("properties->>'provider'"),
+          count: count(e.id)
+        },
+        group_by: [
+          fragment("COALESCE(properties->>'name_text', properties->>'name_hash')"),
+          fragment("properties->>'lang'"),
+          fragment("properties->>'provider'")
+        ],
+        order_by: [desc: count(e.id)]
+      )
+      |> Repo.all()
+
+    rows
+    |> Enum.reduce(%{}, fn row, acc ->
+      key = {row.name || "Unknown", row.lang || "Unknown"}
+      entry = Map.get(acc, key, %{name: elem(key, 0), lang: elem(key, 1), count: 0, provider_counts: %{}})
+      provider_counts = Map.update(entry.provider_counts, row.provider || "unknown", row.count, &(&1 + row.count))
+      Map.put(acc, key, %{entry | count: entry.count + row.count, provider_counts: provider_counts})
+    end)
+    |> Map.values()
+    |> Enum.map(fn entry ->
+      {provider, _} =
+        entry.provider_counts
+        |> Enum.sort_by(fn {_p, c} -> -c end)
+        |> List.first() || {"unknown", 0}
+
+      Map.put(entry, :provider, provider)
+    end)
+    |> Enum.sort_by(&(&1.count), :desc)
+    |> Enum.take(limit)
   end
 
   @doc """
@@ -140,6 +178,22 @@ defmodule Zonely.Analytics do
   end
 
   @doc """
+  Top languages by pronunciation count.
+  Returns list of {lang, count} tuples.
+  """
+  def top_languages(start_date, end_date, limit \\ 5) do
+    from(e in Event,
+      where: e.event_name == "pronunciation_generated",
+      where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+      select: {fragment("properties->>'lang'"), count(e.id)},
+      group_by: fragment("properties->>'lang'"),
+      order_by: [desc: count(e.id)],
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Get TTS provider performance comparison.
   Returns list of maps with provider stats.
   """
@@ -148,7 +202,7 @@ defmodule Zonely.Analytics do
       where: e.event_name == "pronunciation_generated",
       where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
       select: %{
-        provider: fragment("properties->>'tts_provider'"),
+        provider: fragment("COALESCE(properties->>'tts_provider', properties->>'provider')"),
         avg_generation_time_ms:
           fragment("AVG((properties->>'generation_time_ms')::integer)::integer"),
         median_generation_time_ms:
@@ -161,8 +215,32 @@ defmodule Zonely.Analytics do
           ),
         total_requests: count(e.id)
       },
-      group_by: fragment("properties->>'tts_provider'"),
+      group_by: fragment("COALESCE(properties->>'tts_provider', properties->>'provider')"),
       order_by: [asc: fragment("AVG((properties->>'generation_time_ms')::integer)")]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  External provider performance (Forvo/NameShouts/Polly).
+  Returns list of maps with provider stats based on external_api_call events.
+  """
+  def provider_usage(start_date, end_date) do
+    from(e in Event,
+      where: e.event_name == "external_api_call",
+      where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+      select: %{
+        provider: fragment("properties->>'provider'"),
+        avg_generation_time_ms:
+          fragment("AVG((properties->>'duration_ms')::integer)::integer"),
+        p95_generation_time_ms:
+          fragment(
+            "PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (properties->>'duration_ms')::integer)::integer"
+          ),
+        total_requests: count(e.id)
+      },
+      group_by: fragment("properties->>'provider'"),
+      order_by: [desc: count(e.id)]
     )
     |> Repo.all()
   end
@@ -233,7 +311,7 @@ defmodule Zonely.Analytics do
       # Get sessions that converted
       converted_count =
         from(e in Event,
-          where: e.event_name == "page_view_pronunciation",
+          where: e.event_name == "pronunciation_request",
           where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
           where: e.session_id in ^landing_sessions,
           select: count(fragment("DISTINCT ?", e.session_id))
@@ -262,17 +340,24 @@ defmodule Zonely.Analytics do
             where: e.event_name == "pronunciation_generated",
             where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
             select: {fragment("DATE_TRUNC('day', ?)", e.timestamp), count(e.id)},
-            group_by: fragment("DATE_TRUNC('day', ?)", e.timestamp),
-            order_by: [asc: fragment("DATE_TRUNC('day', ?)", e.timestamp)]
+            group_by: fragment("1"),
+            order_by: [asc: fragment("1")]
           )
 
         _ ->
           from(e in Event,
             where: e.event_name == "pronunciation_generated",
             where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
-            select: {fragment("DATE_TRUNC('hour', ?)", e.timestamp), count(e.id)},
-            group_by: fragment("DATE_TRUNC('hour', ?)", e.timestamp),
-            order_by: [asc: fragment("DATE_TRUNC('hour', ?)", e.timestamp)]
+            select: {
+              fragment(
+                "DATE_TRUNC('hour', ?) - (INTERVAL '1 hour' * (EXTRACT(hour FROM ?)::int % 2))",
+                e.timestamp,
+                e.timestamp
+              ),
+              count(e.id)
+            },
+            group_by: fragment("1"),
+            order_by: [asc: fragment("1")]
           )
       end
 
