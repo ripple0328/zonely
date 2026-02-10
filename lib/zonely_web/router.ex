@@ -93,6 +93,14 @@ defmodule ZonelyWeb.Router do
     live("/native", NativePronounceLive)
   end
 
+  # Admin routes (protected, internal only)
+  # TODO: Add authentication plug for production
+  scope "/admin", ZonelyWeb.Admin do
+    pipe_through(:browser)
+
+    live("/analytics", AnalyticsDashboardLive)
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", ZonelyWeb do
   #   pipe_through :api
