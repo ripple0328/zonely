@@ -36,11 +36,17 @@ defmodule ZonelyWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
+  pipeline :health do
+    plug(:put_root_layout, false)
+    plug(:put_layout, false)
+    plug(:put_secure_browser_headers)
+  end
+
   # Standalone minimal site served on saymyname.qingbo.us (host-specific must be before generic "/" scopes)
 
   # Health endpoints (used by uptime checks)
   scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
-    pipe_through(:bare)
+    pipe_through(:health)
 
     get("/healthz", HealthController, :healthz)
     get("/readyz", HealthController, :readyz)
