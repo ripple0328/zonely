@@ -40,10 +40,15 @@ defmodule ZonelyWeb.Router do
 
   # Health endpoints (used by uptime checks)
   scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
-    pipe_through(:api)
+    pipe_through(:bare)
 
     get("/healthz", HealthController, :healthz)
     get("/readyz", HealthController, :readyz)
+  end
+
+  scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
+    pipe_through(:api)
+
     post("/api/analytics/play", AnalyticsController, :play)
   end
 
