@@ -19,7 +19,7 @@ defmodule Zonely.Analytics.Event do
   schema "analytics_events" do
     field :event_name, :string
     field :timestamp, :utc_datetime_usec
-    field :session_id, :string
+    field :session_id, :binary_id
     field :user_context, :map
     field :metadata, :map
     field :properties, :map
@@ -32,15 +32,23 @@ defmodule Zonely.Analytics.Event do
     "page_view_landing",
     "page_view_pronunciation",
     "page_view_share",
+    "page_view_privacy",
+    "page_view_about",
     # User interactions
     "interaction_play_audio",
     "interaction_share",
     "interaction_copy_link",
     "interaction_report_issue",
     # Pronunciation events
+    "pronunciation_request",
     "pronunciation_generated",
     "pronunciation_cache_hit",
+    "pronunciation_cache_miss",
     "pronunciation_error",
+    # External API events
+    "external_api_call",
+    "external_api_rate_limited",
+    "external_api_error",
     # System events
     "system_api_error",
     "system_rate_limit",
@@ -65,11 +73,22 @@ defmodule Zonely.Analytics.Event do
   end
 
   defp validate_session_id(changeset) do
-    validate_format(
-      changeset,
-      :session_id,
-      ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    )
+    case get_field(changeset, :session_id) do
+      nil ->
+        changeset
+
+      <<_::binary-size(16)>> ->
+        changeset
+
+      value when is_binary(value) ->
+        case Ecto.UUID.cast(value) do
+          {:ok, _} -> changeset
+          :error -> add_error(changeset, :session_id, "must be a valid UUID")
+        end
+
+      _ ->
+        add_error(changeset, :session_id, "must be a valid UUID")
+    end
   end
 
   defp validate_user_context(changeset) do

@@ -41,7 +41,9 @@ if config_env() == :prod do
     # Using a more permissive check_origin for Cloudflare Tunnel compatibility
     check_origin: [
       "https://#{host}",
-      "//#{host}"
+      "//#{host}",
+      "https://saymyname.qingbo.us",
+      "//saymyname.qingbo.us"
     ],
     secret_key_base: secret_key_base
 

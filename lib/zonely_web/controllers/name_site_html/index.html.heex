@@ -205,6 +205,27 @@
       const shareEl = document.getElementById('share');
       const demoEl = document.getElementById('demo');
       const supportedLangs = ["en-US","es-ES","fr-FR","de-DE","pt-BR","zh-CN","ja-JP","hi-IN","bn-IN","ar-SA"];
+      const playedUrls = new Set();
+      const playedKeys = new Set();
+
+      async function trackPlay({ provider, cacheSource, nameText, lang, isReplay }) {
+        try {
+          const body = {
+            provider: isReplay ? 'cache_client' : (cacheSource ? `cache_${cacheSource}` : (provider || 'unknown')),
+            cache_source: isReplay ? 'client' : (cacheSource || null),
+            original_provider: provider || 'unknown',
+            name_text: nameText,
+            lang,
+            platform: 'web'
+          };
+
+          await fetch('/api/analytics/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+        } catch (_) {}
+      }
 
       // Lightweight script-based language check (same set as iOS)
       function allowedScripts(code){
@@ -541,6 +562,12 @@
             const res = await fetch(url.toString());
             const data = await res.json();
             if(data.type === 'audio' || data.type === 'tts_audio'){
+              const key = `${lang}|${text}`;
+              const isReplay = playedUrls.has(data.url) || playedKeys.has(key);
+              trackPlay({ provider: data.provider, cacheSource: data.cache_source, nameText: text, lang, isReplay });
+              playedUrls.add(data.url);
+              playedKeys.add(key);
+
               audio.src = data.url;
               audio.onended = () => { resetPillState(pill); if(currentPill===pill) currentPill=null; };
               audio.onerror = () => { resetPillState(pill); if(currentPill===pill) currentPill=null; };
@@ -566,6 +593,7 @@
               currentPill = pill;
             }else if(data.type === 'sequence'){
               const urls = data.urls || [];
+              trackPlay({ provider: data.provider, cacheSource: null, nameText: text, lang, isReplay: false });
               let idx = 0;
               const playNext = () => {
                 if(idx >= urls.length){ resetPillState(pill); if(currentPill===pill) currentPill=null; return; }
@@ -578,6 +606,7 @@
               playNext();
               currentPill = pill;
             }else if(data.type === 'tts'){
+              trackPlay({ provider: data.provider || 'browser_tts', cacheSource: 'client', nameText: text, lang, isReplay: true });
               // Stop audio first in case it was playing
               try { audio.pause(); audio.currentTime = 0; } catch(_) {}
               const u = new SpeechSynthesisUtterance(data.text);

@@ -381,3 +381,12 @@ header.fixed { position: fixed; z-index: 1000; pointer-events: auto; }
     backdrop-filter: blur(8px);
   }
 }
+
+.metric-flash {
+  animation: metricFlash 0.6s ease-out;
+}
+
+@keyframes metricFlash {
+  0% { background-color: rgba(59,130,246,0.15); }
+  100% { background-color: transparent; }
+}

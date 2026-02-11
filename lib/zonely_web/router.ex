@@ -44,6 +44,7 @@ defmodule ZonelyWeb.Router do
 
     get("/healthz", HealthController, :healthz)
     get("/readyz", HealthController, :readyz)
+    post("/api/analytics/play", AnalyticsController, :play)
   end
 
   scope "/", ZonelyWeb, host: "saymyname.qingbo.us" do
@@ -82,6 +83,7 @@ defmodule ZonelyWeb.Router do
   scope "/", ZonelyWeb do
     pipe_through(:api)
     get("/api/pronounce", NameSiteController, :pronounce)
+    post("/api/analytics/play", AnalyticsController, :play)
   end
 
   # Local development access at /name

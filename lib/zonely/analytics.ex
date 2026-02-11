@@ -82,7 +82,7 @@ defmodule Zonely.Analytics do
   """
   def total_pronunciations(start_date, end_date) do
     from(e in Event,
-      where: e.event_name == "pronunciation_generated",
+      where: e.event_name == "interaction_play_audio",
       where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
       select: count(e.id)
     )
@@ -96,25 +96,38 @@ defmodule Zonely.Analytics do
   def cache_hit_rate(start_date, end_date) do
     hits =
       from(e in Event,
-        where: e.event_name == "pronunciation_cache_hit",
+        where: e.event_name == "interaction_play_audio",
         where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        where: fragment("properties->>'provider' LIKE 'cache_%'"),
         select: count(e.id)
       )
       |> Repo.one()
 
-    total =
-      from(e in Event,
-        where: e.event_name in ["pronunciation_generated", "pronunciation_cache_hit"],
-        where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
-        select: count(e.id)
-      )
-      |> Repo.one()
+    total = total_pronunciations(start_date, end_date)
 
     if total > 0 do
       Float.round(hits / total * 100, 2)
     else
       0.0
     end
+  end
+
+  def cache_hit_breakdown(start_date, end_date) do
+    rows =
+      from(e in Event,
+        where: e.event_name == "interaction_play_audio",
+        where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        where: fragment("properties->>'provider' LIKE 'cache_%'"),
+        select: {fragment("properties->>'provider'"), count(e.id)},
+        group_by: fragment("properties->>'provider'")
+      )
+      |> Repo.all()
+
+    rows
+    |> Enum.reduce(%{"cache_local" => 0, "cache_remote" => 0, "cache_client" => 0}, fn {provider, count}, acc ->
+      key = provider || "cache_local"
+      Map.put(acc, key, count)
+    end)
   end
 
   @doc """
@@ -126,14 +139,15 @@ defmodule Zonely.Analytics do
       from(e in Event,
         where: e.event_name == "pronunciation_generated",
         where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        where: fragment("properties->>'name_text' IS NOT NULL"),
         select: %{
-          name: fragment("COALESCE(properties->>'name_text', properties->>'name_hash')"),
+          name: fragment("properties->>'name_text'"),
           lang: fragment("properties->>'lang'"),
           provider: fragment("properties->>'provider'"),
           count: count(e.id)
         },
         group_by: [
-          fragment("COALESCE(properties->>'name_text', properties->>'name_hash')"),
+          fragment("properties->>'name_text'"),
           fragment("properties->>'lang'"),
           fragment("properties->>'provider'")
         ],
@@ -226,23 +240,73 @@ defmodule Zonely.Analytics do
   Returns list of maps with provider stats based on external_api_call events.
   """
   def provider_usage(start_date, end_date) do
-    from(e in Event,
-      where: e.event_name == "external_api_call",
-      where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
-      select: %{
-        provider: fragment("properties->>'provider'"),
-        avg_generation_time_ms:
-          fragment("AVG((properties->>'duration_ms')::integer)::integer"),
-        p95_generation_time_ms:
-          fragment(
-            "PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (properties->>'duration_ms')::integer)::integer"
-          ),
-        total_requests: count(e.id)
-      },
-      group_by: fragment("properties->>'provider'"),
-      order_by: [desc: count(e.id)]
-    )
-    |> Repo.all()
+    counts =
+      from(e in Event,
+        where: e.event_name == "interaction_play_audio",
+        where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        select: {fragment("properties->>'provider'"), count(e.id)},
+        group_by: fragment("properties->>'provider'")
+      )
+      |> Repo.all()
+      |> Enum.reject(fn {provider, _} -> is_nil(provider) end)
+
+    counts_map =
+      counts
+      |> Enum.reduce(%{}, fn {provider, count}, acc ->
+        Map.put(acc, to_string(provider), %{provider: to_string(provider), total_requests: count})
+      end)
+
+    metrics_external =
+      from(e in Event,
+        where: e.event_name == "external_api_call",
+        where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        where: fragment("properties->>'provider' IN ('polly','forvo','name_shouts')"),
+        select: %{
+          provider: fragment("properties->>'provider'"),
+          avg_generation_time_ms:
+            fragment("AVG((properties->>'duration_ms')::integer)::integer"),
+          p95_generation_time_ms:
+            fragment(
+              "PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (properties->>'duration_ms')::integer)::integer"
+            )
+        },
+        group_by: fragment("properties->>'provider'")
+      )
+      |> Repo.all()
+
+    metrics_polly =
+      from(e in Event,
+        where: e.event_name == "pronunciation_generated",
+        where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+        where: fragment("properties->>'provider' = 'polly'"),
+        where: fragment("properties->>'generation_time_ms' IS NOT NULL"),
+        select: %{
+          provider: fragment("'polly'"),
+          avg_generation_time_ms:
+            fragment("AVG((properties->>'generation_time_ms')::integer)::integer"),
+          p95_generation_time_ms:
+            fragment(
+              "PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (properties->>'generation_time_ms')::integer)::integer"
+            )
+        }
+      )
+      |> Repo.all()
+
+    metrics =
+      (metrics_external ++ metrics_polly)
+      |> Enum.reduce(%{}, fn row, acc -> Map.put(acc, to_string(row.provider), row) end)
+
+    counts_map
+    |> Map.values()
+    |> Enum.map(fn row ->
+      metrics_row = Map.get(metrics, row.provider, %{})
+
+      row
+      |> Map.merge(metrics_row)
+      |> Map.put_new(:avg_generation_time_ms, nil)
+      |> Map.put_new(:p95_generation_time_ms, nil)
+    end)
+    |> Enum.sort_by(&(&1.total_requests || 0), :desc)
   end
 
   @doc """
@@ -332,14 +396,39 @@ defmodule Zonely.Analytics do
   Get hourly time series data for pronunciations.
   Returns list of {hour, count} tuples.
   """
-  def pronunciations_time_series(start_date, end_date, granularity \\ "hour") do
+  def pronunciations_time_series(start_date, end_date, granularity \\ "2h") do
     query =
       case granularity do
+        "week" ->
+          from(e in Event,
+            where: e.event_name == "pronunciation_generated",
+            where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+            select: {fragment("DATE_TRUNC('week', ?)", e.timestamp), count(e.id)},
+            group_by: fragment("1"),
+            order_by: [asc: fragment("1")]
+          )
+
         "day" ->
           from(e in Event,
             where: e.event_name == "pronunciation_generated",
             where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
             select: {fragment("DATE_TRUNC('day', ?)", e.timestamp), count(e.id)},
+            group_by: fragment("1"),
+            order_by: [asc: fragment("1")]
+          )
+
+        "6h" ->
+          from(e in Event,
+            where: e.event_name == "pronunciation_generated",
+            where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
+            select: {
+              fragment(
+                "DATE_TRUNC('hour', ?) - (INTERVAL '1 hour' * (EXTRACT(hour FROM ?)::int % 6))",
+                e.timestamp,
+                e.timestamp
+              ),
+              count(e.id)
+            },
             group_by: fragment("1"),
             order_by: [asc: fragment("1")]
           )

@@ -72,6 +72,3 @@ npm-debug.log
 
 # Audio files
 /priv/static/audio/
-
-# Fly.io deployment configuration
-fly.toml

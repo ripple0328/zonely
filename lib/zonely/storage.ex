@@ -47,6 +47,30 @@ defmodule Zonely.Storage do
     end
   end
 
+  @doc """
+  Check if a key exists in storage.
+  """
+  @spec exists?(key()) :: boolean()
+  def exists?(key) do
+    case config().backend do
+      "s3" ->
+        cfg = config()
+
+        opts =
+          []
+          |> maybe_endpoint(cfg.s3_endpoint)
+
+        case ExAws.S3.head_object(cfg.bucket, key) |> ExAws.request(opts) do
+          {:ok, _} -> true
+          _ -> false
+        end
+
+      _ ->
+        path = Path.join(Zonely.AudioCache.dir(), Path.basename(key))
+        File.exists?(path)
+    end
+  end
+
   defp put_s3(key, bin) do
     cfg = config()
 

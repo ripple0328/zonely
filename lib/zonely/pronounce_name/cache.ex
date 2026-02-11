@@ -4,7 +4,7 @@ defmodule Zonely.PronunceName.Cache do
   require Logger
   require Logger
 
-  @spec lookup_cached_audio(String.t(), String.t()) :: {:ok, String.t()} | :not_found
+  @spec lookup_cached_audio(String.t(), String.t()) :: {:ok, String.t(), :local | :remote} | :not_found
   def lookup_cached_audio(name, language) do
     primary_dir = AudioCache.dir()
     legacy_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
@@ -69,7 +69,21 @@ defmodule Zonely.PronunceName.Cache do
              |> List.last()
            ) do
         nil ->
-          :not_found
+          # Try remote cache (S3) if enabled
+          polly_voice = Zonely.PronunceName.pick_polly_voice(language)
+
+          polly_key =
+            :crypto.hash(:sha256, Enum.join([name, language, polly_voice], ":"))
+            |> Base.encode16(case: :lower)
+
+          polly_filename = "polly_#{polly_key}.mp3"
+          remote_key = "polly/" <> polly_filename
+
+          if Zonely.Storage.exists?(remote_key) do
+            {:ok, Zonely.Storage.public_url(remote_key), :remote}
+          else
+            :not_found
+          end
 
         polly_filename ->
           which_dir =
@@ -82,7 +96,7 @@ defmodule Zonely.PronunceName.Cache do
               do: "/audio/cache/#{polly_filename}",
               else: "/audio-cache/#{polly_filename}"
 
-          {:ok, web_path}
+          {:ok, web_path, :local}
       end
     end
   end
@@ -107,6 +121,12 @@ defmodule Zonely.PronunceName.Cache do
 
     case Zonely.Storage.put(key, audio_bin) do
       :ok ->
+        # Best-effort local cache for faster hits
+        cache_dir = AudioCache.dir()
+        File.mkdir_p!(cache_dir)
+        local_path = Path.join(cache_dir, filename)
+        _ = File.write(local_path, audio_bin)
+
         {:ok, Zonely.Storage.public_url(key)}
 
       {:error, _} ->

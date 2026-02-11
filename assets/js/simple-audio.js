@@ -44,6 +44,29 @@ export function setupSimpleAudio() {
   }
 
   // Audio file playback for both real person and AI-generated audio
+  const playedUrls = new Set();
+
+  function trackPlay(detail, isReplay) {
+    try {
+      const provider = detail.provider || 'unknown';
+      const cacheSource = isReplay ? 'client' : (detail.cache_source || null);
+      const payload = {
+        provider: cacheSource ? `cache_${cacheSource}` : provider,
+        cache_source: cacheSource,
+        original_provider: provider,
+        name_text: detail.name_text,
+        lang: detail.lang,
+        platform: 'web'
+      };
+
+      fetch('/api/analytics/play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
   function handleAudioPlayback(event) {
     // Stop current audio if playing
     if (currentAudio) {
@@ -53,6 +76,10 @@ export function setupSimpleAudio() {
 
     // Stop speech synthesis if active  
     if ('speechSynthesis' in window) speechSynthesis.cancel();
+
+    const isReplay = playedUrls.has(event.detail.url);
+    trackPlay(event.detail || {}, isReplay);
+    if (event.detail && event.detail.url) playedUrls.add(event.detail.url);
 
     // Play new audio
     currentAudio = new Audio(event.detail.url);
@@ -75,7 +102,8 @@ export function setupSimpleAudio() {
 
   // Sequential playback of multiple audio URLs
   window.addEventListener("phx:play_sequence", (event) => {
-    const { urls, user_id } = event.detail || {};
+    const { urls, user_id, provider } = event.detail || {};
+    trackPlay({ provider: provider || 'unknown', cache_source: null, platform: 'web' }, false);
     if (!Array.isArray(urls) || urls.length === 0) return;
 
     // Stop any current audio/speech
@@ -104,6 +132,8 @@ export function setupSimpleAudio() {
   // Simple TTS using browser's built-in speech synthesis
   window.addEventListener("phx:play_tts", (event) => {
     const { text, lang } = event.detail;
+
+    trackPlay({ provider: 'browser_tts', cache_source: 'client', name_text: text, lang, platform: 'web' }, true);
     
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported');
