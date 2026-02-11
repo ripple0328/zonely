@@ -27,4 +27,7 @@ migrate:
 deploy-mini:
 	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} deploy-mini
 
+deploy-mini-local:
+	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} deploy-mini-local
+
 deploy: deploy-mini
