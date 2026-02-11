@@ -13,6 +13,8 @@ defmodule ZonelyWeb.Endpoint do
     longpoll: [connect_info: [session: @session_options]]
   )
 
+  plug(:healthcheck)
+
   # Tidewave should be placed after code reloading but before static assets
   if Code.ensure_loaded?(Tidewave) do
     plug(Tidewave)
@@ -58,4 +60,20 @@ defmodule ZonelyWeb.Endpoint do
   end
 
   plug(ZonelyWeb.Router)
+
+  defp healthcheck(%{request_path: "/healthz"} = conn, _opts) do
+    conn
+    |> Plug.Conn.put_resp_content_type("text/plain")
+    |> Plug.Conn.send_resp(200, "ok")
+    |> Plug.Conn.halt()
+  end
+
+  defp healthcheck(%{request_path: "/readyz"} = conn, _opts) do
+    conn
+    |> Plug.Conn.put_resp_content_type("text/plain")
+    |> Plug.Conn.send_resp(200, "ready")
+    |> Plug.Conn.halt()
+  end
+
+  defp healthcheck(conn, _opts), do: conn
 end
