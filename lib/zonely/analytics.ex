@@ -57,6 +57,7 @@ defmodule Zonely.Analytics do
   end
 
   defp broadcast_event(event) do
+    Logger.debug("📡 Broadcasting analytics event: #{event.event_name}")
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:analytics_event, event})
   end
 

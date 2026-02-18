@@ -61,8 +61,10 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   end
 
   @impl true
-  def handle_info({:analytics_event, _event}, socket) do
+  def handle_info({:analytics_event, event}, socket) do
     # Real-time update when any analytics event occurs
+    require Logger
+    Logger.debug("📊 Dashboard received event: #{event.event_name}")
     {:noreply, socket |> assign(:updated_at, DateTime.utc_now()) |> load_dashboard_data()}
   end
 
