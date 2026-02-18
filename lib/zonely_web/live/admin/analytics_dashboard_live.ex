@@ -134,7 +134,13 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
               <.icon name="hero-chart-bar" class="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Analytics Dashboard</h1>
+              <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Analytics Dashboard</h1>
+                <span class="live-indicator px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-700">
+                  <span class="live-indicator-dot"></span>
+                  Live
+                </span>
+              </div>
               <p class="text-sm text-slate-500">SayMyName usage insights</p>
             </div>
           </div>
@@ -284,6 +290,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <div
       class="group relative bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
       title={@tooltip || @title}
+      data-metric-card
     >
       <%!-- Gradient accent bar --%>
       <div class={["absolute top-0 left-0 right-0 h-1 bg-gradient-to-r", @gradient]} />
@@ -295,7 +302,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
             {@value}
           </p>
           <%= if @subtitle do %>
-            <p class="text-xs text-slate-400 font-medium">{@subtitle}</p>
+            <p class="text-xs text-slate-400 font-medium" data-metric-value>{@subtitle}</p>
           <% end %>
         </div>
         <div class={["w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg", @gradient]}>
@@ -412,17 +419,20 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     ~H"""
     <div class="space-y-3">
       <%= for {provider, index} <- Enum.with_index(@providers, 1) do %>
-        <div class={[
-          "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
-          rank_card_styles(index)
-        ]}>
+        <div
+          class={[
+            "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+            rank_card_styles(index)
+          ]}
+          data-rank-item
+        >
           <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
             {index}
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between mb-1.5">
               <span class="text-sm font-medium text-slate-800 truncate">{provider_label(provider.provider)}</span>
-              <span class="text-xs font-semibold text-indigo-600 tabular-nums">{provider.total_requests} plays</span>
+              <span class="text-xs font-semibold text-indigo-600 tabular-nums" data-metric-value>{provider.total_requests} plays</span>
             </div>
             <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
@@ -461,10 +471,13 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <% else %>
       <div class="space-y-3">
         <%= for {row, index} <- Enum.with_index(@names, 1) do %>
-          <div class={[
-            "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
-            rank_card_styles(index)
-          ]}>
+          <div
+            class={[
+              "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+              rank_card_styles(index)
+            ]}
+            data-rank-item
+          >
             <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
               {index}
             </div>
@@ -474,7 +487,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
                   <span class="text-sm font-medium text-slate-800 truncate">{row.name}</span>
                   <span class="text-sm opacity-60" title={provider_label(row.provider)}>{provider_icon(row.provider)}</span>
                 </div>
-                <span class="text-xs font-semibold text-slate-500 tabular-nums">{row.count}</span>
+                <span class="text-xs font-semibold text-slate-500 tabular-nums" data-metric-value>{row.count}</span>
               </div>
               <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div
@@ -554,17 +567,20 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         <%!-- Country list - unified ranking style --%>
         <div class="space-y-3">
           <%= for {{country_code, play_count}, index} <- Enum.with_index(@sorted_countries, 1) do %>
-            <div class={[
-              "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
-              rank_card_styles(index)
-            ]}>
+            <div
+              class={[
+                "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+                rank_card_styles(index)
+              ]}
+              data-rank-item
+            >
               <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
                 {index}
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-sm font-medium text-slate-800 truncate">{country_name(country_code)}</span>
-                  <span class="text-xs font-semibold text-slate-500 tabular-nums">{format_number(play_count)}</span>
+                  <span class="text-xs font-semibold text-slate-500 tabular-nums" data-metric-value>{format_number(play_count)}</span>
                 </div>
                 <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
@@ -609,17 +625,20 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <% else %>
       <div class="space-y-3">
         <%= for {{lang, count}, index} <- Enum.with_index(@languages, 1) do %>
-          <div class={[
-            "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
-            rank_card_styles(index)
-          ]}>
+          <div
+            class={[
+              "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+              rank_card_styles(index)
+            ]}
+            data-rank-item
+          >
             <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
               {index}
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between mb-1.5">
                 <span class="text-sm font-medium text-slate-800">{language_label(lang)}</span>
-                <span class="text-xs font-semibold text-slate-500 tabular-nums">{count}</span>
+                <span class="text-xs font-semibold text-slate-500 tabular-nums" data-metric-value>{count}</span>
               </div>
               <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div
