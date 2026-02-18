@@ -367,66 +367,210 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   attr :names, :list, required: true
 
   defp top_names_table(assigns) do
+    max_count = assigns.names |> Enum.map(& &1.count) |> Enum.max(fn -> 1 end)
+    assigns = assign(assigns, :max_count, max_count)
+
     ~H"""
     <%= if @names == [] do %>
-      <p class="text-gray-500 text-center py-8">No data available</p>
-    <% else %>
-      <div class="overflow-x-auto">
-        <table class="table-auto w-auto divide-y divide-gray-200 whitespace-nowrap">
-          <thead>
-            <tr>
-              <th class="px-0.5 py-0.5 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
-              <th class="px-0.5 py-0.5 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
-              <th class="px-0.5 py-0.5 text-left text-xs font-semibold text-gray-500 uppercase">Lang</th>
-              <th class="px-0.5 py-0.5 text-center text-xs font-semibold text-gray-500 uppercase">Src</th>
-              <th class="px-0.5 py-0.5 text-right text-xs font-semibold text-gray-500 uppercase">Count</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <%= for {row, index} <- Enum.with_index(@names, 1) do %>
-              <tr>
-                <td class="px-0.5 py-0.5 text-sm text-gray-500"><%= index %>.</td>
-                <td class="px-0.5 py-0.5 text-sm text-gray-900"><%= row.name %></td>
-                <td class="px-0.5 py-0.5 text-sm text-gray-600"><%= language_label(row.lang) %></td>
-                <td class="px-0.5 py-0.5 text-center text-sm"><%= provider_icon(row.provider) %></td>
-                <td class="px-0.5 py-0.5 text-sm text-gray-600 text-right"><%= row.count %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+      <div class="flex flex-col items-center justify-center py-12 text-gray-400">
+        <.icon name="hero-microphone" class="w-12 h-12 mb-3 opacity-50" />
+        <p class="text-base">No pronunciation requests yet</p>
       </div>
-    <% end %>
-    """
-  end
-
-  attr :countries, :list, required: true
-  attr :map_data, :map, required: true
-  attr :api_key, :string, required: true
-
-  defp geo_distribution_map(assigns) do
-    ~H"""
-    <%= if @countries == [] do %>
-      <p class="text-gray-500 text-center py-8">No data available</p>
     <% else %>
-      <div
-        id="analytics-geo-map"
-        class="w-full h-80 rounded-lg overflow-hidden border"
-        phx-hook="AnalyticsGeoMap"
-        phx-update="ignore"
-        data-api-key={@api_key}
-        data-countries={Jason.encode!(@map_data)}
-      >
-      </div>
-      <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <%= for {country_code, session_count} <- @countries do %>
-          <div class="text-sm text-gray-600">
-            <span class="font-medium"><%= country_name(country_code) %> (<%= country_code %>)</span>: <%= session_count %>
+      <div class="space-y-3">
+        <%= for {row, index} <- Enum.with_index(@names, 1) do %>
+          <div class={[
+            "relative rounded-xl p-4 transition-all duration-200 hover:shadow-md",
+            rank_background_class(index)
+          ]}>
+            <%!-- Rank Badge --%>
+            <div class="flex items-start gap-4">
+              <div class={[
+                "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm",
+                rank_badge_class(index)
+              ]}>
+                {index}
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <%!-- Name and metadata row --%>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-lg font-semibold text-gray-900 truncate">{row.name}</span>
+                  <span class="text-xl" title={provider_label(row.provider)}>{provider_icon(row.provider)}</span>
+                </div>
+
+                <%!-- Language tag --%>
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    <.icon name="hero-language" class="w-3 h-3 mr-1" />
+                    {language_label(row.lang)}
+                  </span>
+                </div>
+
+                <%!-- Progress bar with count --%>
+                <div class="flex items-center gap-3">
+                  <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class={["h-full rounded-full transition-all duration-500", rank_bar_class(index)]}
+                      style={"width: #{Float.round(row.count / @max_count * 100, 1)}%"}
+                    />
+                  </div>
+                  <span class="text-sm font-semibold text-gray-700 tabular-nums w-12 text-right">
+                    {row.count}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         <% end %>
       </div>
     <% end %>
     """
   end
+
+  defp rank_background_class(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
+  defp rank_background_class(2), do: "bg-gradient-to-r from-slate-50 to-gray-100 border border-slate-200"
+  defp rank_background_class(3), do: "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200"
+  defp rank_background_class(_), do: "bg-white border border-gray-100"
+
+  defp rank_badge_class(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white"
+  defp rank_badge_class(2), do: "bg-gradient-to-br from-slate-300 to-gray-400 text-white"
+  defp rank_badge_class(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white"
+  defp rank_badge_class(_), do: "bg-gray-100 text-gray-600"
+
+  defp rank_bar_class(1), do: "bg-gradient-to-r from-amber-400 to-yellow-500"
+  defp rank_bar_class(2), do: "bg-gradient-to-r from-slate-400 to-gray-500"
+  defp rank_bar_class(3), do: "bg-gradient-to-r from-orange-400 to-amber-500"
+  defp rank_bar_class(_), do: "bg-indigo-500"
+
+  attr :countries, :list, required: true
+  attr :map_data, :map, required: true
+  attr :api_key, :string, required: true
+
+  defp geo_distribution_map(assigns) do
+    counts = assigns.countries |> Enum.map(&elem(&1, 1))
+    max_count = Enum.max(counts ++ [0])
+    total_plays = Enum.sum(counts)
+    sorted_countries = Enum.sort_by(assigns.countries, &elem(&1, 1), :desc)
+
+    assigns =
+      assigns
+      |> assign(:max_count, max_count)
+      |> assign(:total_plays, total_plays)
+      |> assign(:sorted_countries, sorted_countries)
+      |> assign(:legend_stops, heatmap_legend_stops(max_count))
+
+    ~H"""
+    <%= if @countries == [] do %>
+      <div class="flex flex-col items-center justify-center py-16 text-gray-400">
+        <.icon name="hero-globe-alt" class="w-16 h-16 mb-4 opacity-50" />
+        <p class="text-base">No geographic data available</p>
+        <p class="text-sm mt-1">Plays will appear here once users start listening</p>
+      </div>
+    <% else %>
+      <div class="space-y-6">
+        <%!-- Map with overlay stats --%>
+        <div class="relative">
+          <div
+            id="analytics-geo-map"
+            class="w-full h-96 rounded-xl overflow-hidden border border-gray-200 shadow-inner"
+            phx-hook="AnalyticsGeoMap"
+            phx-update="ignore"
+            data-api-key={@api_key}
+            data-countries={Jason.encode!(@map_data)}
+          />
+
+          <%!-- Total plays overlay badge --%>
+          <div class="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg px-4 py-3 border border-gray-100">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Plays</div>
+            <div class="text-2xl font-bold text-indigo-600 tabular-nums">{format_number(@total_plays)}</div>
+          </div>
+
+          <%!-- Heatmap Legend --%>
+          <div class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-gray-100 min-w-[180px]">
+            <div class="text-xs font-medium text-gray-600 mb-2">Plays by Country</div>
+            <div class="flex items-center gap-1">
+              <div class="h-3 flex-1 rounded-sm overflow-hidden flex">
+                <div class="flex-1 bg-gray-200" />
+                <div class="flex-1 bg-blue-200" />
+                <div class="flex-1 bg-blue-400" />
+                <div class="flex-1 bg-blue-500" />
+                <div class="flex-1 bg-blue-700" />
+                <div class="flex-1 bg-blue-900" />
+              </div>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-[10px] text-gray-500">0</span>
+              <%= for stop <- @legend_stops do %>
+                <span class="text-[10px] text-gray-500 tabular-nums">{stop}</span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Country Rankings Grid --%>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <%= for {{country_code, play_count}, index} <- Enum.with_index(@sorted_countries, 1) do %>
+            <div class={[
+              "flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:shadow-sm",
+              country_card_class(index)
+            ]}>
+              <%!-- Rank indicator --%>
+              <div class={[
+                "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
+                country_rank_class(index)
+              ]}>
+                {index}
+              </div>
+
+              <%!-- Country info --%>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-gray-900 truncate">{country_name(country_code)}</span>
+                  <span class="text-xs text-gray-400 font-mono">{country_code}</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
+                      style={"width: #{Float.round(play_count / @max_count * 100, 1)}%"}
+                    />
+                  </div>
+                  <span class="text-sm font-semibold text-gray-700 tabular-nums">
+                    {format_number(play_count)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+    """
+  end
+
+  defp heatmap_legend_stops(max_count) when max_count <= 0, do: []
+
+  defp heatmap_legend_stops(max_count) do
+    [div(max_count, 4), div(max_count, 2), max_count]
+    |> Enum.uniq()
+    |> Enum.filter(&(&1 > 0))
+    |> Enum.map(&format_number/1)
+  end
+
+  defp country_card_class(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
+  defp country_card_class(2), do: "bg-gradient-to-r from-slate-50 to-gray-100 border border-slate-200"
+  defp country_card_class(3), do: "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200"
+  defp country_card_class(_), do: "bg-white border border-gray-100"
+
+  defp country_rank_class(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white"
+  defp country_rank_class(2), do: "bg-gradient-to-br from-slate-300 to-gray-400 text-white"
+  defp country_rank_class(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white"
+  defp country_rank_class(_), do: "bg-gray-100 text-gray-600"
+
+  defp format_number(num) when num >= 1_000_000, do: "#{Float.round(num / 1_000_000, 1)}M"
+  defp format_number(num) when num >= 1_000, do: "#{Float.round(num / 1_000, 1)}K"
+  defp format_number(num), do: "#{num}"
 
   attr :languages, :list, required: true
 
@@ -597,11 +741,6 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
       {Float.round(y, 1), tick}
     end)
-  end
-
-  defp bar_width(data, count) do
-    max_count = data |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 1 end)
-    if max_count > 0, do: Float.round(count / max_count * 100, 1), else: 0
   end
 
   defp language_bar_width(data, count) do
