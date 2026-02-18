@@ -369,7 +369,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   # Unified Ranking Components
   # ==========================================================================
   # All ranking UIs use consistent styling:
-  # - space-y-2 for vertical spacing
+  # - space-y-3 for vertical spacing
   # - p-3, gap-3 for card padding
   # - w-7 h-7 rounded badges
   # - Gold/Silver/Bronze gradients for top 3
@@ -401,7 +401,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     assigns = assign(assigns, providers: providers_sorted, max_requests: max_requests)
 
     ~H"""
-    <div class="space-y-2">
+    <div class="space-y-3">
       <%= for {provider, index} <- Enum.with_index(@providers, 1) do %>
         <div class={[
           "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
@@ -446,7 +446,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         <p class="text-base font-medium">No requests yet</p>
       </div>
     <% else %>
-      <div class="space-y-2">
+      <div class="space-y-3">
         <%= for {row, index} <- Enum.with_index(@names, 1) do %>
           <div class={[
             "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
@@ -539,7 +539,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         </div>
 
         <%!-- Country list - unified ranking style --%>
-        <div class="space-y-2">
+        <div class="space-y-3">
           <%= for {{country_code, play_count}, index} <- Enum.with_index(@sorted_countries, 1) do %>
             <div class={[
               "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
@@ -594,7 +594,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         <p class="text-base font-medium">No language data</p>
       </div>
     <% else %>
-      <div class="space-y-2">
+      <div class="space-y-3">
         <%= for {{lang, count}, index} <- Enum.with_index(@languages, 1) do %>
           <div class={[
             "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
@@ -636,7 +636,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         <p class="text-base font-medium">No errors</p>
       </div>
     <% else %>
-      <div class="space-y-2">
+      <div class="space-y-3">
         <%= for {{error_type, count}, index} <- Enum.with_index(@errors, 1) do %>
           <div class={[
             "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
