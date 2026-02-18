@@ -117,135 +117,146 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gray-50 py-8">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="mb-8">
-          <h1 class="text-3xl font-bold text-gray-900">SayMyName Analytics</h1>
-          <p class="mt-2 text-sm text-gray-600">
-            Internal dashboard for usage statistics
-          </p>
-        </div>
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <%!-- Header with gradient accent --%>
+        <header class="mb-10">
+          <div class="flex items-center gap-4 mb-2">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <.icon name="hero-chart-bar" class="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Analytics Dashboard</h1>
+              <p class="text-sm text-slate-500">SayMyName usage insights</p>
+            </div>
+          </div>
+        </header>
 
-        <!-- Time Range Selector -->
-        <div class="mb-6 flex items-center justify-between">
-          <div class="flex space-x-2">
+        <%!-- Time Range Pills --%>
+        <div class="mb-8 flex items-center justify-between">
+          <div class="inline-flex p-1 rounded-xl bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/60">
             <button
               :for={range <- ["24h", "7d", "30d"]}
               phx-click="change_range"
               phx-value-range={range}
               class={[
-                "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                "px-5 py-2 text-sm font-semibold rounded-lg transition-all duration-200",
                 if(@time_range == range,
-                  do: "bg-blue-600 text-white",
-                  else: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
+                  do: "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/30",
+                  else: "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 )
               ]}
             >
-              <%= range %>
+              {range}
             </button>
           </div>
 
-          <div class="text-sm text-gray-500">
-            Last updated: <%= Calendar.strftime(DateTime.utc_now(), "%H:%M:%S UTC") %>
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Live · Updated {Calendar.strftime(DateTime.utc_now(), "%H:%M")}</span>
           </div>
         </div>
 
         <%= if @loading do %>
           <div class="flex items-center justify-center h-64">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div class="animate-spin rounded-full h-10 w-10 border-2 border-indigo-200 border-t-indigo-600"></div>
           </div>
         <% else %>
-          <!-- Key Metrics Grid -->
-          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <%!-- Metric Cards --%>
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-10">
             <.metric_card
-              title="Total Pronunciations"
+              title="Total Plays"
               value={@total_pronunciations}
-              icon="🎙️"
-              color="blue"
+              icon="hero-play-circle"
+              gradient="from-indigo-500 to-blue-500"
               tooltip="Total successful plays (all sources) in the selected range."
             />
             <.metric_card
               title="Cache Hit Rate"
               value={"#{@cache_hit_rate}%"}
-              icon="⚡"
-              color="green"
-              tooltip="% of plays served from any cache (client + server local + remote)."
+              icon="hero-bolt"
+              gradient="from-emerald-500 to-teal-500"
+              tooltip="% of plays served from any cache."
             />
             <.metric_card
               title="Error Rate"
               value={"#{@error_stats.error_rate}%"}
               subtitle={"#{@error_stats.errors} errors"}
-              icon="⚠️"
-              color={if @error_stats.error_rate > 5, do: "red", else: "yellow"}
-              tooltip="% of events that resulted in pronunciation or system API errors in the selected range."
+              icon="hero-exclamation-triangle"
+              gradient={if(@error_stats.error_rate > 5, do: "from-red-500 to-rose-500", else: "from-amber-500 to-orange-500")}
+              tooltip="% of events that resulted in errors."
             />
             <.metric_card
-              title="Conversion Rate"
+              title="Conversion"
               value={"#{@conversion.conversion_rate}%"}
-              subtitle={"#{@conversion.converted}/#{@conversion.landed} sessions"}
-              icon="📊"
-              color="purple"
-              tooltip="% of sessions that landed on the homepage and requested a pronunciation."
+              subtitle={"#{@conversion.converted}/#{@conversion.landed}"}
+              icon="hero-arrow-trending-up"
+              gradient="from-violet-500 to-purple-500"
+              tooltip="% of sessions that requested a pronunciation."
             />
           </div>
 
-          <!-- Charts Row -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Pronunciations Over Time -->
-            <div class="bg-white rounded-lg shadow p-6">
-              <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Pronunciations Over Time (per <%= @time_bucket_label %>)
-              </h2>
+          <%!-- Charts Row --%>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+            <.section_card title="Pronunciations Over Time" subtitle={"per #{@time_bucket_label}"}>
               <.simple_time_chart data={@time_series} />
-            </div>
+            </.section_card>
 
-            <!-- Provider Performance -->
-            <div class="bg-white rounded-lg shadow p-6">
-              <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Provider Performance
-              </h2>
+            <.section_card title="Provider Performance" subtitle="latency & usage">
               <.provider_performance_table providers={@provider_performance} />
-            </div>
+            </.section_card>
           </div>
 
-          <!-- Tables Row -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Top Names -->
-            <div class="bg-white rounded-lg shadow p-6">
-              <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Top 5 Requested Names
-              </h2>
+          <%!-- Names & Languages Row --%>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+            <.section_card title="Top Requested Names" subtitle="most popular">
               <.top_names_table names={@top_names} />
-            </div>
+            </.section_card>
 
-            <!-- Top Languages -->
-            <div class="bg-white rounded-lg shadow p-6">
-              <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Top Languages (Pronunciations)
-              </h2>
+            <.section_card title="Languages" subtitle="by pronunciation count">
               <.top_languages_chart languages={@top_languages} />
-            </div>
+            </.section_card>
           </div>
 
-          <!-- Geographic Distribution -->
-          <div class="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">
-              Geographic Distribution
-            </h2>
+          <%!-- Geographic Distribution --%>
+          <.section_card title="Geographic Distribution" subtitle="plays by country" class="mb-10">
             <.geo_distribution_map countries={@geo_distribution} map_data={@geo_distribution_map} api_key={@maptiler_api_key} />
-          </div>
+          </.section_card>
 
-          <!-- Errors Row -->
+          <%!-- Errors --%>
           <%= if @error_stats.errors > 0 do %>
-            <div class="bg-white rounded-lg shadow p-6">
-              <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                Errors by Type
-              </h2>
+            <.section_card title="Errors by Type" subtitle="breakdown">
               <.errors_by_type_table errors={@errors_by_type} />
-            </div>
+            </.section_card>
           <% end %>
         <% end %>
+      </div>
+    </div>
+    """
+  end
+
+  # Section card component for consistent styling
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  attr :class, :string, default: ""
+  slot :inner_block, required: true
+
+  defp section_card(assigns) do
+    ~H"""
+    <div class={[
+      "bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-200/50 overflow-hidden",
+      @class
+    ]}>
+      <div class="px-6 py-4 border-b border-slate-100">
+        <div class="flex items-baseline gap-2">
+          <h2 class="text-base font-semibold text-slate-900">{@title}</h2>
+          <%= if @subtitle do %>
+            <span class="text-xs text-slate-400 font-medium">{@subtitle}</span>
+          <% end %>
+        </div>
+      </div>
+      <div class="p-6">
+        {render_slot(@inner_block)}
       </div>
     </div>
     """
@@ -257,26 +268,31 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   attr :value, :any, required: true
   attr :subtitle, :string, default: nil
   attr :icon, :string, required: true
-  attr :color, :string, default: "blue"
+  attr :gradient, :string, default: "from-indigo-500 to-blue-500"
   attr :tooltip, :string, default: nil
 
   defp metric_card(assigns) do
     ~H"""
-    <div class="bg-white rounded-lg shadow p-6" title={@tooltip || @title}>
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-sm font-medium text-gray-600"><%= @title %></p>
-          <p class={[
-            "mt-2 text-3xl font-bold",
-            "text-#{@color}-600"
-          ]} data-metric-value>
-            <%= @value %>
+    <div
+      class="group relative bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+      title={@tooltip || @title}
+    >
+      <%!-- Gradient accent bar --%>
+      <div class={["absolute top-0 left-0 right-0 h-1 bg-gradient-to-r", @gradient]} />
+
+      <div class="flex items-start justify-between">
+        <div class="space-y-1">
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">{@title}</p>
+          <p class="text-3xl font-bold text-slate-900 tabular-nums" data-metric-value>
+            {@value}
           </p>
           <%= if @subtitle do %>
-            <p class="mt-1 text-sm text-gray-500"><%= @subtitle %></p>
+            <p class="text-xs text-slate-400 font-medium">{@subtitle}</p>
           <% end %>
         </div>
-        <div class="text-4xl"><%= @icon %></div>
+        <div class={["w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg", @gradient]}>
+          <.icon name={@icon} class="w-5 h-5 text-white" />
+        </div>
       </div>
     </div>
     """
@@ -287,29 +303,60 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   defp simple_time_chart(assigns) do
     ~H"""
     <%= if @data == [] do %>
-      <p class="text-gray-500 text-center py-8">No data available</p>
+      <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+        <.icon name="hero-chart-bar" class="w-14 h-14 mb-4 opacity-40" />
+        <p class="text-base font-medium">No data available</p>
+      </div>
     <% else %>
       <div class="w-full overflow-x-auto">
         <svg viewBox="0 0 640 240" class="w-full h-60">
-          <line x1="40" y1="20" x2="40" y2="210" stroke="#9ca3af" stroke-width="1" />
-          <line x1="40" y1="210" x2="620" y2="210" stroke="#9ca3af" stroke-width="1" />
-
+          <%!-- Grid lines --%>
           <%= for {y, label} <- y_tick_labels(@data) do %>
-            <line x1="40" y1={y} x2="620" y2={y} stroke="#e5e7eb" stroke-width="1" />
-            <text x="34" y={y + 3} text-anchor="end" class="fill-gray-500 text-[10px]">
-              <%= label %>
+            <line x1="40" y1={y} x2="620" y2={y} stroke="#f1f5f9" stroke-width="1" />
+            <text x="34" y={y + 3} text-anchor="end" class="fill-slate-400 text-[10px] font-medium">
+              {label}
             </text>
           <% end %>
 
-          <polyline fill="none" stroke="#2563eb" stroke-width="2" points={chart_points(@data)} />
+          <%!-- Area fill --%>
+          <defs>
+            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.2" />
+              <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0.02" />
+            </linearGradient>
+          </defs>
+          <polygon
+            fill="url(#areaGradient)"
+            points={"40,210 #{chart_points(@data)} 620,210"}
+          />
 
+          <%!-- Line --%>
+          <polyline
+            fill="none"
+            stroke="url(#lineGradient)"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            points={chart_points(@data)}
+            class="drop-shadow-sm"
+          />
+          <defs>
+            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#6366f1" />
+              <stop offset="100%" style="stop-color:#8b5cf6" />
+            </linearGradient>
+          </defs>
+
+          <%!-- Data points --%>
           <%= for {x, y} <- chart_points_xy(@data) do %>
-            <circle cx={x} cy={y} r="2.5" fill="#2563eb" />
+            <circle cx={x} cy={y} r="3" fill="#6366f1" class="drop-shadow-sm" />
+            <circle cx={x} cy={y} r="6" fill="#6366f1" fill-opacity="0.15" />
           <% end %>
 
+          <%!-- X axis labels --%>
           <%= for {x, label} <- x_tick_labels(@data) do %>
-            <text x={x} y="232" text-anchor="middle" class="fill-gray-500 text-[10px]">
-              <%= label %>
+            <text x={x} y="232" text-anchor="middle" class="fill-slate-400 text-[10px] font-medium">
+              {label}
             </text>
           <% end %>
         </svg>
@@ -323,38 +370,38 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   defp provider_performance_table(assigns) do
     ~H"""
     <% providers = if @providers == [], do: with_all_providers([]), else: @providers %>
-    <div class="overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200">
+    <div class="overflow-hidden rounded-lg">
+      <table class="min-w-full">
         <thead>
-          <tr>
-            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+          <tr class="border-b border-slate-100">
+            <th class="px-3 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
               Provider
             </th>
-            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-              Avg (ms)
+            <th class="px-3 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              Avg
             </th>
-            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-              P95 (ms)
+            <th class="px-3 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              P95
             </th>
-            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-              Requests
+            <th class="px-3 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              Reqs
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
+        <tbody class="divide-y divide-slate-50">
           <%= for provider <- providers do %>
-            <tr>
-              <td class="px-3 py-2 text-sm font-medium text-gray-900">
-                <%= provider_label(provider.provider) %>
+            <tr class="hover:bg-slate-50/50 transition-colors">
+              <td class="px-3 py-2.5 text-sm font-medium text-slate-800">
+                {provider_label(provider.provider)}
               </td>
-              <td class="px-3 py-2 text-sm text-gray-600 text-right">
-                <%= provider.avg_generation_time_ms || "—" %>
+              <td class="px-3 py-2.5 text-sm text-slate-500 text-right tabular-nums">
+                {provider.avg_generation_time_ms || "—"}
               </td>
-              <td class="px-3 py-2 text-sm text-gray-600 text-right">
-                <%= provider.p95_generation_time_ms || "—" %>
+              <td class="px-3 py-2.5 text-sm text-slate-500 text-right tabular-nums">
+                {provider.p95_generation_time_ms || "—"}
               </td>
-              <td class="px-3 py-2 text-sm text-gray-600 text-right">
-                <%= provider.total_requests %>
+              <td class="px-3 py-2.5 text-sm font-medium text-slate-700 text-right tabular-nums">
+                {provider.total_requests}
               </td>
             </tr>
           <% end %>
@@ -372,54 +419,46 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
     ~H"""
     <%= if @names == [] do %>
-      <div class="flex flex-col items-center justify-center py-12 text-gray-400">
-        <.icon name="hero-microphone" class="w-12 h-12 mb-3 opacity-50" />
-        <p class="text-base">No pronunciation requests yet</p>
+      <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+        <.icon name="hero-microphone" class="w-14 h-14 mb-4 opacity-40" />
+        <p class="text-base font-medium">No requests yet</p>
       </div>
     <% else %>
-      <div class="space-y-3">
+      <div class="space-y-2">
         <%= for {row, index} <- Enum.with_index(@names, 1) do %>
           <div class={[
-            "relative rounded-xl p-4 transition-all duration-200 hover:shadow-md",
-            rank_background_class(index)
+            "group relative flex items-center gap-4 rounded-xl p-4 transition-all duration-200",
+            name_rank_styles(index)
           ]}>
-            <%!-- Rank Badge --%>
-            <div class="flex items-start gap-4">
-              <div class={[
-                "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm",
-                rank_badge_class(index)
-              ]}>
-                {index}
+            <%!-- Rank indicator --%>
+            <div class={["flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm", name_badge_styles(index)]}>
+              {index}
+            </div>
+
+            <%!-- Content --%>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-slate-900 truncate">{row.name}</span>
+                <span class="text-lg opacity-70" title={provider_label(row.provider)}>{provider_icon(row.provider)}</span>
               </div>
-
-              <div class="flex-1 min-w-0">
-                <%!-- Name and metadata row --%>
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-lg font-semibold text-gray-900 truncate">{row.name}</span>
-                  <span class="text-xl" title={provider_label(row.provider)}>{provider_icon(row.provider)}</span>
+              <div class="flex items-center gap-3 mt-2">
+                <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    class={["h-full rounded-full transition-all duration-500 ease-out", name_bar_styles(index)]}
+                    style={"width: #{Float.round(row.count / @max_count * 100, 1)}%"}
+                  />
                 </div>
-
-                <%!-- Language tag --%>
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                    <.icon name="hero-language" class="w-3 h-3 mr-1" />
-                    {language_label(row.lang)}
-                  </span>
-                </div>
-
-                <%!-- Progress bar with count --%>
-                <div class="flex items-center gap-3">
-                  <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class={["h-full rounded-full transition-all duration-500", rank_bar_class(index)]}
-                      style={"width: #{Float.round(row.count / @max_count * 100, 1)}%"}
-                    />
-                  </div>
-                  <span class="text-sm font-semibold text-gray-700 tabular-nums w-12 text-right">
-                    {row.count}
-                  </span>
-                </div>
+                <span class="text-xs font-medium text-slate-400 tabular-nums w-8 text-right">
+                  {row.count}
+                </span>
               </div>
+            </div>
+
+            <%!-- Language pill --%>
+            <div class="hidden sm:block">
+              <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600">
+                {language_label(row.lang)}
+              </span>
             </div>
           </div>
         <% end %>
@@ -428,20 +467,23 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  defp rank_background_class(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
-  defp rank_background_class(2), do: "bg-gradient-to-r from-slate-50 to-gray-100 border border-slate-200"
-  defp rank_background_class(3), do: "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200"
-  defp rank_background_class(_), do: "bg-white border border-gray-100"
+  # Gold #1
+  defp name_rank_styles(1), do: "bg-gradient-to-r from-amber-50 via-yellow-50/80 to-amber-50/50 border border-amber-200/60 hover:border-amber-300 hover:shadow-amber-100"
+  # Silver #2
+  defp name_rank_styles(2), do: "bg-gradient-to-r from-slate-50 via-slate-50/80 to-white border border-slate-200/60 hover:border-slate-300 hover:shadow-slate-100"
+  # Bronze #3
+  defp name_rank_styles(3), do: "bg-gradient-to-r from-orange-50 via-amber-50/80 to-orange-50/50 border border-orange-200/60 hover:border-orange-300 hover:shadow-orange-100"
+  defp name_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm"
 
-  defp rank_badge_class(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white"
-  defp rank_badge_class(2), do: "bg-gradient-to-br from-slate-300 to-gray-400 text-white"
-  defp rank_badge_class(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white"
-  defp rank_badge_class(_), do: "bg-gray-100 text-gray-600"
+  defp name_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-md shadow-amber-200"
+  defp name_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-md shadow-slate-200"
+  defp name_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md shadow-orange-200"
+  defp name_badge_styles(_), do: "bg-slate-100 text-slate-500"
 
-  defp rank_bar_class(1), do: "bg-gradient-to-r from-amber-400 to-yellow-500"
-  defp rank_bar_class(2), do: "bg-gradient-to-r from-slate-400 to-gray-500"
-  defp rank_bar_class(3), do: "bg-gradient-to-r from-orange-400 to-amber-500"
-  defp rank_bar_class(_), do: "bg-indigo-500"
+  defp name_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
+  defp name_bar_styles(2), do: "bg-gradient-to-r from-slate-400 to-slate-500"
+  defp name_bar_styles(3), do: "bg-gradient-to-r from-orange-400 to-amber-400"
+  defp name_bar_styles(_), do: "bg-indigo-400"
 
   attr :countries, :list, required: true
   attr :map_data, :map, required: true
@@ -462,84 +504,56 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
     ~H"""
     <%= if @countries == [] do %>
-      <div class="flex flex-col items-center justify-center py-16 text-gray-400">
-        <.icon name="hero-globe-alt" class="w-16 h-16 mb-4 opacity-50" />
-        <p class="text-base">No geographic data available</p>
-        <p class="text-sm mt-1">Plays will appear here once users start listening</p>
+      <div class="flex flex-col items-center justify-center py-20 text-slate-400">
+        <.icon name="hero-globe-alt" class="w-16 h-16 mb-4 opacity-40" />
+        <p class="text-base font-medium">No geographic data yet</p>
+        <p class="text-sm mt-1 text-slate-300">Plays will appear once users start listening</p>
       </div>
     <% else %>
-      <div class="space-y-6">
-        <%!-- Map with overlay stats --%>
-        <div class="relative">
+      <div class="space-y-5">
+        <%!-- Map container --%>
+        <div class="relative rounded-xl overflow-hidden">
           <div
             id="analytics-geo-map"
-            class="w-full h-96 rounded-xl overflow-hidden border border-gray-200 shadow-inner"
+            class="w-full h-80 lg:h-96"
             phx-hook="AnalyticsGeoMap"
             phx-update="ignore"
             data-api-key={@api_key}
             data-countries={Jason.encode!(@map_data)}
           />
 
-          <%!-- Total plays overlay badge --%>
-          <div class="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg px-4 py-3 border border-gray-100">
-            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Plays</div>
-            <div class="text-2xl font-bold text-indigo-600 tabular-nums">{format_number(@total_plays)}</div>
+          <%!-- Stats overlay --%>
+          <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-md rounded-xl shadow-lg px-4 py-3 border border-white/50">
+            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Plays</div>
+            <div class="text-xl font-bold text-slate-900 tabular-nums">{format_number(@total_plays)}</div>
           </div>
 
-          <%!-- Heatmap Legend --%>
-          <div class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-gray-100 min-w-[180px]">
-            <div class="text-xs font-medium text-gray-600 mb-2">Plays by Country</div>
-            <div class="flex items-center gap-1">
-              <div class="h-3 flex-1 rounded-sm overflow-hidden flex">
-                <div class="flex-1 bg-gray-200" />
-                <div class="flex-1 bg-blue-200" />
-                <div class="flex-1 bg-blue-400" />
-                <div class="flex-1 bg-blue-500" />
-                <div class="flex-1 bg-blue-700" />
-                <div class="flex-1 bg-blue-900" />
-              </div>
-            </div>
-            <div class="flex justify-between mt-1">
-              <span class="text-[10px] text-gray-500">0</span>
+          <%!-- Legend --%>
+          <div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md rounded-xl shadow-lg px-4 py-3 border border-white/50 min-w-[160px]">
+            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Intensity</div>
+            <div class="h-2 rounded-full overflow-hidden bg-gradient-to-r from-indigo-100 via-indigo-400 to-indigo-700" />
+            <div class="flex justify-between mt-1.5">
+              <span class="text-[10px] text-slate-400 font-medium">0</span>
               <%= for stop <- @legend_stops do %>
-                <span class="text-[10px] text-gray-500 tabular-nums">{stop}</span>
+                <span class="text-[10px] text-slate-400 font-medium tabular-nums">{stop}</span>
               <% end %>
             </div>
           </div>
         </div>
 
-        <%!-- Country Rankings Grid --%>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <%!-- Country grid --%>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           <%= for {{country_code, play_count}, index} <- Enum.with_index(@sorted_countries, 1) do %>
             <div class={[
-              "flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:shadow-sm",
-              country_card_class(index)
+              "flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-200",
+              geo_rank_styles(index)
             ]}>
-              <%!-- Rank indicator --%>
-              <div class={[
-                "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
-                country_rank_class(index)
-              ]}>
+              <div class={["flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold", geo_badge_styles(index)]}>
                 {index}
               </div>
-
-              <%!-- Country info --%>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-gray-900 truncate">{country_name(country_code)}</span>
-                  <span class="text-xs text-gray-400 font-mono">{country_code}</span>
-                </div>
-                <div class="flex items-center gap-2 mt-1">
-                  <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
-                      style={"width: #{Float.round(play_count / @max_count * 100, 1)}%"}
-                    />
-                  </div>
-                  <span class="text-sm font-semibold text-gray-700 tabular-nums">
-                    {format_number(play_count)}
-                  </span>
-                </div>
+                <div class="text-sm font-medium text-slate-800 truncate">{country_name(country_code)}</div>
+                <div class="text-xs text-slate-400 tabular-nums">{format_number(play_count)}</div>
               </div>
             </div>
           <% end %>
@@ -548,6 +562,16 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <% end %>
     """
   end
+
+  defp geo_rank_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
+  defp geo_rank_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
+  defp geo_rank_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
+  defp geo_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
+
+  defp geo_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
+  defp geo_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
+  defp geo_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
+  defp geo_badge_styles(_), do: "bg-slate-100 text-slate-500"
 
   defp heatmap_legend_stops(max_count) when max_count <= 0, do: []
 
@@ -558,16 +582,6 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     |> Enum.map(&format_number/1)
   end
 
-  defp country_card_class(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
-  defp country_card_class(2), do: "bg-gradient-to-r from-slate-50 to-gray-100 border border-slate-200"
-  defp country_card_class(3), do: "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200"
-  defp country_card_class(_), do: "bg-white border border-gray-100"
-
-  defp country_rank_class(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white"
-  defp country_rank_class(2), do: "bg-gradient-to-br from-slate-300 to-gray-400 text-white"
-  defp country_rank_class(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white"
-  defp country_rank_class(_), do: "bg-gray-100 text-gray-600"
-
   defp format_number(num) when num >= 1_000_000, do: "#{Float.round(num / 1_000_000, 1)}M"
   defp format_number(num) when num >= 1_000, do: "#{Float.round(num / 1_000, 1)}K"
   defp format_number(num), do: "#{num}"
@@ -575,18 +589,37 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   attr :languages, :list, required: true
 
   defp top_languages_chart(assigns) do
+    max_count = assigns.languages |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 1 end)
+    assigns = assign(assigns, :max_count, max_count)
+
     ~H"""
     <%= if @languages == [] do %>
-      <p class="text-gray-500 text-center py-8">No data available</p>
+      <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+        <.icon name="hero-language" class="w-14 h-14 mb-4 opacity-40" />
+        <p class="text-base font-medium">No language data</p>
+      </div>
     <% else %>
       <div class="space-y-2">
-        <%= for {lang, count} <- @languages do %>
-          <div class="flex items-center space-x-2">
-            <div class="text-xs text-gray-600 w-32"><%= language_label(lang) %></div>
-            <div class="flex-1 bg-gray-200 rounded-full h-3 relative">
-              <div class="bg-indigo-600 h-3 rounded-full" style={"width: #{language_bar_width(@languages, count)}%"}></div>
+        <%= for {{lang, count}, index} <- Enum.with_index(@languages, 1) do %>
+          <div class={[
+            "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+            lang_rank_styles(index)
+          ]}>
+            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", lang_badge_styles(index)]}>
+              {index}
             </div>
-            <div class="text-sm font-medium text-gray-900 w-10 text-right"><%= count %></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-sm font-medium text-slate-800">{language_label(lang)}</span>
+                <span class="text-xs font-semibold text-slate-500 tabular-nums">{count}</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  class={["h-full rounded-full transition-all duration-500 ease-out", lang_bar_styles(index)]}
+                  style={"width: #{Float.round(count / @max_count * 100, 1)}%"}
+                />
+              </div>
+            </div>
           </div>
         <% end %>
       </div>
@@ -594,27 +627,42 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
+  defp lang_rank_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
+  defp lang_rank_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
+  defp lang_rank_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
+  defp lang_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
+
+  defp lang_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
+  defp lang_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
+  defp lang_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
+  defp lang_badge_styles(_), do: "bg-slate-100 text-slate-500"
+
+  defp lang_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
+  defp lang_bar_styles(2), do: "bg-gradient-to-r from-slate-400 to-slate-500"
+  defp lang_bar_styles(3), do: "bg-gradient-to-r from-orange-400 to-amber-400"
+  defp lang_bar_styles(_), do: "bg-indigo-400"
+
   attr :errors, :list, required: true
 
   defp errors_by_type_table(assigns) do
     ~H"""
-    <div class="overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200">
+    <div class="overflow-hidden rounded-lg">
+      <table class="min-w-full">
         <thead>
-          <tr>
-            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+          <tr class="border-b border-slate-100">
+            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
               Error Type
             </th>
-            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+            <th class="px-4 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
               Count
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
+        <tbody class="divide-y divide-slate-50">
           <%= for {error_type, count} <- @errors do %>
-            <tr>
-              <td class="px-4 py-2 text-sm text-gray-900"><%= error_type || "Unknown" %></td>
-              <td class="px-4 py-2 text-sm text-gray-600 text-right"><%= count %></td>
+            <tr class="hover:bg-slate-50/50 transition-colors">
+              <td class="px-4 py-3 text-sm text-slate-700">{error_type || "Unknown"}</td>
+              <td class="px-4 py-3 text-sm font-medium text-slate-900 text-right tabular-nums">{count}</td>
             </tr>
           <% end %>
         </tbody>
@@ -741,11 +789,6 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
       {Float.round(y, 1), tick}
     end)
-  end
-
-  defp language_bar_width(data, count) do
-    max_count = data |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 1 end)
-    if max_count > 0, do: Float.round(count / max_count * 100, 1), else: 0
   end
 
   defp provider_label(provider) do
