@@ -210,7 +210,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
               <.simple_time_chart data={@time_series} />
             </.section_card>
 
-            <.section_card title="Provider Performance" subtitle="latency & usage">
+            <.section_card title="Provider Performance" subtitle="plays by TTS provider">
               <.provider_performance_table providers={@provider_performance} />
             </.section_card>
           </div>
@@ -385,20 +385,21 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   # ==========================================================================
 
   # Unified rank card styles (used by all ranking components)
-  defp rank_card_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
-  defp rank_card_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
-  defp rank_card_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
+  # Uses indigo gradient theme - top 3 get progressively lighter indigo backgrounds
+  defp rank_card_styles(1), do: "bg-gradient-to-r from-indigo-100 to-indigo-50 border border-indigo-200/60"
+  defp rank_card_styles(2), do: "bg-gradient-to-r from-indigo-50 to-slate-50 border border-indigo-100/50"
+  defp rank_card_styles(3), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
   defp rank_card_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
 
-  defp rank_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
-  defp rank_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
-  defp rank_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
+  defp rank_badge_styles(1), do: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm"
+  defp rank_badge_styles(2), do: "bg-gradient-to-br from-indigo-400 to-indigo-500 text-white shadow-sm"
+  defp rank_badge_styles(3), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
   defp rank_badge_styles(_), do: "bg-slate-100 text-slate-500"
 
-  defp rank_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
-  defp rank_bar_styles(2), do: "bg-gradient-to-r from-slate-400 to-slate-500"
-  defp rank_bar_styles(3), do: "bg-gradient-to-r from-orange-400 to-amber-400"
-  defp rank_bar_styles(_), do: "bg-indigo-400"
+  defp rank_bar_styles(1), do: "bg-gradient-to-r from-indigo-500 to-indigo-400"
+  defp rank_bar_styles(2), do: "bg-gradient-to-r from-indigo-400 to-indigo-300"
+  defp rank_bar_styles(3), do: "bg-gradient-to-r from-slate-400 to-slate-300"
+  defp rank_bar_styles(_), do: "bg-slate-300"
 
   attr :providers, :list, required: true
 
@@ -421,7 +422,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between mb-1.5">
               <span class="text-sm font-medium text-slate-800 truncate">{provider_label(provider.provider)}</span>
-              <span class="text-xs font-semibold text-slate-500 tabular-nums">{provider.total_requests}</span>
+              <span class="text-xs font-semibold text-indigo-600 tabular-nums">{provider.total_requests} plays</span>
             </div>
             <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
@@ -430,11 +431,15 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
               />
             </div>
           </div>
-          <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400 tabular-nums">
-            <span title="Average latency">{provider.avg_generation_time_ms || "—"}ms</span>
-            <span class="text-slate-200">|</span>
-            <span title="P95 latency">p95: {provider.p95_generation_time_ms || "—"}ms</span>
-          </div>
+          <%= if provider.avg_generation_time_ms do %>
+            <div class="hidden sm:flex items-center gap-1 text-xs text-slate-400 tabular-nums">
+              <span class="text-slate-600 font-medium">{provider.avg_generation_time_ms}ms</span>
+              <%= if provider.p95_generation_time_ms do %>
+                <span class="text-slate-300">·</span>
+                <span class="text-slate-400">p95: {provider.p95_generation_time_ms}ms</span>
+              <% end %>
+            </div>
+          <% end %>
         </div>
       <% end %>
     </div>
