@@ -93,14 +93,23 @@ export default {
         return
       }
 
-      // GeoJSON already has feature.id at the top level (ISO-3 codes like "USA", "GBR")
-      // No promoteId needed - MapLibre uses the top-level id automatically
-      map.addSource("countries", { type: "geojson", data: geojson })
+      // Add play count directly to GeoJSON features for data-driven styling
+      // This avoids issues with feature state and string IDs
+      geojson.features.forEach((feature) => {
+        const iso3 = feature.id
+        if (!iso3) return
+        feature.properties.playCount = self.counts[iso3] || 0
+      })
+
+      map.addSource("countries", {
+        type: "geojson",
+        data: geojson,
+      })
 
       // Dynamic color stops based on actual data range
       const colorStops = self.buildColorStops(maxCount)
 
-      // Country fill layer with dynamic heatmap coloring
+      // Country fill layer with data-driven heatmap coloring
       map.addLayer({
         id: "countries-fill",
         type: "fill",
@@ -109,7 +118,7 @@ export default {
           "fill-color": [
             "interpolate",
             ["linear"],
-            ["coalesce", ["feature-state", "count"], 0],
+            ["coalesce", ["get", "playCount"], 0],
             ...colorStops,
           ],
           "fill-opacity": 0.85,
@@ -139,29 +148,19 @@ export default {
         filter: ["==", ["get", "__never_match__"], ""],
       })
 
-      // Set feature state for each country with play count using ISO-3 IDs
-      geojson.features.forEach((feature) => {
-        const iso3 = feature.id
-        if (!iso3) return
-        const count = self.counts[iso3] || 0
-        map.setFeatureState(
-          { source: "countries", id: iso3 },
-          { count }
-        )
-      })
-
       // Hover interactions
+      let hoveredId = null
+
       map.on("mousemove", "countries-fill", (e) => {
         if (!e.features?.length) return
         const feature = e.features[0]
-        // Get the feature ID - could be on feature.id or feature.properties.id
-        const iso3 = feature.id || feature.properties?.id
-        const name = feature.properties?.name || iso3 || "Unknown"
-        const count = self.counts[iso3] || 0
+        const name = feature.properties?.name || "Unknown"
+        const count = feature.properties?.playCount || 0
 
-        // Update highlight filter using feature ID
-        if (iso3) {
-          map.setFilter("countries-highlight", ["==", ["id"], iso3])
+        // Update highlight filter using country name (more reliable than id)
+        if (name !== hoveredId) {
+          hoveredId = name
+          map.setFilter("countries-highlight", ["==", ["get", "name"], name])
         }
 
         map.getCanvas().style.cursor = "pointer"
@@ -179,6 +178,7 @@ export default {
       })
 
       map.on("mouseleave", "countries-fill", () => {
+        hoveredId = null
         map.setFilter("countries-highlight", ["==", ["get", "__never_match__"], ""])
         map.getCanvas().style.cursor = ""
         self.popup.remove()
