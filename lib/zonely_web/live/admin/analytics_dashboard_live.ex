@@ -19,8 +19,8 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      # Refresh every 30 seconds
-      :timer.send_interval(30_000, self(), :refresh)
+      # Subscribe to real-time analytics events
+      Zonely.Analytics.subscribe()
     end
 
     socket =
@@ -28,6 +28,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
       |> assign(:page_title, "Analytics · SayMyName")
       |> assign(:time_range, "24h")
       |> assign(:loading, true)
+      |> assign(:updated_at, DateTime.utc_now())
       |> load_dashboard_data()
 
     {:ok, socket}
@@ -40,6 +41,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     socket =
       socket
       |> assign(:time_range, time_range)
+      |> assign(:updated_at, DateTime.utc_now())
       |> load_dashboard_data()
 
     {:noreply, socket}
@@ -52,14 +54,16 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     socket =
       socket
       |> assign(:time_range, range)
+      |> assign(:updated_at, DateTime.utc_now())
       |> load_dashboard_data()
 
     {:noreply, push_patch(socket, to: ~p"/admin/analytics?range=#{range}")}
   end
 
   @impl true
-  def handle_info(:refresh, socket) do
-    {:noreply, load_dashboard_data(socket)}
+  def handle_info({:analytics_event, _event}, socket) do
+    # Real-time update when any analytics event occurs
+    {:noreply, socket |> assign(:updated_at, DateTime.utc_now()) |> load_dashboard_data()}
   end
 
   defp load_dashboard_data(socket) do
@@ -167,7 +171,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
           <div class="flex items-center gap-2 text-xs text-slate-400">
             <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Live · Updated {Calendar.strftime(DateTime.utc_now(), "%H:%M")}</span>
+            <span>Live · Updated <span id="updated-at-time" phx-hook="LocalTime" data-utc={DateTime.to_iso8601(@updated_at)}>--:--</span></span>
           </div>
         </div>
 

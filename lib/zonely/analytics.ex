@@ -15,25 +15,49 @@ defmodule Zonely.Analytics do
   alias Zonely.Repo
   alias Zonely.Analytics.Event
 
+  @pubsub Zonely.PubSub
+  @topic "analytics:events"
+
+  @doc """
+  Subscribe to real-time analytics events.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(@pubsub, @topic)
+  end
+
   @doc """
   Records an analytics event.
-  
+
   ## Examples
-  
+
       iex> track("page_view_landing", %{utm_source: "twitter"})
       {:ok, %Event{}}
   """
   def track(event_name, properties, opts \\ []) do
-    %Event{}
-    |> Event.changeset(%{
-      event_name: event_name,
-      timestamp: Keyword.get(opts, :timestamp, DateTime.utc_now()),
-      session_id: Keyword.get(opts, :session_id, generate_session_id()),
-      user_context: Keyword.get(opts, :user_context, %{}),
-      metadata: Keyword.get(opts, :metadata, default_metadata()),
-      properties: properties
-    })
-    |> Repo.insert()
+    result =
+      %Event{}
+      |> Event.changeset(%{
+        event_name: event_name,
+        timestamp: Keyword.get(opts, :timestamp, DateTime.utc_now()),
+        session_id: Keyword.get(opts, :session_id, generate_session_id()),
+        user_context: Keyword.get(opts, :user_context, %{}),
+        metadata: Keyword.get(opts, :metadata, default_metadata()),
+        properties: properties
+      })
+      |> Repo.insert()
+
+    case result do
+      {:ok, event} ->
+        broadcast_event(event)
+        {:ok, event}
+
+      error ->
+        error
+    end
+  end
+
+  defp broadcast_event(event) do
+    Phoenix.PubSub.broadcast(@pubsub, @topic, {:analytics_event, event})
   end
 
   @doc """
