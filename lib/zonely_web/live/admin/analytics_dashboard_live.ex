@@ -1,5 +1,12 @@
 defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
-  use ZonelyWeb, :live_view
+  use Phoenix.LiveView, layout: {ZonelyWeb.Layouts, :admin}
+
+  import Phoenix.HTML
+  import Phoenix.LiveView.Helpers
+  import ZonelyWeb.CoreComponents
+  use Gettext, backend: ZonelyWeb.Gettext
+  alias ZonelyWeb.Layouts
+  use Phoenix.VerifiedRoutes, endpoint: ZonelyWeb.Endpoint, router: ZonelyWeb.Router, statics: ZonelyWeb.static_paths()
 
   alias Zonely.Analytics
 
@@ -18,6 +25,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
     socket =
       socket
+      |> assign(:page_title, "Analytics · SayMyName")
       |> assign(:time_range, "24h")
       |> assign(:loading, true)
       |> load_dashboard_data()
