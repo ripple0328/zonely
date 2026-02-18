@@ -27,10 +27,12 @@ export default {
     const countsIso2 = JSON.parse(this.el.dataset.countries || "{}")
 
     // Convert ISO-2 counts to ISO-3 for matching with GeoJSON
-    const counts = {}
+    // Store on `this` so it's accessible in event handlers
+    this.counts = {}
+    this.countsIso2 = countsIso2 // Keep original for debugging
     for (const [iso2, count] of Object.entries(countsIso2)) {
       const iso3 = this.iso2to3[iso2] || iso2
-      counts[iso3] = count
+      this.counts[iso3] = count
     }
 
     if (!window.maplibregl) {
@@ -39,7 +41,7 @@ export default {
     }
 
     // Calculate max count for dynamic color scaling
-    const maxCount = Math.max(...Object.values(counts), 1)
+    const maxCount = Math.max(...Object.values(this.counts), 1)
 
     let map
 
@@ -72,12 +74,14 @@ export default {
     map.scrollZoom.disable()
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right")
 
-    const popup = new maplibregl.Popup({
+    this.popup = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
       offset: 12,
       className: "analytics-popup",
     })
+
+    const self = this
 
     map.on("load", async () => {
       let geojson
@@ -85,15 +89,16 @@ export default {
         const res = await fetch("/images/countries.geo.json")
         geojson = await res.json()
       } catch (err) {
-        this.el.innerHTML = "<div style=\"padding:16px;color:#6b7280\">Map failed to load (geojson fetch)</div>"
+        self.el.innerHTML = "<div style=\"padding:16px;color:#6b7280\">Map failed to load (geojson fetch)</div>"
         return
       }
 
-      // Use feature.id (ISO-3) directly - it's already set in the GeoJSON
-      map.addSource("countries", { type: "geojson", data: geojson, promoteId: "id" })
+      // GeoJSON already has feature.id at the top level (ISO-3 codes like "USA", "GBR")
+      // No promoteId needed - MapLibre uses the top-level id automatically
+      map.addSource("countries", { type: "geojson", data: geojson })
 
       // Dynamic color stops based on actual data range
-      const colorStops = this.buildColorStops(maxCount)
+      const colorStops = self.buildColorStops(maxCount)
 
       // Country fill layer with dynamic heatmap coloring
       map.addLayer({
@@ -131,14 +136,14 @@ export default {
           "line-color": "#4f46e5",
           "line-width": 2,
         },
-        filter: ["==", ["id"], ""],
+        filter: ["==", ["get", "__never_match__"], ""],
       })
 
       // Set feature state for each country with play count using ISO-3 IDs
       geojson.features.forEach((feature) => {
         const iso3 = feature.id
         if (!iso3) return
-        const count = counts[iso3] || 0
+        const count = self.counts[iso3] || 0
         map.setFeatureState(
           { source: "countries", id: iso3 },
           { count }
@@ -149,31 +154,34 @@ export default {
       map.on("mousemove", "countries-fill", (e) => {
         if (!e.features?.length) return
         const feature = e.features[0]
-        const iso3 = feature.id
-        const name = feature.properties.name || iso3
-        const count = counts[iso3] || 0
+        // Get the feature ID - could be on feature.id or feature.properties.id
+        const iso3 = feature.id || feature.properties?.id
+        const name = feature.properties?.name || iso3 || "Unknown"
+        const count = self.counts[iso3] || 0
 
-        // Update highlight filter
-        map.setFilter("countries-highlight", ["==", ["id"], iso3])
+        // Update highlight filter using feature ID
+        if (iso3) {
+          map.setFilter("countries-highlight", ["==", ["id"], iso3])
+        }
 
         map.getCanvas().style.cursor = "pointer"
 
         // Styled popup
-        popup
+        self.popup
           .setLngLat(e.lngLat)
           .setHTML(`
             <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 0;">
               <div style="font-weight: 600; color: #1e293b; font-size: 13px; margin-bottom: 2px;">${name}</div>
-              <div style="color: #6366f1; font-size: 14px; font-weight: 700;">${this.formatNumber(count)} <span style="font-weight: 400; color: #64748b; font-size: 12px;">plays</span></div>
+              <div style="color: #6366f1; font-size: 14px; font-weight: 700;">${self.formatNumber(count)} <span style="font-weight: 400; color: #64748b; font-size: 12px;">plays</span></div>
             </div>
           `)
           .addTo(map)
       })
 
       map.on("mouseleave", "countries-fill", () => {
-        map.setFilter("countries-highlight", ["==", ["id"], ""])
+        map.setFilter("countries-highlight", ["==", ["get", "__never_match__"], ""])
         map.getCanvas().style.cursor = ""
-        popup.remove()
+        self.popup.remove()
       })
     })
 
