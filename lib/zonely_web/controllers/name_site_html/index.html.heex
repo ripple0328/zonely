@@ -695,22 +695,28 @@
               );
             }
 
-            // Try to trigger custom scheme URL for direct app opening
-            // This creates an invisible iframe that attempts to open the app
-            const customSchemeUrl = `saymyname://?s=${sharedData}`;
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = customSchemeUrl;
-            document.body.appendChild(iframe);
+            // Only attempt deep linking on mobile devices (iOS/Android)
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+            const isAndroid = /android/i.test(userAgent);
+            const isMobile = isIOS || isAndroid;
 
+            if (isMobile) {
+              // Try to trigger custom scheme URL for direct app opening
+              // This creates an invisible iframe that attempts to open the app
+              const customSchemeUrl = `saymyname://?s=${sharedData}`;
+              const iframe = document.createElement('iframe');
+              iframe.style.display = 'none';
+              iframe.src = customSchemeUrl;
+              document.body.appendChild(iframe);
 
-
-            // Clean up iframe after attempt
-            setTimeout(() => {
-              if (iframe.parentNode) {
-                document.body.removeChild(iframe);
-              }
-            }, 1000);
+              // Clean up iframe after attempt
+              setTimeout(() => {
+                if (iframe.parentNode) {
+                  document.body.removeChild(iframe);
+                }
+              }, 1000);
+            }
           }
         } catch (e) {
           // Ignore errors in deep link handling
