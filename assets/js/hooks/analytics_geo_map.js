@@ -188,28 +188,38 @@ export default {
     this.map = map
   },
 
-  // Build dynamic color stops based on max count
+  // Build dynamic color stops using logarithmic scale
+  // This ensures countries with any plays are visible even when one country dominates
   // Returns flat array: [value1, color1, value2, color2, ...]
   buildColorStops(maxCount) {
     // Indigo color palette (light to dark)
     const colors = [
       "#f1f5f9", // 0: slate-100 (no data)
-      "#e0e7ff", // ~10%: indigo-100
-      "#c7d2fe", // ~25%: indigo-200
-      "#a5b4fc", // ~40%: indigo-300
-      "#818cf8", // ~60%: indigo-400
-      "#6366f1", // ~80%: indigo-500
-      "#4338ca", // 100%: indigo-700
+      "#c7d2fe", // 1+: indigo-200 - clearly visible for any plays
+      "#a5b4fc", // indigo-300
+      "#818cf8", // indigo-400
+      "#6366f1", // indigo-500
+      "#4f46e5", // indigo-600
+      "#4338ca", // max: indigo-700
     ]
 
-    // Calculate breakpoints
+    // Use logarithmic scale to handle high contrast data
+    // This makes even low-count countries visible
+    if (maxCount <= 1) {
+      return [0, colors[0], 1, colors[6]]
+    }
+
+    const logMax = Math.log10(maxCount)
+
+    // Calculate logarithmic breakpoints
+    // 0 = no data, 1+ = visible coloring
     const stops = [
       0, colors[0],
-      Math.max(1, Math.floor(maxCount * 0.05)), colors[1],
-      Math.max(2, Math.floor(maxCount * 0.15)), colors[2],
-      Math.max(3, Math.floor(maxCount * 0.30)), colors[3],
-      Math.max(4, Math.floor(maxCount * 0.50)), colors[4],
-      Math.max(5, Math.floor(maxCount * 0.75)), colors[5],
+      1, colors[1],  // Any country with 1+ plays gets a visible color
+      Math.max(2, Math.floor(Math.pow(10, logMax * 0.2))), colors[2],
+      Math.max(3, Math.floor(Math.pow(10, logMax * 0.4))), colors[3],
+      Math.max(5, Math.floor(Math.pow(10, logMax * 0.6))), colors[4],
+      Math.max(10, Math.floor(Math.pow(10, logMax * 0.8))), colors[5],
       maxCount, colors[6],
     ]
 
