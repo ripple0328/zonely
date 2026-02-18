@@ -365,48 +365,70 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
+  # ==========================================================================
+  # Unified Ranking Components
+  # ==========================================================================
+  # All ranking UIs use consistent styling:
+  # - space-y-2 for vertical spacing
+  # - p-3, gap-3 for card padding
+  # - w-7 h-7 rounded badges
+  # - Gold/Silver/Bronze gradients for top 3
+  # - Optional progress bars
+  # ==========================================================================
+
+  # Unified rank card styles (used by all ranking components)
+  defp rank_card_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
+  defp rank_card_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
+  defp rank_card_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
+  defp rank_card_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
+
+  defp rank_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
+  defp rank_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
+  defp rank_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
+  defp rank_badge_styles(_), do: "bg-slate-100 text-slate-500"
+
+  defp rank_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
+  defp rank_bar_styles(2), do: "bg-gradient-to-r from-slate-400 to-slate-500"
+  defp rank_bar_styles(3), do: "bg-gradient-to-r from-orange-400 to-amber-400"
+  defp rank_bar_styles(_), do: "bg-indigo-400"
+
   attr :providers, :list, required: true
 
   defp provider_performance_table(assigns) do
+    providers = if assigns.providers == [], do: with_all_providers([]), else: assigns.providers
+    providers_sorted = Enum.sort_by(providers, & &1.total_requests, :desc)
+    max_requests = providers_sorted |> Enum.map(& &1.total_requests) |> Enum.max(fn -> 1 end)
+    assigns = assign(assigns, providers: providers_sorted, max_requests: max_requests)
+
     ~H"""
-    <% providers = if @providers == [], do: with_all_providers([]), else: @providers %>
-    <div class="overflow-hidden rounded-lg">
-      <table class="min-w-full">
-        <thead>
-          <tr class="border-b border-slate-100">
-            <th class="px-3 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Provider
-            </th>
-            <th class="px-3 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Avg
-            </th>
-            <th class="px-3 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              P95
-            </th>
-            <th class="px-3 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Reqs
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-50">
-          <%= for provider <- providers do %>
-            <tr class="hover:bg-slate-50/50 transition-colors">
-              <td class="px-3 py-2.5 text-sm font-medium text-slate-800">
-                {provider_label(provider.provider)}
-              </td>
-              <td class="px-3 py-2.5 text-sm text-slate-500 text-right tabular-nums">
-                {provider.avg_generation_time_ms || "—"}
-              </td>
-              <td class="px-3 py-2.5 text-sm text-slate-500 text-right tabular-nums">
-                {provider.p95_generation_time_ms || "—"}
-              </td>
-              <td class="px-3 py-2.5 text-sm font-medium text-slate-700 text-right tabular-nums">
-                {provider.total_requests}
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
+    <div class="space-y-2">
+      <%= for {provider, index} <- Enum.with_index(@providers, 1) do %>
+        <div class={[
+          "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+          rank_card_styles(index)
+        ]}>
+          <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
+            {index}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-sm font-medium text-slate-800 truncate">{provider_label(provider.provider)}</span>
+              <span class="text-xs font-semibold text-slate-500 tabular-nums">{provider.total_requests}</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                class={["h-full rounded-full transition-all duration-500 ease-out", rank_bar_styles(index)]}
+                style={"width: #{if @max_requests > 0, do: Float.round(provider.total_requests / @max_requests * 100, 1), else: 0}%"}
+              />
+            </div>
+          </div>
+          <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400 tabular-nums">
+            <span title="Average latency">{provider.avg_generation_time_ms || "—"}ms</span>
+            <span class="text-slate-200">|</span>
+            <span title="P95 latency">p95: {provider.p95_generation_time_ms || "—"}ms</span>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
   end
@@ -428,14 +450,11 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         <%= for {row, index} <- Enum.with_index(@names, 1) do %>
           <div class={[
             "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
-            name_rank_styles(index)
+            rank_card_styles(index)
           ]}>
-            <%!-- Rank indicator --%>
-            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", name_badge_styles(index)]}>
+            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
               {index}
             </div>
-
-            <%!-- Content --%>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between mb-1.5">
                 <div class="flex items-center gap-2 min-w-0">
@@ -446,13 +465,11 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
               </div>
               <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  class={["h-full rounded-full transition-all duration-500 ease-out", name_bar_styles(index)]}
+                  class={["h-full rounded-full transition-all duration-500 ease-out", rank_bar_styles(index)]}
                   style={"width: #{Float.round(row.count / @max_count * 100, 1)}%"}
                 />
               </div>
             </div>
-
-            <%!-- Language pill --%>
             <div class="hidden sm:block">
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
                 {language_label(row.lang)}
@@ -464,22 +481,6 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <% end %>
     """
   end
-
-  # Rank styles matching language section
-  defp name_rank_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
-  defp name_rank_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
-  defp name_rank_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
-  defp name_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
-
-  defp name_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
-  defp name_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
-  defp name_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
-  defp name_badge_styles(_), do: "bg-slate-100 text-slate-500"
-
-  defp name_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
-  defp name_bar_styles(2), do: "bg-gradient-to-r from-slate-400 to-slate-500"
-  defp name_bar_styles(3), do: "bg-gradient-to-r from-orange-400 to-amber-400"
-  defp name_bar_styles(_), do: "bg-indigo-400"
 
   attr :countries, :list, required: true
   attr :map_data, :map, required: true
@@ -537,19 +538,27 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
           </div>
         </div>
 
-        <%!-- Country grid --%>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        <%!-- Country list - unified ranking style --%>
+        <div class="space-y-2">
           <%= for {{country_code, play_count}, index} <- Enum.with_index(@sorted_countries, 1) do %>
             <div class={[
-              "flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-200",
-              geo_rank_styles(index)
+              "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+              rank_card_styles(index)
             ]}>
-              <div class={["flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold", geo_badge_styles(index)]}>
+              <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
                 {index}
               </div>
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium text-slate-800 truncate">{country_name(country_code)}</div>
-                <div class="text-xs text-slate-400 tabular-nums">{format_number(play_count)}</div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-sm font-medium text-slate-800 truncate">{country_name(country_code)}</span>
+                  <span class="text-xs font-semibold text-slate-500 tabular-nums">{format_number(play_count)}</span>
+                </div>
+                <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    class={["h-full rounded-full transition-all duration-500 ease-out", rank_bar_styles(index)]}
+                    style={"width: #{if @max_count > 0, do: Float.round(play_count / @max_count * 100, 1), else: 0}%"}
+                  />
+                </div>
               </div>
             </div>
           <% end %>
@@ -558,16 +567,6 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     <% end %>
     """
   end
-
-  defp geo_rank_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
-  defp geo_rank_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
-  defp geo_rank_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
-  defp geo_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
-
-  defp geo_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
-  defp geo_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
-  defp geo_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
-  defp geo_badge_styles(_), do: "bg-slate-100 text-slate-500"
 
   defp heatmap_legend_stops(max_count) when max_count <= 0, do: []
 
@@ -599,9 +598,9 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
         <%= for {{lang, count}, index} <- Enum.with_index(@languages, 1) do %>
           <div class={[
             "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
-            lang_rank_styles(index)
+            rank_card_styles(index)
           ]}>
-            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", lang_badge_styles(index)]}>
+            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
               {index}
             </div>
             <div class="flex-1 min-w-0">
@@ -611,7 +610,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
               </div>
               <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  class={["h-full rounded-full transition-all duration-500 ease-out", lang_bar_styles(index)]}
+                  class={["h-full rounded-full transition-all duration-500 ease-out", rank_bar_styles(index)]}
                   style={"width: #{Float.round(count / @max_count * 100, 1)}%"}
                 />
               </div>
@@ -623,47 +622,45 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  defp lang_rank_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
-  defp lang_rank_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
-  defp lang_rank_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
-  defp lang_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
-
-  defp lang_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
-  defp lang_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
-  defp lang_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
-  defp lang_badge_styles(_), do: "bg-slate-100 text-slate-500"
-
-  defp lang_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
-  defp lang_bar_styles(2), do: "bg-gradient-to-r from-slate-400 to-slate-500"
-  defp lang_bar_styles(3), do: "bg-gradient-to-r from-orange-400 to-amber-400"
-  defp lang_bar_styles(_), do: "bg-indigo-400"
-
   attr :errors, :list, required: true
 
   defp errors_by_type_table(assigns) do
+    errors_sorted = Enum.sort_by(assigns.errors, fn {_type, count} -> count end, :desc)
+    max_count = errors_sorted |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 1 end)
+    assigns = assign(assigns, errors: errors_sorted, max_count: max_count)
+
     ~H"""
-    <div class="overflow-hidden rounded-lg">
-      <table class="min-w-full">
-        <thead>
-          <tr class="border-b border-slate-100">
-            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Error Type
-            </th>
-            <th class="px-4 py-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Count
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-50">
-          <%= for {error_type, count} <- @errors do %>
-            <tr class="hover:bg-slate-50/50 transition-colors">
-              <td class="px-4 py-3 text-sm text-slate-700">{error_type || "Unknown"}</td>
-              <td class="px-4 py-3 text-sm font-medium text-slate-900 text-right tabular-nums">{count}</td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
+    <%= if @errors == [] do %>
+      <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+        <.icon name="hero-check-circle" class="w-14 h-14 mb-4 opacity-40" />
+        <p class="text-base font-medium">No errors</p>
+      </div>
+    <% else %>
+      <div class="space-y-2">
+        <%= for {{error_type, count}, index} <- Enum.with_index(@errors, 1) do %>
+          <div class={[
+            "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
+            rank_card_styles(index)
+          ]}>
+            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", rank_badge_styles(index)]}>
+              {index}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-sm font-medium text-slate-800 truncate">{error_type || "Unknown"}</span>
+                <span class="text-xs font-semibold text-slate-500 tabular-nums">{count}</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  class={["h-full rounded-full transition-all duration-500 ease-out", rank_bar_styles(index)]}
+                  style={"width: #{if @max_count > 0, do: Float.round(count / @max_count * 100, 1), else: 0}%"}
+                />
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
     """
   end
 
