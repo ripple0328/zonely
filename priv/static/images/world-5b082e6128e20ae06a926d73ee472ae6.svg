@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500">
+  <rect width="1000" height="500" fill="#f8fafc" />
+  <!-- North America -->
+  <rect x="80" y="90" width="240" height="140" rx="20" fill="#e5e7eb" />
+  <!-- South America -->
+  <rect x="190" y="250" width="140" height="170" rx="20" fill="#e5e7eb" />
+  <!-- Europe -->
+  <rect x="430" y="110" width="110" height="70" rx="15" fill="#e5e7eb" />
+  <!-- Africa -->
+  <rect x="470" y="200" width="140" height="180" rx="20" fill="#e5e7eb" />
+  <!-- Asia -->
+  <rect x="600" y="90" width="300" height="180" rx="20" fill="#e5e7eb" />
+  <!-- Australia -->
+  <rect x="760" y="320" width="140" height="90" rx="20" fill="#e5e7eb" />
+</svg>
