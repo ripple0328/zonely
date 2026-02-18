@@ -427,36 +427,34 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
       <div class="space-y-2">
         <%= for {row, index} <- Enum.with_index(@names, 1) do %>
           <div class={[
-            "group relative flex items-center gap-4 rounded-xl p-4 transition-all duration-200",
+            "flex items-center gap-3 p-3 rounded-lg transition-all duration-200",
             name_rank_styles(index)
           ]}>
             <%!-- Rank indicator --%>
-            <div class={["flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm", name_badge_styles(index)]}>
+            <div class={["flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold", name_badge_styles(index)]}>
               {index}
             </div>
 
             <%!-- Content --%>
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="font-semibold text-slate-900 truncate">{row.name}</span>
-                <span class="text-lg opacity-70" title={provider_label(row.provider)}>{provider_icon(row.provider)}</span>
-              </div>
-              <div class="flex items-center gap-3 mt-2">
-                <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    class={["h-full rounded-full transition-all duration-500 ease-out", name_bar_styles(index)]}
-                    style={"width: #{Float.round(row.count / @max_count * 100, 1)}%"}
-                  />
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-sm font-medium text-slate-800 truncate">{row.name}</span>
+                  <span class="text-sm opacity-60" title={provider_label(row.provider)}>{provider_icon(row.provider)}</span>
                 </div>
-                <span class="text-xs font-medium text-slate-400 tabular-nums w-8 text-right">
-                  {row.count}
-                </span>
+                <span class="text-xs font-semibold text-slate-500 tabular-nums">{row.count}</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  class={["h-full rounded-full transition-all duration-500 ease-out", name_bar_styles(index)]}
+                  style={"width: #{Float.round(row.count / @max_count * 100, 1)}%"}
+                />
               </div>
             </div>
 
             <%!-- Language pill --%>
             <div class="hidden sm:block">
-              <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
                 {language_label(row.lang)}
               </span>
             </div>
@@ -467,17 +465,15 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  # Gold #1
-  defp name_rank_styles(1), do: "bg-gradient-to-r from-amber-50 via-yellow-50/80 to-amber-50/50 border border-amber-200/60 hover:border-amber-300 hover:shadow-amber-100"
-  # Silver #2
-  defp name_rank_styles(2), do: "bg-gradient-to-r from-slate-50 via-slate-50/80 to-white border border-slate-200/60 hover:border-slate-300 hover:shadow-slate-100"
-  # Bronze #3
-  defp name_rank_styles(3), do: "bg-gradient-to-r from-orange-50 via-amber-50/80 to-orange-50/50 border border-orange-200/60 hover:border-orange-300 hover:shadow-orange-100"
-  defp name_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm"
+  # Rank styles matching language section
+  defp name_rank_styles(1), do: "bg-gradient-to-r from-amber-50 to-yellow-50/50 border border-amber-200/50"
+  defp name_rank_styles(2), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
+  defp name_rank_styles(3), do: "bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-200/50"
+  defp name_rank_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
 
-  defp name_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-md shadow-amber-200"
-  defp name_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-md shadow-slate-200"
-  defp name_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md shadow-orange-200"
+  defp name_badge_styles(1), do: "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm"
+  defp name_badge_styles(2), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
+  defp name_badge_styles(3), do: "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-sm"
   defp name_badge_styles(_), do: "bg-slate-100 text-slate-500"
 
   defp name_bar_styles(1), do: "bg-gradient-to-r from-amber-400 to-yellow-400"
