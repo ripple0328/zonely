@@ -44,22 +44,36 @@
 
         <h2>Information we collect</h2>
         <ul>
-          <li>Names and language selections are encoded in the page URL on your device. They are not stored on our servers.</li>
+          <li>Names and language selections are encoded in the page URL on your device. We also collect <strong>hashed</strong> (irreversible) versions of names for anonymous popularity metrics — the original names cannot be recovered.</li>
           <li>When you press play, we may fetch audio from third‑party providers to deliver pronunciations.</li>
           <li>Server logs may include standard request metadata (IP address, user‑agent) for reliability and security.</li>
+          <li>We collect privacy‑safe analytics data to understand how the Service is used. See the <strong>Analytics</strong> section below for details.</li>
         </ul>
 
         <h2>How we use information</h2>
         <ul>
           <li>To serve audio pronunciations.</li>
           <li>To operate, maintain, and secure the Service.</li>
+          <li>To measure usage patterns and improve the Service through anonymous analytics.</li>
         </ul>
+
+        <h2>Analytics</h2>
+        <p>We collect anonymous usage statistics to improve the Service. All analytics data is designed to be privacy‑safe — we do not collect personally identifiable information (PII). Specifically:</p>
+        <ul>
+          <li><strong>Name hashes</strong> — names are transformed using SHA‑256 hashing before storage. This is a one‑way process; the original name cannot be recovered from the hash.</li>
+          <li><strong>Country code</strong> — we record your country (e.g., "US", "GB") for geographic usage trends. No IP address, city, or precise location is stored.</li>
+          <li><strong>Hashed user agent</strong> — your browser's user‑agent string is truncated and hashed. This is used solely for bot detection, not for fingerprinting or tracking across sites.</li>
+          <li><strong>Referrer domain</strong> — if you arrive from another site, we record only the domain name (e.g., "twitter.com"), not the full URL or page path.</li>
+          <li><strong>Session ID</strong> — a temporary, randomly generated identifier used to group actions within a single visit. It is not linked to your identity and is not persisted across sessions.</li>
+          <li><strong>Events and language selections</strong> — we record which features are used (e.g., page views, audio playback, pronunciation requests) and which languages are selected.</li>
+        </ul>
+        <p>Analytics data is retained for 90–180 days depending on the event type and is then automatically deleted.</p>
 
         <h2>Third‑party services</h2>
         <p>To provide pronunciations, we query third‑party services (e.g., pronunciation data sources or text‑to‑speech). We share only what’s needed to retrieve audio, such as a name and language code.</p>
 
         <h2>Data retention</h2>
-        <p>We do not persist your list of names on our servers. We cache AI‑generated pronunciation audio (text‑to‑speech) on our servers to improve performance and reduce latency. We do not cache human voice recordings from external pronunciation providers due to their licensing requirements. Standard server logs are retained for a limited period for operational purposes.</p>
+        <p>Your list of names is stored only in the page URL on your device. We cache AI‑generated pronunciation audio (text‑to‑speech) on our servers to improve performance and reduce latency. We do not cache human voice recordings from external pronunciation providers due to their licensing requirements. Anonymous analytics data is retained for 90–180 days. Standard server logs are retained for a limited period for operational purposes.</p>
 
         
 
