@@ -201,16 +201,17 @@ defmodule Zonely.Analytics do
   end
 
   @doc """
-  Get geographic distribution by country.
-  Returns list of {country_code, session_count} tuples.
+  Get geographic distribution of plays by country.
+  Returns list of {country_code, play_count} tuples.
   """
   def geographic_distribution(start_date, end_date, limit \\ 10) do
     from(e in Event,
+      where: e.event_name == "interaction_play_audio",
       where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
       where: fragment("user_context->>'country' IS NOT NULL"),
-      select: {fragment("user_context->>'country'"), count(fragment("DISTINCT ?", e.session_id))},
+      select: {fragment("user_context->>'country'"), count(e.id)},
       group_by: fragment("user_context->>'country'"),
-      order_by: [desc: count(fragment("DISTINCT ?", e.session_id))],
+      order_by: [desc: count(e.id)],
       limit: ^limit
     )
     |> Repo.all()
