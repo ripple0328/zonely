@@ -103,7 +103,11 @@
           <img class="logo" src={~p"/favicon-32x32.png?v=3"} alt="Say my name" />
           <div class="title">Say my name</div>
         </div>
-        <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <a href="/analytics" id="analytics-link" aria-label="Analytics" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:transparent;border:1px solid var(--ring);color:var(--muted);font-size:13px;font-weight:600;text-decoration:none;transition:all .2s" onmouseover="this.style.borderColor='#6366f1';this.style.color='#6366f1'" onmouseout="this.style.borderColor='var(--ring)';this.style.color='var(--muted)'">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+            <span>Analytics</span>
+          </a>
           <button id="share" aria-label="Share name list" class="primary">
             <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13 7H7a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2ZM5 9a2 2 0 0 1 2-2h.5V6A2.5 2.5 0 0 1 10 3.5h0A2.5 2.5 0 0 1 12.5 6V7H7.5V6Z" fill-opacity=".15"/><path d="M7.5 6V6A2.5 2.5 0 0 1 10 3.5h0A2.5 2.5 0 0 1 12.5 6V7H7.5V6Z"/></svg>
             <span class="label">Share name list</span>
