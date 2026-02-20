@@ -1,0 +1,14 @@
+"common_spelling_placeholder" = "一般的スペル";
+"original_spelling_placeholder" = "元のスペル";
+"text_may_not_match_lang" = "テキストが%@と一致しない可能性があります";
+"language" = "言語";
+"add" = "追加";
+"empty_list_message" = "まだ名前がありません。名前と言語を追加して開始してください。";
+"share_your_list" = "リストをシェア";
+"share" = "シェア";
+"pronunciations_cached_count" = "%d件の発音がキャッシュされています";
+"clear" = "クリア";
+"clear_audio_cache_title" = "音声キャッシュをクリア";
+"clear_audio_cache_message" = "キャッシュされた音声ファイルをすべて削除します。必要に応じて再びダウンロードされます。";
+"cancel" = "キャンセル";
+

@@ -1,0 +1,14 @@
+"common_spelling_placeholder" = "সাধারণ বানান";
+"original_spelling_placeholder" = "মূল বানান";
+"text_may_not_match_lang" = "পাঠ্য %@ এর সাথে মিল নান নাো";
+"language" = "ভাষা";
+"add" = "যোগ করুন";
+"empty_list_message" = "এখনো কোন নাম নেই। শুরু করতে একটি নাম এবং ভাষা যোগ করুন।";
+"share_your_list" = "আপনার তালিকা শেয়ার করুন";
+"share" = "শেয়ার";
+"pronunciations_cached_count" = "%dটি উচ্চারণ ক্যাশে সংরক্ষিত";
+"clear" = "পরিষ্কার";
+"clear_audio_cache_title" = "অডিও ক্যাশ পরিষ্কার করুন";
+"clear_audio_cache_message" = "এটি সব ক্যাশ করা অডিও ফাইল সরিয়ে দেবে। প্রয়োজনে সেগুলো আবার ডাউনলোড হবে।";
+"cancel" = "বাতিল";
+

@@ -1,0 +1,14 @@
+"common_spelling_placeholder" = "Grafia comum";
+"original_spelling_placeholder" = "Grafia original";
+"text_may_not_match_lang" = "O texto pode não corresponder a %@";
+"language" = "Idioma";
+"add" = "Adicionar";
+"empty_list_message" = "Ainda não há nomes. Adicione um nome e idioma para começar.";
+"share_your_list" = "Compartilhe sua lista";
+"share" = "Compartilhar";
+"pronunciations_cached_count" = "%d pronúncias em cache";
+"clear" = "Limpar";
+"clear_audio_cache_title" = "Limpar Cache de Áudio";
+"clear_audio_cache_message" = "Isso removerá todos os arquivos de áudio em cache. Eles serão baixados novamente quando necessário.";
+"cancel" = "Cancelar";
+

@@ -1,0 +1,14 @@
+"common_spelling_placeholder" = "Orthographe courante";
+"original_spelling_placeholder" = "Orthographe originale";
+"text_may_not_match_lang" = "Le texte peut ne pas correspondre à %@";
+"language" = "Langue";
+"add" = "Ajouter";
+"empty_list_message" = "Aucun nom pour l'instant. Ajoutez un nom et une langue pour commencer.";
+"share_your_list" = "Partagez votre liste";
+"share" = "Partager";
+"pronunciations_cached_count" = "%d prononciations en cache";
+"clear" = "Effacer";
+"clear_audio_cache_title" = "Effacer le cache audio";
+"clear_audio_cache_message" = "Cela supprimera tous les fichiers audio en cache. Ils seront téléchargés à nouveau si nécessaire.";
+"cancel" = "Annuler";
+
