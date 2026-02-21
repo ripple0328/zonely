@@ -45,7 +45,9 @@ defmodule ZonelyWeb.AnalyticsController do
         conversion_rate: conversion.conversion_rate
       },
       top_names:
-        Enum.map(top_names, fn entry ->
+        top_names
+        |> Enum.reject(fn entry -> is_nil(entry.name) or is_nil(entry.lang) end)
+        |> Enum.map(fn entry ->
           %{
             name: entry.name,
             lang: entry.lang,
@@ -54,7 +56,9 @@ defmodule ZonelyWeb.AnalyticsController do
           }
         end),
       top_languages:
-        Enum.map(top_languages, fn {lang, count} ->
+        top_languages
+        |> Enum.reject(fn {lang, _count} -> is_nil(lang) end)
+        |> Enum.map(fn {lang, count} ->
           %{lang: lang, count: count}
         end),
       provider_performance:
