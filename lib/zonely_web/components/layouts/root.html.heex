@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title suffix=" · SayMyName">
       <%= assigns[:page_title] || "SayMyName" %>
@@ -16,7 +17,7 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>
-  <body class="bg-gray-50 antialiased m-0 p-0">
+  <body class="bg-[var(--bg)] text-[var(--fg)] antialiased m-0 p-0">
     <%= @inner_content %>
   </body>
 </html>

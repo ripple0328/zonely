@@ -149,8 +149,8 @@ defmodule ZonelyWeb.MyNameCardLive do
         <%!-- Header --%>
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">My Name Card</h1>
-            <p class="mt-1 text-sm text-gray-600">
+            <h1 class="text-3xl font-bold text-[var(--fg)]">My Name Card</h1>
+            <p class="mt-1 text-sm text-[var(--muted)]">
               Share how you want to be known across languages
             </p>
           </div>
@@ -171,7 +171,7 @@ defmodule ZonelyWeb.MyNameCardLive do
 
         <%!-- Main form --%>
         <.form for={@form} id="name-card-form" phx-change="validate" phx-submit="save">
-          <div class="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div class="space-y-6 rounded-xl border border-[var(--ring)] bg-[var(--card)] p-6 shadow-sm">
             <%!-- Display name --%>
             <.input
               field={@form[:display_name]}
@@ -216,8 +216,8 @@ defmodule ZonelyWeb.MyNameCardLive do
               </div>
 
               <%= if @language_variants == [] do %>
-                <div class="rounded-lg border-2 border-dashed border-gray-200 px-4 py-8 text-center">
-                  <p class="text-sm text-gray-500">
+                <div class="rounded-lg border-2 border-dashed border-[var(--ring)] px-4 py-8 text-center">
+                  <p class="text-sm text-[var(--muted)]">
                     No language variants yet. Add your name in Chinese, Japanese, or other languages.
                   </p>
                 </div>
@@ -226,17 +226,17 @@ defmodule ZonelyWeb.MyNameCardLive do
                   <%= for {variant, index} <- Enum.with_index(@language_variants) do %>
                     <div
                       id={"lang-#{index}"}
-                      class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+                      class="flex items-center justify-between rounded-lg border border-[var(--ring)] bg-[var(--bg)] px-4 py-3"
                     >
                       <div class="flex items-center gap-3">
                         <span class="text-lg" aria-hidden="true">
                           {NameCard.language_flag(variant["language"])}
                         </span>
                         <div>
-                          <span class="font-medium text-gray-900">
+                          <span class="font-medium text-[var(--fg)]">
                             {variant["name"]}
                           </span>
-                          <span class="ml-2 text-xs text-gray-400">
+                          <span class="ml-2 text-xs text-[var(--muted)]">
                             {NameCard.language_label(variant["language"])}
                           </span>
                         </div>
@@ -246,7 +246,7 @@ defmodule ZonelyWeb.MyNameCardLive do
                         phx-click="remove_language"
                         phx-value-index={index}
                         aria-label={"Remove #{NameCard.language_label(variant["language"])} variant"}
-                        class="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        class="rounded p-1 text-[var(--muted)] transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                       >
                         <.icon name="hero-x-mark" class="h-4 w-4" />
                       </button>
@@ -257,7 +257,7 @@ defmodule ZonelyWeb.MyNameCardLive do
             </div>
 
             <%!-- Save button --%>
-            <div class="flex items-center justify-between border-t border-gray-100 pt-4">
+            <div class="flex items-center justify-between border-t border-[var(--ring)] pt-4">
               <div>
                 <%= if @card.id do %>
                   <button
@@ -295,16 +295,16 @@ defmodule ZonelyWeb.MyNameCardLive do
             phx-window-keydown="cancel_add_lang"
             phx-key="Escape"
           >
-            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div class="w-full max-w-md rounded-xl bg-[var(--card)] p-6 shadow-xl">
               <div class="flex items-center justify-between">
-                <h2 id="add-lang-title" class="text-lg font-bold text-gray-900">
+                <h2 id="add-lang-title" class="text-lg font-bold text-[var(--fg)]">
                   Add Language Variant
                 </h2>
                 <button
                   type="button"
                   phx-click="cancel_add_lang"
                   aria-label="Close"
-                  class="rounded p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="rounded p-1 text-[var(--muted)] hover:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <.icon name="hero-x-mark" class="h-5 w-5" />
                 </button>
@@ -319,7 +319,7 @@ defmodule ZonelyWeb.MyNameCardLive do
                     id="new-lang-select"
                     name="language"
                     phx-change="change_new_lang"
-                    class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-blue-400 focus:ring-0 sm:text-sm"
+                    class="mt-1 block w-full rounded-md border border-[var(--ring)] bg-[var(--card)] px-3 py-2 shadow-sm focus:border-blue-400 focus:ring-0 sm:text-sm"
                   >
                     <%= for {code, label, flag} <- NameCard.supported_languages() do %>
                       <% used = Enum.map(@language_variants, & &1["language"]) %>
@@ -343,7 +343,7 @@ defmodule ZonelyWeb.MyNameCardLive do
                     required
                     class="mt-1 block w-full rounded-lg border border-zinc-300 text-zinc-900 focus:border-blue-400 focus:ring-0 sm:text-sm"
                   />
-                  <p class="mt-1 text-xs text-gray-500">
+                  <p class="mt-1 text-xs text-[var(--muted)]">
                     Write in native script (e.g. 陈莎拉 for Chinese)
                   </p>
                 </div>
@@ -352,7 +352,7 @@ defmodule ZonelyWeb.MyNameCardLive do
                   <button
                     type="button"
                     phx-click="cancel_add_lang"
-                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+                    class="rounded-lg border border-[var(--ring)] px-4 py-2 text-sm font-semibold text-[var(--fg)] hover:bg-[var(--bg)] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                   >
                     Cancel
                   </button>
@@ -380,29 +380,29 @@ defmodule ZonelyWeb.MyNameCardLive do
             phx-window-keydown="close_share"
             phx-key="Escape"
           >
-            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div class="w-full max-w-md rounded-xl bg-[var(--card)] p-6 shadow-xl">
               <div class="flex items-center justify-between">
-                <h2 id="share-title" class="text-lg font-bold text-gray-900">
+                <h2 id="share-title" class="text-lg font-bold text-[var(--fg)]">
                   Share Your Name Card
                 </h2>
                 <button
                   type="button"
                   phx-click="close_share"
                   aria-label="Close share dialog"
-                  class="rounded p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="rounded p-1 text-[var(--muted)] hover:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <.icon name="hero-x-mark" class="h-5 w-5" />
                 </button>
               </div>
 
-              <p class="mt-2 text-sm text-gray-600">
+              <p class="mt-2 text-sm text-[var(--muted)]">
                 Share this link so others can see and import your name card.
               </p>
 
-              <div class="mt-4 rounded-lg bg-gray-50 p-3">
+              <div class="mt-4 rounded-lg bg-[var(--bg)] p-3">
                 <code
                   id="share-url-text"
-                  class="block break-all text-sm text-gray-700"
+                  class="block break-all text-sm text-[var(--fg)]"
                 >
                   {share_url(@card)}
                 </code>
@@ -436,7 +436,7 @@ defmodule ZonelyWeb.MyNameCardLive do
                 <button
                   type="button"
                   phx-click="close_share"
-                  class="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+                  class="flex-1 rounded-lg border border-[var(--ring)] px-4 py-2.5 text-sm font-semibold text-[var(--fg)] hover:bg-[var(--bg)] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                 >
                   Done
                 </button>

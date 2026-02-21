@@ -298,7 +298,7 @@ defmodule ZonelyWeb.CoreComponents do
         <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
           {card_initials(@display_name)}
         </div>
-        <span class="text-base font-medium text-gray-900 flex-1 truncate">{@display_name}</span>
+        <span class="text-base font-medium text-[var(--fg)] flex-1 truncate">{@display_name}</span>
         <%= if @language_variants != [] do %>
           <div class="flex gap-0.5 shrink-0">
             <%= for variant <- @language_variants do %>
@@ -318,9 +318,9 @@ defmodule ZonelyWeb.CoreComponents do
           {card_initials(@display_name)}
         </div>
         <div class="flex-1 min-w-0">
-          <h3 class="text-lg font-bold text-gray-900 truncate">{@display_name}</h3>
+          <h3 class="text-lg font-bold text-[var(--fg)] truncate">{@display_name}</h3>
           <%= if @pronouns && @pronouns != "" do %>
-            <p class="text-sm text-gray-500">{@pronouns}</p>
+            <p class="text-sm text-[var(--muted)]">{@pronouns}</p>
           <% end %>
           <%!-- Language flags --%>
           <%= if @language_variants != [] do %>

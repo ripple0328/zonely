@@ -2,6 +2,25 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+/* Theme tokens – must match privacy.html.heex / about.html.heex */
+:root {
+  --bg: #ffffff;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --ring: #e2e8f0;
+  --card: #f8fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f17;
+    --fg: #e5e7eb;
+    --muted: #9ca3af;
+    --ring: #111827;
+    --card: #111827;
+  }
+}
+
 /* This file is for your main application CSS */
 
 /* Hide horizontal scrollbar for mobile tabs */

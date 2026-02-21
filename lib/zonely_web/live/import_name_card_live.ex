@@ -89,12 +89,12 @@ defmodule ZonelyWeb.ImportNameCardLive do
     ~H"""
     <div class="mx-auto max-w-lg px-4 py-8 sm:px-6">
         <%= if @not_found do %>
-          <div class="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+          <div class="rounded-xl border border-[var(--ring)] bg-[var(--card)] p-8 text-center shadow-sm">
             <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
               <.icon name="hero-exclamation-triangle" class="h-6 w-6 text-red-600" />
             </div>
-            <h1 class="text-xl font-bold text-gray-900">Name Card Not Found</h1>
-            <p class="mt-2 text-sm text-gray-600">
+            <h1 class="text-xl font-bold text-[var(--fg)]">Name Card Not Found</h1>
+            <p class="mt-2 text-sm text-[var(--muted)]">
               This name card link may have expired or been removed.
             </p>
             <a
@@ -111,8 +111,8 @@ defmodule ZonelyWeb.ImportNameCardLive do
               <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <.icon name="hero-check" class="h-6 w-6 text-green-600" />
               </div>
-              <h1 class="text-xl font-bold text-gray-900">Imported!</h1>
-              <p class="mt-2 text-sm text-gray-600">
+              <h1 class="text-xl font-bold text-[var(--fg)]">Imported!</h1>
+              <p class="mt-2 text-sm text-[var(--muted)]">
                 {@card.display_name}'s name card has been added to your collection.
               </p>
               <div class="mt-6 flex justify-center gap-3">
@@ -124,7 +124,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
                 </a>
                 <a
                   href={~p"/name/my-name-card"}
-                  class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+                  class="inline-flex items-center gap-2 rounded-lg border border-[var(--ring)] px-4 py-2 text-sm font-semibold text-[var(--fg)] hover:bg-[var(--bg)] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                 >
                   My Name Card
                 </a>
@@ -134,22 +134,22 @@ defmodule ZonelyWeb.ImportNameCardLive do
             <%!-- Card preview + import --%>
             <div class="space-y-6">
               <div class="text-center">
-                <h1 class="text-2xl font-bold text-gray-900">
+                <h1 class="text-2xl font-bold text-[var(--fg)]">
                   {@card.display_name} shared their name card
                 </h1>
-                <p class="mt-1 text-sm text-gray-600">
+                <p class="mt-1 text-sm text-[var(--muted)]">
                   Import to your collections to remember how to say their name
                 </p>
               </div>
 
               <%!-- Card preview --%>
-              <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div class="rounded-xl border border-[var(--ring)] bg-[var(--card)] p-6 shadow-sm">
                 <.name_card_preview card={@card} />
               </div>
 
               <%!-- Import form --%>
-              <form id="import-form" phx-submit="import_card" class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 class="text-sm font-semibold text-gray-900">Add to collection</h3>
+              <form id="import-form" phx-submit="import_card" class="rounded-xl border border-[var(--ring)] bg-[var(--card)] p-6 shadow-sm">
+                <h3 class="text-sm font-semibold text-[var(--fg)]">Add to collection</h3>
 
                 <div class="mt-3 space-y-2">
                   <%= for collection <- @collections do %>
@@ -157,7 +157,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
                       "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
                       if(@selected_collection == collection.id,
                         do: "border-blue-500 bg-blue-50",
-                        else: "border-gray-200 hover:border-gray-300"
+                        else: "border-[var(--ring)] hover:border-[var(--muted)]"
                       )
                     ]}>
                       <input
@@ -169,7 +169,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
                         phx-value-collection={collection.id}
                         class="text-blue-600 focus:ring-blue-500"
                       />
-                      <span class="text-sm font-medium text-gray-900">{collection.name}</span>
+                      <span class="text-sm font-medium text-[var(--fg)]">{collection.name}</span>
                     </label>
                   <% end %>
 
@@ -177,7 +177,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
                     "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
                     if(@selected_collection == "new",
                       do: "border-blue-500 bg-blue-50",
-                      else: "border-gray-200 hover:border-gray-300"
+                      else: "border-[var(--ring)] hover:border-[var(--muted)]"
                     )
                   ]}>
                     <input
