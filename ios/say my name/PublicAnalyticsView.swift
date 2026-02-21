@@ -514,48 +514,39 @@ struct PublicAnalyticsView: View {
         }
     }
 
-    /// Returns the gradient colors for a language code
-    private func langGradient(for langCode: String) -> (Color, Color) {
+    /// Returns the solid color for a language code
+    private func langColor(for langCode: String) -> Color {
         let base = langCode.split(separator: "-").first.map(String.init) ?? langCode
         switch base {
-        case "en": return (Color(red: 0.29, green: 0.56, blue: 0.85), Color(red: 0.35, green: 0.34, blue: 0.84))
-        case "es": return (Color(red: 1.0, green: 0.58, blue: 0.0), Color(red: 1.0, green: 0.23, blue: 0.19))
-        case "zh": return (Color(red: 1.0, green: 0.23, blue: 0.19), Color(red: 1.0, green: 0.84, blue: 0.04))
-        case "ja": return (Color(red: 1.0, green: 0.18, blue: 0.33), Color(red: 0.69, green: 0.32, blue: 0.87))
-        case "hi": return (Color(red: 0.20, green: 0.78, blue: 0.35), Color(red: 0.19, green: 0.69, blue: 0.78))
-        case "ar": return (Color(red: 1.0, green: 0.62, blue: 0.04), Color(red: 0.64, green: 0.52, blue: 0.37))
-        case "fr": return (Color(red: 0.35, green: 0.78, blue: 0.98), Color(red: 0.69, green: 0.32, blue: 0.87))
-        case "ko": return (Color(red: 0.69, green: 0.32, blue: 0.87), Color(red: 0.35, green: 0.34, blue: 0.84))
-        case "de": return (Color(red: 0.39, green: 0.39, blue: 0.40), Color(red: 0.0, green: 0.48, blue: 1.0))
-        case "pt": return (Color(red: 0.19, green: 0.82, blue: 0.35), Color(red: 1.0, green: 0.84, blue: 0.04))
-        case "bn": return (Color(red: 0.39, green: 0.82, blue: 1.0), Color(red: 0.20, green: 0.78, blue: 0.35))
-        case "ru": return (Color(red: 1.0, green: 0.27, blue: 0.23), Color(red: 0.04, green: 0.52, blue: 1.0))
-        case "it": return (Color(red: 0.19, green: 0.82, blue: 0.35), Color(red: 1.0, green: 0.23, blue: 0.19))
-        case "tr": return (Color(red: 1.0, green: 0.22, blue: 0.37), Color(red: 1.0, green: 0.62, blue: 0.04))
-        case "vi": return (Color(red: 1.0, green: 0.84, blue: 0.04), Color(red: 0.20, green: 0.78, blue: 0.35))
-        case "th": return (Color(red: 0.75, green: 0.35, blue: 0.95), Color(red: 1.0, green: 0.18, blue: 0.33))
-        case "pl": return (Color(red: 0.04, green: 0.52, blue: 1.0), Color(red: 0.39, green: 0.82, blue: 1.0))
-        case "nl": return (Color(red: 1.0, green: 0.58, blue: 0.0), Color(red: 1.0, green: 0.80, blue: 0.0))
-        case "sv": return (Color(red: 0.0, green: 0.48, blue: 1.0), Color(red: 1.0, green: 0.84, blue: 0.04))
-        default: return (Color(red: 0.56, green: 0.56, blue: 0.58), Color(red: 0.39, green: 0.39, blue: 0.40))
+        case "en": return Color(red: 0.38, green: 0.56, blue: 0.85)  // soft blue
+        case "es": return Color(red: 0.90, green: 0.48, blue: 0.40)  // warm coral
+        case "zh": return Color(red: 0.85, green: 0.35, blue: 0.35)  // soft red
+        case "ja": return Color(red: 0.82, green: 0.45, blue: 0.65)  // soft pink
+        case "hi": return Color(red: 0.40, green: 0.72, blue: 0.55)  // sage green
+        case "ar": return Color(red: 0.82, green: 0.65, blue: 0.38)  // warm sand
+        case "fr": return Color(red: 0.55, green: 0.50, blue: 0.82)  // lavender
+        case "ko": return Color(red: 0.65, green: 0.42, blue: 0.78)  // soft purple
+        case "de": return Color(red: 0.45, green: 0.55, blue: 0.68)  // slate blue
+        case "pt": return Color(red: 0.35, green: 0.70, blue: 0.65)  // soft teal
+        case "bn": return Color(red: 0.45, green: 0.75, blue: 0.68)  // mint
+        case "ru": return Color(red: 0.75, green: 0.45, blue: 0.50)  // dusty rose
+        case "it": return Color(red: 0.38, green: 0.68, blue: 0.48)  // muted emerald
+        case "tr": return Color(red: 0.80, green: 0.52, blue: 0.38)  // terracotta
+        case "vi": return Color(red: 0.58, green: 0.68, blue: 0.38)  // olive/moss
+        case "th": return Color(red: 0.62, green: 0.40, blue: 0.65)  // plum
+        case "pl": return Color(red: 0.42, green: 0.58, blue: 0.82)  // cornflower
+        case "nl": return Color(red: 0.85, green: 0.60, blue: 0.35)  // muted orange
+        case "sv": return Color(red: 0.78, green: 0.68, blue: 0.35)  // honey gold
+        default:   return Color(red: 0.60, green: 0.60, blue: 0.62)  // neutral gray
         }
     }
 
     private func langPill(for langCode: String) -> some View {
-        let (startColor, endColor) = langGradient(for: langCode)
-        return Text(langScriptChar(for: langCode))
-            .font(.system(size: 10, weight: .heavy, design: .rounded))
+        Text(langScriptChar(for: langCode))
+            .font(.system(size: 9, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
-            .frame(width: 26, height: 26)
-            .background(
-                LinearGradient(
-                    colors: [startColor, endColor],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            )
-            .shadow(color: startColor.opacity(0.3), radius: 3, x: 0, y: 1)
+            .frame(width: 24, height: 24)
+            .background(langColor(for: langCode), in: Circle())
     }
 
     private func glassOverlay(radius: CGFloat) -> some View {
