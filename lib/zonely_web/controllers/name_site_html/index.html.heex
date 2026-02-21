@@ -1443,11 +1443,12 @@
           if(dismissBtn){ dismissBtn.onclick = () => { try{ localStorage.setItem(HIDE_KEY, '1'); }catch(_){} banner.remove(); }; }
         }
 
-        // Auto-show CTA on first visit (unless hidden or already seen)
+        // Auto-show CTA on first visit (unless hidden, already seen, or import banner is showing)
         try {
           const u = new URL(window.location.href);
+          const importShowing = document.getElementById('import-banner')?.style.display !== 'none';
           if(u.searchParams.get('guide') === '1'){ startDemo(); }
-          else if(!localStorage.getItem(SEEN_KEY) && !localStorage.getItem(HIDE_KEY) && !u.searchParams.has('s')){
+          else if(!localStorage.getItem(SEEN_KEY) && !localStorage.getItem(HIDE_KEY) && !importShowing){
             showCTA();
           }
         } catch(_){ }
