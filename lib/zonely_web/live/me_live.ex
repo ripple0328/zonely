@@ -49,14 +49,14 @@ defmodule ZonelyWeb.MeLive do
             </div>
             <div class="mt-4 flex gap-2">
               <.link
-                navigate={~p"/me/card"}
+                navigate={~p"/name/me/card"}
                 class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 <.icon name="hero-pencil-square" class="h-4 w-4" />
                 Edit
               </.link>
               <.link
-                navigate={~p"/me/card"}
+                navigate={~p"/name/me/card"}
                 class="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
               >
                 <.icon name="hero-share" class="h-4 w-4" />
@@ -72,7 +72,7 @@ defmodule ZonelyWeb.MeLive do
             <p class="text-sm font-medium text-gray-900">You haven't set up your card yet.</p>
             <p class="mt-1 text-xs text-gray-500">Let others learn how to say your name</p>
             <.link
-              navigate={~p"/me/card"}
+              navigate={~p"/name/me/card"}
               class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Set Up Now →
@@ -88,14 +88,14 @@ defmodule ZonelyWeb.MeLive do
         </h2>
         <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden divide-y divide-gray-100">
           <a
-            href={~p"/about"}
+            href={~p"/name/about"}
             class="flex items-center justify-between px-4 py-3.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
           >
             <span>How It Works</span>
             <.icon name="hero-chevron-right" class="h-4 w-4 text-gray-400" />
           </a>
           <a
-            href={~p"/privacy"}
+            href={~p"/name/privacy"}
             class="flex items-center justify-between px-4 py-3.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
           >
             <span>Privacy</span>

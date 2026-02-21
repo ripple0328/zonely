@@ -63,8 +63,16 @@ defmodule ZonelyWeb.Router do
     live("/native", NativePronounceLive)
   end
 
-  # SayMyName main routes — 3-tab navigation
+  # Public API fallback for local development (so native app can call /api/pronounce at root)
   scope "/", ZonelyWeb do
+    pipe_through(:api)
+    get("/api/pronounce", NameSiteController, :pronounce)
+    post("/api/analytics/play", AnalyticsController, :play)
+    get("/api/analytics/dashboard", AnalyticsController, :dashboard)
+  end
+
+  # SayMyName LiveView routes at /name
+  scope "/name", ZonelyWeb do
     pipe_through(:browser)
 
     # Serve runtime audio files safely
@@ -88,15 +96,7 @@ defmodule ZonelyWeb.Router do
     live("/card/:token", ImportNameCardLive)
   end
 
-  # Public API fallback for local development (so native app can call /api/pronounce at root)
-  scope "/", ZonelyWeb do
-    pipe_through(:api)
-    get("/api/pronounce", NameSiteController, :pronounce)
-    post("/api/analytics/play", AnalyticsController, :play)
-    get("/api/analytics/dashboard", AnalyticsController, :dashboard)
-  end
-
-  # Local development access at /name
+  # Local development access at /name (bare pipeline for standalone site)
   scope "/name", ZonelyWeb do
     pipe_through(:bare)
 

@@ -22,7 +22,7 @@ defmodule ZonelyWeb.CollectionsLive do
   def handle_params(%{"id" => id}, _url, socket) do
     case Collections.get_collection(id) do
       nil ->
-        {:noreply, push_navigate(socket, to: ~p"/collections")}
+        {:noreply, push_navigate(socket, to: ~p"/name/collections")}
 
       collection ->
         {:noreply, assign(socket, selected_collection: collection)}
