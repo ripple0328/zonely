@@ -4,6 +4,19 @@ defmodule ZonelyWeb.HomeLive do
   alias Zonely.Collections
   alias Zonely.NameCards
 
+  @supported_langs [
+    {"English", "en-US"},
+    {"中文", "zh-CN"},
+    {"Español", "es-ES"},
+    {"हिन्दी", "hi-IN"},
+    {"العربية", "ar-SA"},
+    {"বাংলা", "bn-IN"},
+    {"Français", "fr-FR"},
+    {"Português", "pt-BR"},
+    {"日本語", "ja-JP"},
+    {"Deutsch", "de-DE"}
+  ]
+
   @impl true
   def mount(_params, _session, socket) do
     collections = Collections.list_collections()
@@ -23,7 +36,13 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:active_collection, active_collection)
      |> assign(:has_card, card != nil)
      |> assign(:show_switcher, false)
-     |> assign(:expanded_entry, nil)}
+     |> assign(:expanded_entry, nil)
+     |> assign(:supported_langs, @supported_langs)
+     |> assign(
+       :input_form,
+       to_form(%{"name" => "", "lang" => "en-US", "pron_text" => ""}, as: :entry)
+     )
+     |> assign(:show_pron_override, false)}
   end
 
   @impl true
@@ -52,6 +71,53 @@ defmodule ZonelyWeb.HomeLive do
       if socket.assigns.expanded_entry == index, do: nil, else: index
 
     {:noreply, assign(socket, :expanded_entry, new_expanded)}
+  end
+
+  def handle_event("validate_input", %{"entry" => params}, socket) do
+    {:noreply, assign(socket, :input_form, to_form(params, as: :entry))}
+  end
+
+  def handle_event("toggle_pron_override", _params, socket) do
+    {:noreply, assign(socket, :show_pron_override, !socket.assigns.show_pron_override)}
+  end
+
+  def handle_event("add_entry", %{"entry" => params}, socket) do
+    name = String.trim(params["name"] || "")
+    lang = params["lang"] || "en-US"
+    pron_text = String.trim(params["pron_text"] || "")
+
+    if name == "" do
+      {:noreply, socket}
+    else
+      text =
+        if pron_text != "" and socket.assigns.show_pron_override,
+          do: pron_text,
+          else: name
+
+      entry = %{"name" => name, "entries" => [%{"lang" => lang, "text" => text}]}
+      collection = socket.assigns.active_collection
+      existing = collection.entries || []
+      entries = existing ++ [entry]
+
+      case Collections.update_collection(collection, %{entries: entries}) do
+        {:ok, updated} ->
+          collections = Collections.list_collections()
+
+          {:noreply,
+           socket
+           |> assign(:active_collection, updated)
+           |> assign(:collections, collections)
+           |> assign(
+             :input_form,
+             to_form(%{"name" => "", "lang" => lang, "pron_text" => ""}, as: :entry)
+           )
+           |> assign(:show_pron_override, false)
+           |> assign(:expanded_entry, nil)}
+
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Could not add entry")}
+      end
+    end
   end
 
   @impl true
@@ -120,6 +186,69 @@ defmodule ZonelyWeb.HomeLive do
             </div>
           </div>
         <% end %>
+
+        <%!-- Add name input card --%>
+        <div id="add-name-card" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <.form for={@input_form} id="add-name-form" phx-change="validate_input" phx-submit="add_entry">
+            <div class="flex items-end gap-2">
+              <div class="flex-1">
+                <.input
+                  field={@input_form[:name]}
+                  type="text"
+                  label="Name"
+                  placeholder="e.g. Zhang Wei"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="w-36">
+                <.input
+                  field={@input_form[:lang]}
+                  type="select"
+                  label="Language"
+                  options={@supported_langs}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={String.trim(@input_form[:name].value || "") == ""}
+                class={[
+                  "mb-0.5 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                  if(String.trim(@input_form[:name].value || "") == "",
+                    do: "bg-gray-200 text-gray-400 cursor-not-allowed",
+                    else: "bg-blue-600 text-white hover:bg-blue-700"
+                  )
+                ]}
+              >
+                Add
+              </button>
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                phx-click="toggle_pron_override"
+                class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                aria-pressed={if(@show_pron_override, do: "true", else: "false")}
+              >
+                <.icon
+                  name={if(@show_pron_override, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini")}
+                  class="h-3.5 w-3.5"
+                />
+                Custom pronunciation
+              </button>
+            </div>
+            <%= if @show_pron_override do %>
+              <div class="mt-2">
+                <.input
+                  field={@input_form[:pron_text]}
+                  type="text"
+                  label="Pronunciation text"
+                  placeholder="How it's pronounced in the selected language"
+                  autocomplete="off"
+                />
+              </div>
+            <% end %>
+          </.form>
+        </div>
 
         <%!-- Name entries --%>
         <div id="name-list" class="space-y-2">
