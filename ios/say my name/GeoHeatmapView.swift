@@ -165,8 +165,12 @@ struct GeoHeatmapMapView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Dark background – no map tiles
-                Color(white: 0.08)
+                // Subtle gradient background matching app aesthetic
+                LinearGradient(
+                    colors: [Color(white: 0.10), Color(white: 0.06).opacity(0.95)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
                 // Render all country polygons via Canvas for performance
                 Canvas { context, size in
@@ -176,7 +180,7 @@ struct GeoHeatmapMapView: View {
                         let fillColor = heatmapColor(for: count)
 
                         context.fill(path, with: .color(fillColor))
-                        context.stroke(path, with: .color(Color.white.opacity(0.25)), lineWidth: 0.5)
+                        context.stroke(path, with: .color(Color.white.opacity(0.2)), lineWidth: 0.5)
                     }
                 }
 
@@ -233,7 +237,7 @@ struct GeoHeatmapMapView: View {
     private func heatmapColor(for count: Int) -> Color {
         switch count {
         case 0:
-            return Color(white: 0.15).opacity(0.4)
+            return Color(white: 0.18).opacity(0.45)
         case 1...10:
             return Color(red: 0.58, green: 0.77, blue: 0.99).opacity(0.9)
         case 11...50:
