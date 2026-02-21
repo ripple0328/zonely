@@ -288,28 +288,36 @@ struct PublicAnalyticsView: View {
     // MARK: - Top Names Section
     private func topNamesSection(_ names: [TopName]) -> some View {
         sectionCard(title: "Top Requested Names", icon: "person.2.fill") {
-            ForEach(Array(names.prefix(10).enumerated()), id: \.element.id) { index, name in
-                HStack(spacing: 12) {
-                    rankBadge(index + 1)
-                    VStack(alignment: .leading, spacing: 3) {
+            VStack(spacing: 6) {
+                ForEach(Array(names.prefix(5).enumerated()), id: \.element.id) { index, name in
+                    HStack(spacing: 8) {
+                        rankBadge(index + 1)
+
                         Text(name.name)
                             .font(.subheadline.weight(.semibold))
-                        Text(name.lang)
-                            .font(.caption2)
+                            .lineLimit(1)
+
+                        let voiceType = voiceTypeIcon(for: name.provider)
+                        Image(systemName: voiceType.icon)
+                            .font(.system(size: 10))
+                            .foregroundStyle(voiceType.color)
+
+                        Text(LangCatalog.displayName(name.lang))
+                            .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background(.quaternary, in: Capsule())
+                            .background(.quaternary.opacity(0.6), in: Capsule())
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        Text("\(name.count)")
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(.indigo)
                     }
-                    Spacer()
-                    Text("\(name.count)")
-                        .font(.subheadline.weight(.bold))
-                        .monospacedDigit()
-                        .foregroundStyle(.indigo)
-                }
-                .padding(.vertical, 5)
-                if index < min(names.count, 10) - 1 {
-                    Divider().opacity(0.15)
+                    .padding(.vertical, 3)
                 }
             }
         }
@@ -317,39 +325,38 @@ struct PublicAnalyticsView: View {
 
     // MARK: - Top Languages Section
     private func topLanguagesSection(_ languages: [TopLanguage]) -> some View {
-        let maxCount = languages.first?.count ?? 1
-        return sectionCard(title: "Top Languages", icon: "globe.americas.fill") {
-            ForEach(Array(languages.prefix(8).enumerated()), id: \.element.id) { index, language in
-                VStack(spacing: 6) {
-                    HStack(spacing: 10) {
-                        rankBadge(index + 1)
+        sectionCard(title: "Top Languages", icon: "globe.americas.fill") {
+            let columns = [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8)
+            ]
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(languages.prefix(8)) { language in
+                    HStack(spacing: 6) {
+                        Text(flagEmoji(for: language.lang))
+                            .font(.system(size: 16))
+
                         Text(LangCatalog.displayName(language.lang))
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
+                            .font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1)
+
+                        Spacer(minLength: 2)
+
                         Text("\(language.count)")
-                            .font(.subheadline.weight(.bold))
+                            .font(.system(size: 10, weight: .bold))
                             .monospacedDigit()
-                            .foregroundStyle(.indigo)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(.indigo.gradient, in: Capsule())
                     }
-                    // Proportion bar
-                    GeometryReader { geo in
-                        let fraction = CGFloat(language.count) / CGFloat(max(maxCount, 1))
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.indigo.opacity(0.6), .indigo.opacity(0.25)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: geo.size.width * fraction, height: 4)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: fraction)
-                    }
-                    .frame(height: 4)
-                }
-                .padding(.vertical, 3)
-                if index < min(languages.count, 8) - 1 {
-                    Divider().opacity(0.1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(.white.opacity(0.1))
+                    )
                 }
             }
         }
@@ -423,11 +430,37 @@ struct PublicAnalyticsView: View {
             }
         }()
         return Text("\(rank)")
-            .font(.caption2.weight(.heavy))
+            .font(.system(size: 9, weight: .heavy))
             .foregroundStyle(.white)
-            .frame(width: 24, height: 24)
+            .frame(width: 20, height: 20)
             .background(color.gradient, in: Circle())
-            .shadow(color: color.opacity(0.3), radius: 3, y: 1)
+            .shadow(color: color.opacity(0.3), radius: 2, y: 1)
+    }
+
+    private func voiceTypeIcon(for provider: String?) -> (icon: String, color: Color) {
+        guard let provider = provider else {
+            return ("speaker.wave.2.fill", .gray)
+        }
+        if provider == "forvo" || provider == "nameshouts" {
+            return ("person.wave.2.fill", .green)
+        } else if provider == "polly" {
+            return ("wand.and.stars", .purple)
+        } else if provider.hasPrefix("cache_") {
+            return ("bolt.fill", .orange)
+        } else {
+            return ("speaker.wave.2.fill", .gray)
+        }
+    }
+
+    private func flagEmoji(for langCode: String) -> String {
+        let parts = langCode.split(separator: "-")
+        guard parts.count >= 2 else { return "🌐" }
+        let countryCode = String(parts.last!)
+        let base: UInt32 = 127397
+        let flag = countryCode.uppercased().unicodeScalars.compactMap {
+            UnicodeScalar(base + $0.value)
+        }.map { String($0) }.joined()
+        return flag.isEmpty ? "🌐" : flag
     }
 
     private func glassOverlay(radius: CGFloat) -> some View {

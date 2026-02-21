@@ -155,6 +155,12 @@ struct GeoHeatmapMapView: View {
 
     @State private var countries: [CountryShape] = []
 
+    // Zoom and pan state
+    @State private var currentScale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var currentOffset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
     /// ISO-3 code -> play count lookup built from geoDistribution (which uses ISO-2)
     private var countryPlays: [String: Int] {
         Dictionary(uniqueKeysWithValues: geoDistribution.map {
@@ -203,7 +209,39 @@ struct GeoHeatmapMapView: View {
                     }
                 }
             }
+            .scaleEffect(currentScale)
+            .offset(currentOffset)
+            .gesture(
+                SimultaneousGesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            currentScale = min(max(lastScale * value, 1.0), 8.0)
+                        }
+                        .onEnded { _ in
+                            lastScale = currentScale
+                        },
+                    DragGesture()
+                        .onChanged { value in
+                            currentOffset = CGSize(
+                                width: lastOffset.width + value.translation.width / currentScale,
+                                height: lastOffset.height + value.translation.height / currentScale
+                            )
+                        }
+                        .onEnded { _ in
+                            lastOffset = currentOffset
+                        }
+                )
+            )
+            .onTapGesture(count: 2) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentScale = 1.0
+                    lastScale = 1.0
+                    currentOffset = .zero
+                    lastOffset = .zero
+                }
+            }
             .frame(width: mapWidth, height: mapHeight)
+            .clipped()
             .onAppear {
                 loadCountries()
             }
@@ -225,10 +263,10 @@ struct GeoHeatmapMapView: View {
             uniqueKeysWithValues: ISOCodeConverter.iso2ToIso3.map { ($0.value, $0.key) }
         )
 
-        countries = collection.features.compactMap { feature -> CountryShape? in
+        countries = collection.features.enumerated().compactMap { index, feature -> CountryShape? in
             guard let iso3 = feature.id else { return nil }
             return CountryShape(
-                id: iso3,
+                id: "\(iso3)-\(index)",
                 iso3: iso3,
                 iso2: iso3ToIso2[iso3] ?? String(iso3.prefix(2)),
                 name: feature.properties.name,
