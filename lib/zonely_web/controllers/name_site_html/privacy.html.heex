@@ -33,7 +33,7 @@
           <img class="logo" src={~p"/favicon-32x32.png?v=3"} alt="Say my name" />
           <div class="title">Say my name</div>
         </div>
-        <div><a href={~p"/"} aria-label="Back to home">Home</a></div>
+        <div><a href={"#{@base_path}/"} aria-label="Back to home">Home</a></div>
       </div>
 
       <div class="card">
@@ -84,14 +84,14 @@
         </ul>
 
         <h2>Contact</h2>
-        <p>Questions or requests? Email <a href="mailto:saymyname@qingbo.us">saymyname@qingbo.us</a>. See also <a href={~p"/about"}>About</a> for attribution and how it works.</p>
+        <p>Questions or requests? Email <a href="mailto:saymyname@qingbo.us">saymyname@qingbo.us</a>. See also <a href={"#{@base_path}/about"}>About</a> for attribution and how it works.</p>
 
         <h2>Changes to this policy</h2>
         <p>We may update this Privacy Policy to reflect changes to the Service. We will revise the “Effective date” above when updates are made.</p>
 
         <div class="footer">
           <div class="muted">© {Date.utc_today() |> Date.to_string() |> String.slice(0,4)} Say my name</div>
-          <div><a href={~p"/"}>Home</a></div>
+          <div><a href={"#{@base_path}/"}>Home</a></div>
         </div>
       </div>
     </div>

@@ -6,6 +6,8 @@ import UIKit
 
 final class AppViewModel: ObservableObject {
     @Published var entries: [NameEntry] = []
+    @Published var collections: [NameCollection] = []
+    @Published var currentCollection: NameCollection?
     @Published var commonText: String = ""
     @Published var originalText: String = ""
     @Published var commonLang: String = "en-US"
@@ -16,17 +18,20 @@ final class AppViewModel: ObservableObject {
     @Published var commonMismatch: Bool = false
     @Published var originalMismatch: Bool = false
     @Published var ttsCacheCount: Int = 0
+    @Published var shareUrl: URL?
 
 
     private var network: PronounceNetworking
     private var audio: AudioPlaying
     private let ttsCache = AudioCacheManager()
     private let persistence = StatePersistence()
+    private let collectionPersistence = CollectionPersistence()
 
     init(network: PronounceNetworking = PronounceService(), audio: AudioPlaying = AudioCoordinator(cache: AudioCacheManager())) {
         self.network = network
         self.audio = audio
         entries = persistence.restore() ?? []
+        collections = collectionPersistence.restore() ?? []
         ttsCacheCount = ttsCache.count()
         audio.onFinish = { [weak self] in
             Task { @MainActor in
@@ -101,7 +106,62 @@ final class AppViewModel: ObservableObject {
     func save() {
         persistence.store(entries)
     }
-    
+
+    // MARK: - Collection Management
+    func createCollection(name: String, description: String? = nil) {
+        let collection = NameCollection(
+            name: name,
+            description: description,
+            entries: entries
+        )
+        collectionPersistence.add(collection, to: &collections)
+    }
+
+    func updateCollection(_ collection: NameCollection) {
+        var updated = collection
+        updated.entries = entries
+        collectionPersistence.update(updated, in: &collections)
+    }
+
+    func deleteCollection(_ collection: NameCollection) {
+        collectionPersistence.delete(collection, from: &collections)
+        if currentCollection?.id == collection.id {
+            currentCollection = nil
+        }
+    }
+
+    func loadCollection(_ collection: NameCollection) {
+        entries = collection.entries
+        currentCollection = collection
+        save()
+    }
+
+    func shareCollection(_ collection: NameCollection) {
+        shareUrl = CollectionShareUrl.generateUrl(for: collection.entries)
+    }
+
+    func importFromSharedUrl(_ url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let sParam = components.queryItems?.first(where: { $0.name == "s" })?.value else {
+            showDeepLinkError()
+            return
+        }
+
+        guard let newEntries = CollectionShareUrl.decode(sParam) else {
+            showDeepLinkError()
+            return
+        }
+
+        // Create a new collection from the shared data
+        let collection = NameCollection(
+            name: "Imported - \(Date().formatted(date: .abbreviated, time: .omitted))",
+            entries: newEntries
+        )
+        collectionPersistence.add(collection, to: &collections)
+        entries = newEntries
+        save()
+    }
+
     func clearTtsCache() {
         ttsCache.clear()
         ttsCacheCount = 0
@@ -114,65 +174,17 @@ final class AppViewModel: ObservableObject {
     
     func loadFromDeepLink(url: URL) {
         // Handle both custom scheme (saymyname://) and https://saymyname.qingbo.us
-        let queryItems: [URLQueryItem]?
-        
-        if url.scheme == "saymyname" {
-            // Custom scheme: saymyname://?s=...
-            queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-        } else if url.host == AppConfig.websiteDomain {
-            // HTTPS: https://saymyname.qingbo.us/?s=...
-            queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-        } else {
-            return
-        }
-        
-        guard let items = queryItems,
-              let sParam = items.first(where: { $0.name == "s" })?.value else {
-            return
-        }
+        let isValidScheme = url.scheme == "saymyname" || url.host == AppConfig.websiteDomain
+        guard isValidScheme else { return }
+
         // Enforce a conservative size limit to avoid excessive payloads
-        if sParam.count > 4096 {
+        if let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "s" })?.value,
+           query.count > 4096 {
             showDeepLinkError()
             return
         }
-        
-        // Decode Base64 URL-safe encoding
-        let base64 = sParam
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        
-        // Add padding if needed
-        let paddedBase64 = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
-        
-        guard let data = Data(base64Encoded: paddedBase64) else { showDeepLinkError(); return }
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { showDeepLinkError(); return }
-        
-        // Parse the shared data structure
-        var newEntries: [NameEntry] = []
-        for item in json {
-            guard let name = item["name"] as? String,
-                  let entriesArray = item["entries"] as? [[String: String]] else {
-                continue
-            }
-            
-            var langItems: [LangItem] = []
-            for entry in entriesArray {
-                guard let lang = entry["lang"], let text = entry["text"] else { continue }
-                langItems.append(LangItem(bcp47: lang, text: text))
-            }
-            
-            if !langItems.isEmpty {
-                newEntries.append(NameEntry(displayName: name, items: langItems))
-            }
-        }
-        
-        // Replace current entries with shared ones
-        if !newEntries.isEmpty {
-            entries = newEntries
-            save()
-        } else {
-            showDeepLinkError()
-        }
+
+        importFromSharedUrl(url)
     }
 
     private func showDeepLinkError() {
@@ -185,33 +197,46 @@ final class AppViewModel: ObservableObject {
 struct ContentView: View {
     @EnvironmentObject private var vm: AppViewModel
     @FocusState private var focusedField: Field?
-    
+    @State private var selectedTab = 0
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Glass background
-                LinearGradient(colors: [Color.black.opacity(0.22), Color.blue.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .ignoresSafeArea()
+        TabView(selection: $selectedTab) {
+            // Main Tab
+            NavigationStack {
+                ZStack {
+                    // Glass background
+                    LinearGradient(colors: [Color.black.opacity(0.22), Color.blue.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        inputCard
-                        list
-                        footer
-                        analyticsCard
-                        // Privacy/About links at the bottom
-                        footerLinks
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            inputCard
+                            list
+                            footer
+                            analyticsCard
+                            // Privacy/About links at the bottom
+                            footerLinks
+                        }
+                        .padding(16)
                     }
-                    .padding(16)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { focusedField = nil }
-                .onChange(of: focusedField) { _ in
-                    vm.recomputeMismatches()
+                    .contentShape(Rectangle())
+                    .onTapGesture { focusedField = nil }
+                    .onChange(of: focusedField) { _ in
+                        vm.recomputeMismatches()
+                    }
                 }
             }
+            .tabItem {
+                Label("Names", systemImage: "list.bullet")
+            }
+            .tag(0)
 
+            // Collections Tab
+            CollectionsView()
+                .tabItem {
+                    Label("Collections", systemImage: "folder")
+                }
+                .tag(1)
         }
     }
 

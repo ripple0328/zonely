@@ -160,12 +160,18 @@ struct GeoHeatmapMapView: View {
     @State private var lastScale: CGFloat = 1.0
     @State private var currentOffset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+    @GestureState private var isDragging: Bool = false
 
     /// ISO-3 code -> play count lookup built from geoDistribution (which uses ISO-2)
     private var countryPlays: [String: Int] {
         Dictionary(uniqueKeysWithValues: geoDistribution.map {
             (ISOCodeConverter.toISO3($0.country), $0.count)
         })
+    }
+
+    /// Maximum play count across all countries (for relative color scaling)
+    private var maxPlayCount: Int {
+        countryPlays.values.max() ?? 0
     }
 
     var body: some View {
@@ -185,7 +191,7 @@ struct GeoHeatmapMapView: View {
                     for country in countries {
                         let path = country.path(in: size)
                         let count = countryPlays[country.iso3] ?? 0
-                        let fillColor = heatmapColor(for: count)
+                        let fillColor = heatmapColor(for: count, maxCount: maxPlayCount)
 
                         context.fill(path, with: .color(fillColor))
                         context.stroke(path, with: .color(Color.primary.opacity(0.18)), lineWidth: 0.5)
@@ -209,6 +215,7 @@ struct GeoHeatmapMapView: View {
                     }
                 }
             }
+            .contentShape(Rectangle())
             .scaleEffect(currentScale)
             .offset(currentOffset)
             .gesture(
@@ -220,7 +227,10 @@ struct GeoHeatmapMapView: View {
                         .onEnded { _ in
                             lastScale = currentScale
                         },
-                    DragGesture()
+                    DragGesture(minimumDistance: 0)
+                        .updating($isDragging) { _, state, _ in
+                            state = true
+                        }
                         .onChanged { value in
                             currentOffset = CGSize(
                                 width: lastOffset.width + value.translation.width / currentScale,
@@ -244,6 +254,15 @@ struct GeoHeatmapMapView: View {
             .clipped()
             .onAppear {
                 loadCountries()
+            }
+            .onChange(of: geoDistribution) { _ in
+                // Reset zoom and pan when data changes
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentScale = 1.0
+                    lastScale = 1.0
+                    currentOffset = .zero
+                    lastOffset = .zero
+                }
             }
         }
         .aspectRatio(2.0, contentMode: .fit)
@@ -275,22 +294,46 @@ struct GeoHeatmapMapView: View {
         }
     }
 
-    // MARK: - Heatmap color by threshold (light-background friendly)
-    private func heatmapColor(for count: Int) -> Color {
-        switch count {
-        case 0:
-            return Color.gray.opacity(0.12)
-        case 1...10:
-            return Color(red: 0.40, green: 0.62, blue: 0.95).opacity(0.55)
-        case 11...50:
-            return Color(red: 0.15, green: 0.72, blue: 0.50).opacity(0.60)
-        case 51...100:
-            return Color(red: 0.90, green: 0.68, blue: 0.10).opacity(0.65)
-        case 101...500:
-            return Color(red: 0.92, green: 0.40, blue: 0.08).opacity(0.70)
-        default:
-            return Color(red: 0.88, green: 0.22, blue: 0.22).opacity(0.75)
+    // MARK: - Heatmap color by relative position (light-background friendly)
+    private func heatmapColor(for count: Int, maxCount: Int) -> Color {
+        guard count > 0, maxCount > 0 else {
+            return Color.gray.opacity(0.12) // no data
         }
+
+        // Normalize to 0.0...1.0 range relative to maxCount
+        let ratio = Double(count) / Double(maxCount)
+
+        // Color stops: blue → green → yellow → orange → red
+        // Each stop: (threshold, red, green, blue, opacity)
+        let stops: [(Double, Double, Double, Double, Double)] = [
+            (0.0,  0.40, 0.62, 0.95, 0.55), // cool blue
+            (0.25, 0.15, 0.72, 0.50, 0.60), // green
+            (0.50, 0.90, 0.68, 0.10, 0.65), // yellow
+            (0.75, 0.92, 0.40, 0.08, 0.70), // orange
+            (1.0,  0.88, 0.22, 0.22, 0.75), // red
+        ]
+
+        // Find the two stops to interpolate between
+        var lower = stops[0]
+        var upper = stops[stops.count - 1]
+        for i in 0..<(stops.count - 1) {
+            if ratio >= stops[i].0 && ratio <= stops[i + 1].0 {
+                lower = stops[i]
+                upper = stops[i + 1]
+                break
+            }
+        }
+
+        // Interpolate between the two stops
+        let range = upper.0 - lower.0
+        let t = range > 0 ? (ratio - lower.0) / range : 1.0
+
+        let r = lower.1 + (upper.1 - lower.1) * t
+        let g = lower.2 + (upper.2 - lower.2) * t
+        let b = lower.3 + (upper.3 - lower.3) * t
+        let a = lower.4 + (upper.4 - lower.4) * t
+
+        return Color(red: r, green: g, blue: b).opacity(a)
     }
 }
 
@@ -324,6 +367,9 @@ struct GeoHeatmapView: View {
         }
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(glassOverlay(radius: 18))
+        .onChange(of: geoDistribution) { _ in
+            selectedCountry = nil
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Geographic distribution map showing \(geoDistribution.count) countries")
     }
@@ -361,13 +407,57 @@ struct GeoHeatmapView: View {
         .accessibilityLabel("\(country.name): \(country.count) plays")
     }
     
+    /// Maximum play count across all countries (for legend display)
+    private var maxPlayCount: Int {
+        geoDistribution.map(\.count).max() ?? 0
+    }
+
     private var legendView: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            legendItem(color: Color(red: 0.88, green: 0.22, blue: 0.22), label: "500+")
-            legendItem(color: Color(red: 0.92, green: 0.40, blue: 0.08), label: "101-500")
-            legendItem(color: Color(red: 0.90, green: 0.68, blue: 0.10), label: "51-100")
-            legendItem(color: Color(red: 0.15, green: 0.72, blue: 0.50), label: "11-50")
-            legendItem(color: Color(red: 0.40, green: 0.62, blue: 0.95), label: "1-10")
+        let maxCount = maxPlayCount
+        // 5 legend items matching the color stops: 100%, 75%, 50%, 25%, low
+        let items: [(Color, String)] = {
+            guard maxCount > 0 else {
+                return [
+                    (Color(red: 0.40, green: 0.62, blue: 0.95).opacity(0.55), "1+")
+                ]
+            }
+            // For small maxCount, show simple labels to avoid collapsed ranges like "1-1"
+            if maxCount <= 4 {
+                return (1...maxCount).reversed().map { value in
+                    let ratio = Double(value) / Double(maxCount)
+                    let color: Color = {
+                        if ratio > 0.75 {
+                            return Color(red: 0.88, green: 0.22, blue: 0.22).opacity(0.75)
+                        } else if ratio > 0.50 {
+                            return Color(red: 0.92, green: 0.40, blue: 0.08).opacity(0.70)
+                        } else if ratio > 0.25 {
+                            return Color(red: 0.90, green: 0.68, blue: 0.10).opacity(0.65)
+                        } else {
+                            return Color(red: 0.15, green: 0.72, blue: 0.50).opacity(0.60)
+                        }
+                    }()
+                    return (color, "\(value)")
+                } + [(Color.gray.opacity(0.12), "0")]
+            }
+            // Show ranges relative to max
+            let top = maxCount
+            let q75 = max(Int(Double(maxCount) * 0.75), 1)
+            let q50 = max(Int(Double(maxCount) * 0.50), 1)
+            let q25 = max(Int(Double(maxCount) * 0.25), 1)
+
+            return [
+                (Color(red: 0.88, green: 0.22, blue: 0.22).opacity(0.75), "\(q75 + 1)-\(top)"),
+                (Color(red: 0.92, green: 0.40, blue: 0.08).opacity(0.70), "\(q50 + 1)-\(q75)"),
+                (Color(red: 0.90, green: 0.68, blue: 0.10).opacity(0.65), "\(q25 + 1)-\(q50)"),
+                (Color(red: 0.15, green: 0.72, blue: 0.50).opacity(0.60), "1-\(q25)"),
+                (Color.gray.opacity(0.12), "0"),
+            ]
+        }()
+
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                legendItem(color: item.0, label: item.1)
+            }
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -382,12 +472,12 @@ struct GeoHeatmapView: View {
                 )
         )
     }
-    
+
     private func legendItem(color: Color, label: String) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(color.opacity(0.7))
-                .frame(width: 10, height: 10)
+                .fill(color)
+                .frame(width: 8, height: 8)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
