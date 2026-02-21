@@ -71,6 +71,7 @@ final class PublicAnalyticsViewModel: ObservableObject {
 
 struct PublicAnalyticsView: View {
     @StateObject private var vm = PublicAnalyticsViewModel()
+    @State private var isMapInteracting = false
 
     private let ranges = ["24h", "7d", "30d"]
 
@@ -111,6 +112,7 @@ struct PublicAnalyticsView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             }
+            .scrollDisabled(isMapInteracting)
             .refreshable { await vm.load() }
         }
         .task {
@@ -404,13 +406,22 @@ struct PublicAnalyticsView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 40)
             } else {
-                GeoHeatmapView(geoDistribution: geoData)
+                GeoHeatmapView(geoDistribution: geoData, isInteracting: $isMapInteracting)
 
                 // Country list below the map
+                let sortedGeo = Array(geoData.sorted(by: { $0.count > $1.count }).prefix(6))
+                let listMaxCount = sortedGeo.first?.count ?? 1
+                let listMinCount = sortedGeo.last?.count ?? 0
                 VStack(spacing: 4) {
-                    ForEach(geoData.sorted(by: { $0.count > $1.count }).prefix(6)) { geo in
-                        let maxCount = geoData.map(\.count).max() ?? 1
-                        let ratio = Double(geo.count) / Double(maxCount)
+                    ForEach(sortedGeo) { geo in
+                        let ratio: Double = {
+                            if listMaxCount == listMinCount {
+                                return 1.0
+                            } else {
+                                let normalized = Double(geo.count - listMinCount) / Double(listMaxCount - listMinCount)
+                                return 0.25 + normalized * 0.75
+                            }
+                        }()
                         HStack(spacing: 8) {
                             Text(countryFlag(for: geo.country))
                                 .font(.system(size: 18))
@@ -433,7 +444,7 @@ struct PublicAnalyticsView: View {
                         .padding(.vertical, 6)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(.indigo.opacity(ratio * 0.25))
+                                .fill(.indigo.opacity(0.06 + ratio * 0.22))
                                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: ratio)
                         )
                     }
