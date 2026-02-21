@@ -67,7 +67,8 @@ defmodule Zonely.MixProject do
       {:tzdata, "~> 1.1"},
       {:tidewave, "~> 0.5", only: :dev},
       {:igniter, "~> 0.6", only: [:dev, :test]},
-      {:wallaby, "~> 0.30", runtime: false, only: :test}
+      {:wallaby, "~> 0.30", runtime: false, only: :test},
+      {:lazy_html, ">= 0.1.0", only: :test}
     ]
   end
 

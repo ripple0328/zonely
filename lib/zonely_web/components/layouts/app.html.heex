@@ -1,4 +1,5 @@
-<header class={if @socket.view == ZonelyWeb.MapLive, do: "px-4 sm:px-6 lg:px-8 relative z-10", else: "px-4 sm:px-6 lg:px-8"} data-testid="main-header">
+<% is_map_view = match?(%{socket: %{view: ZonelyWeb.MapLive}}, assigns) %>
+<header class={if is_map_view, do: "px-4 sm:px-6 lg:px-8 relative z-10", else: "px-4 sm:px-6 lg:px-8"} data-testid="main-header">
   <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
     <div class="flex items-center gap-4">
       <.logo_link />
@@ -22,8 +23,8 @@
     </nav>
   </div>
 </header>
-<main class={if @socket.view == ZonelyWeb.MapLive, do: "", else: "px-4 sm:px-6 lg:px-8"}>
-  <div class={if @socket.view == ZonelyWeb.MapLive, do: "", else: "mx-auto max-w-7xl py-6"}>
+<main class={if is_map_view, do: "", else: "px-4 sm:px-6 lg:px-8"}>
+  <div class={if is_map_view, do: "", else: "mx-auto max-w-7xl py-6"}>
     <.flash_group flash={@flash} />
     <%= @inner_content %>
   </div>

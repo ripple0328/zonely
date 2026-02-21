@@ -104,12 +104,6 @@ defmodule ZonelyWeb.MapLive do
     {:noreply, reset_inactivity_timer(socket)}
   end
 
-  defp apply_action(socket, action, _params) when action in [:index, nil] do
-    socket
-    |> assign(:page_title, "Map")
-    |> assign(:selected_user, nil)
-  end
-
   @impl true
   def handle_event("show_profile", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
@@ -207,6 +201,132 @@ defmodule ZonelyWeb.MapLive do
     {:noreply, socket}
   end
 
+  # Quick Actions Event Handlers
+  @impl true
+  def handle_event("toggle_quick_action", %{"action" => action, "user_id" => _user_id}, socket) do
+    current_action = socket.assigns.expanded_action
+    new_action = if current_action == action, do: nil, else: action
+    {:noreply, assign(socket, expanded_action: new_action)}
+  end
+
+  # Demo overlay events
+  @impl true
+  def handle_event("demo_toggle", _params, socket) do
+    paused? = !(socket.assigns.demo_paused? || false)
+    socket = assign(socket, :demo_paused?, paused?)
+
+    # If resuming, schedule next step immediately
+    socket = if !paused?, do: schedule_demo_step(socket, 0), else: socket
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("demo_skip", _params, socket) do
+    {:noreply, next_demo_step(socket, 0)}
+  end
+
+  @impl true
+  def handle_event("demo_replay", _params, socket) do
+    socket =
+      socket
+      |> assign(:demo_step_index, 0)
+      |> assign(:demo_paused?, false)
+
+    {:noreply, schedule_demo_step(socket, 0)}
+  end
+
+  @impl true
+  def handle_event("cancel_quick_action", _params, socket) do
+    {:noreply, assign(socket, expanded_action: nil)}
+  end
+
+  # Quick Actions (Top 3 most frequent)
+  @impl true
+  def handle_event("quick_message", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    IO.puts("📨 Quick message to #{user.name}")
+
+    {:noreply,
+     socket |> assign(expanded_action: nil) |> put_flash(:info, "Message sent to #{user.name}!")}
+  end
+
+  @impl true
+  def handle_event("quick_meeting", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    IO.puts("📅 Quick meeting with #{user.name}")
+
+    {:noreply,
+     socket
+     |> assign(expanded_action: nil)
+     |> put_flash(:info, "Meeting proposal sent to #{user.name}!")}
+  end
+
+  @impl true
+  def handle_event("quick_pin", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+    IO.puts("📌 Quick pin #{user.name}'s timezone: #{user.timezone}")
+
+    {:noreply,
+     socket |> assign(expanded_action: nil) |> put_flash(:info, "#{user.name}'s timezone pinned!")}
+  end
+
+  # Time Scrubber Event Handlers
+  @impl true
+  def handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket) do
+    # Track first timeline interaction and dismiss hint
+    socket =
+      if !socket.assigns.onboarding.first_timeline_interaction do
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:first_timeline_interaction, true)
+          |> Map.put(:active_hint, nil)
+
+        socket
+        |> assign(:onboarding, onboarding)
+      else
+        socket
+      end
+
+    {from_utc, to_utc} =
+      TimeUtils.frac_to_utc(a, b, socket.assigns.viewer_tz, socket.assigns.base_date)
+
+    statuses =
+      socket.assigns.users
+      |> Task.async_stream(fn u -> {u.id, TimeUtils.classify_user(u, from_utc, to_utc)} end,
+        max_concurrency: 8,
+        timeout: 200
+      )
+      |> Enum.map(fn {:ok, kv} -> kv end)
+      |> Map.new()
+
+    # Convert atoms to tiny ints for payload efficiency
+    payload = for {id, st} <- statuses, into: %{}, do: {id, TimeUtils.status_to_int(st)}
+    {:noreply, push_event(socket, "overlap_update", %{statuses: payload})}
+  end
+
+  @impl true
+  def handle_event("commit_range", %{"a_frac" => a, "b_frac" => b}, socket) do
+    # For now, handle the same as hover (no server persistence of the selection)
+    handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket)
+  end
+
+  @impl true
+  def handle_event("set_viewer_tz", %{"tz" => tz}, socket) when is_binary(tz) do
+    # Update viewer timezone and base_date based on viewer's local date
+    base_date =
+      case DateTime.now(tz) do
+        {:ok, dt} -> DateTime.to_date(dt)
+        _ -> Date.utc_today()
+      end
+
+    {:noreply, assign(socket, viewer_tz: tz, base_date: base_date)}
+  end
+
+  @impl true
+  def handle_event("toggle_overlap_panel", _params, socket) do
+    {:noreply, assign(socket, overlap_panel_expanded: !socket.assigns.overlap_panel_expanded)}
+  end
+
   @impl true
   def handle_info({:process_pronunciation, :native, user}, socket) do
     {event_type, event_data} = Audio.play_native_pronunciation(user)
@@ -288,6 +408,35 @@ defmodule ZonelyWeb.MapLive do
   end
 
   def handle_info(:demo_tick, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info({:demo_drag, a, b}, socket) do
+    {:noreply, push_event(socket, "time_selection_set", %{a_frac: a, b_frac: b})}
+  end
+
+  @impl true
+  def handle_info(:show_inactivity_hint, socket) do
+    socket =
+      if !socket.assigns.onboarding.inactivity_hint_shown &&
+           !socket.assigns.onboarding.first_avatar_clicked do
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:inactivity_hint_shown, true)
+          |> Map.put(:active_hint, :inactivity_hint)
+
+        assign(socket, :onboarding, onboarding)
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  defp apply_action(socket, action, _params) when action in [:index, nil] do
+    socket
+    |> assign(:page_title, "Map")
+    |> assign(:selected_user, nil)
+  end
 
   defp schedule_demo_step(socket, ms) when is_integer(ms) do
     if socket.assigns[:demo_paused?] do
@@ -436,11 +585,6 @@ defmodule ZonelyWeb.MapLive do
     end)
   end
 
-  @impl true
-  def handle_info({:demo_drag, a, b}, socket) do
-    {:noreply, push_event(socket, "time_selection_set", %{a_frac: a, b_frac: b})}
-  end
-
   # Heuristic: pick user farthest from both Berlin and Honolulu to avoid popup overlap
   defp pick_demo_user(users) do
     berlin = {52.52, 13.405}
@@ -482,132 +626,6 @@ defmodule ZonelyWeb.MapLive do
     x = (rlon2 - rlon1) * :math.cos((rlat1 + rlat2) / 2)
     y = rlat2 - rlat1
     :math.sqrt(x * x + y * y)
-  end
-
-  # Quick Actions Event Handlers
-  @impl true
-  def handle_event("toggle_quick_action", %{"action" => action, "user_id" => _user_id}, socket) do
-    current_action = socket.assigns.expanded_action
-    new_action = if current_action == action, do: nil, else: action
-    {:noreply, assign(socket, expanded_action: new_action)}
-  end
-
-  # Demo overlay events
-  @impl true
-  def handle_event("demo_toggle", _params, socket) do
-    paused? = !(socket.assigns.demo_paused? || false)
-    socket = assign(socket, :demo_paused?, paused?)
-
-    # If resuming, schedule next step immediately
-    socket = if !paused?, do: schedule_demo_step(socket, 0), else: socket
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("demo_skip", _params, socket) do
-    {:noreply, next_demo_step(socket, 0)}
-  end
-
-  @impl true
-  def handle_event("demo_replay", _params, socket) do
-    socket =
-      socket
-      |> assign(:demo_step_index, 0)
-      |> assign(:demo_paused?, false)
-
-    {:noreply, schedule_demo_step(socket, 0)}
-  end
-
-  @impl true
-  def handle_event("cancel_quick_action", _params, socket) do
-    {:noreply, assign(socket, expanded_action: nil)}
-  end
-
-  # Quick Actions (Top 3 most frequent)
-  @impl true
-  def handle_event("quick_message", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-    IO.puts("📨 Quick message to #{user.name}")
-
-    {:noreply,
-     socket |> assign(expanded_action: nil) |> put_flash(:info, "Message sent to #{user.name}!")}
-  end
-
-  @impl true
-  def handle_event("quick_meeting", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-    IO.puts("📅 Quick meeting with #{user.name}")
-
-    {:noreply,
-     socket
-     |> assign(expanded_action: nil)
-     |> put_flash(:info, "Meeting proposal sent to #{user.name}!")}
-  end
-
-  @impl true
-  def handle_event("quick_pin", %{"user_id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-    IO.puts("📌 Quick pin #{user.name}'s timezone: #{user.timezone}")
-
-    {:noreply,
-     socket |> assign(expanded_action: nil) |> put_flash(:info, "#{user.name}'s timezone pinned!")}
-  end
-
-  # Time Scrubber Event Handlers
-  @impl true
-  def handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket) do
-    # Track first timeline interaction and dismiss hint
-    socket =
-      if !socket.assigns.onboarding.first_timeline_interaction do
-        onboarding =
-          socket.assigns.onboarding
-          |> Map.put(:first_timeline_interaction, true)
-          |> Map.put(:active_hint, nil)
-
-        socket
-        |> assign(:onboarding, onboarding)
-      else
-        socket
-      end
-
-    {from_utc, to_utc} =
-      TimeUtils.frac_to_utc(a, b, socket.assigns.viewer_tz, socket.assigns.base_date)
-
-    statuses =
-      socket.assigns.users
-      |> Task.async_stream(fn u -> {u.id, TimeUtils.classify_user(u, from_utc, to_utc)} end,
-        max_concurrency: 8,
-        timeout: 200
-      )
-      |> Enum.map(fn {:ok, kv} -> kv end)
-      |> Map.new()
-
-    # Convert atoms to tiny ints for payload efficiency
-    payload = for {id, st} <- statuses, into: %{}, do: {id, TimeUtils.status_to_int(st)}
-    {:noreply, push_event(socket, "overlap_update", %{statuses: payload})}
-  end
-
-  @impl true
-  def handle_event("commit_range", %{"a_frac" => a, "b_frac" => b}, socket) do
-    # For now, handle the same as hover (no server persistence of the selection)
-    handle_event("hover_range", %{"a_frac" => a, "b_frac" => b}, socket)
-  end
-
-  @impl true
-  def handle_event("set_viewer_tz", %{"tz" => tz}, socket) when is_binary(tz) do
-    # Update viewer timezone and base_date based on viewer's local date
-    base_date =
-      case DateTime.now(tz) do
-        {:ok, dt} -> DateTime.to_date(dt)
-        _ -> Date.utc_today()
-      end
-
-    {:noreply, assign(socket, viewer_tz: tz, base_date: base_date)}
-  end
-
-  @impl true
-  def handle_event("toggle_overlap_panel", _params, socket) do
-    {:noreply, assign(socket, overlap_panel_expanded: !socket.assigns.overlap_panel_expanded)}
   end
 
   # Convert users to JSON for JavaScript
@@ -664,24 +682,6 @@ defmodule ZonelyWeb.MapLive do
     else
       socket
     end
-  end
-
-  @impl true
-  def handle_info(:show_inactivity_hint, socket) do
-    socket =
-      if !socket.assigns.onboarding.inactivity_hint_shown &&
-           !socket.assigns.onboarding.first_avatar_clicked do
-        onboarding =
-          socket.assigns.onboarding
-          |> Map.put(:inactivity_hint_shown, true)
-          |> Map.put(:active_hint, :inactivity_hint)
-
-        assign(socket, :onboarding, onboarding)
-      else
-        socket
-      end
-
-    {:noreply, socket}
   end
 
   @impl true

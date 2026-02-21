@@ -7,17 +7,23 @@ defmodule Zonely.Collections.NameCollection do
   schema "name_collections" do
     field(:name, :string)
     field(:description, :string)
-    field(:entries, :map, default: %{})
+    field(:entries, Zonely.EctoTypes.JsonArray, default: [])
 
     timestamps(type: :utc_datetime)
   end
 
   def changeset(collection, attrs) do
     collection
-    |> cast(attrs, [:name, :description, :entries])
-    |> validate_required([:name, :entries])
+    |> cast(attrs, [:name, :description])
+    |> put_entries(attrs)
+    |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 255)
     |> validate_length(:description, max: 1000)
+  end
+
+  defp put_entries(changeset, attrs) do
+    entries = Map.get(attrs, :entries) || Map.get(attrs, "entries")
+    if entries != nil, do: put_change(changeset, :entries, entries), else: changeset
   end
 
   @doc """

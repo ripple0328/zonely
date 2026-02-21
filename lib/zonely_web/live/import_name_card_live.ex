@@ -88,8 +88,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={nil}>
-      <div class="mx-auto max-w-lg px-4 py-8 sm:px-6">
+    <div class="mx-auto max-w-lg px-4 py-8 sm:px-6">
         <%= if @not_found do %>
           <div class="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
             <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
@@ -258,8 +257,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
             </div>
           <% end %>
         <% end %>
-      </div>
-    </Layouts.app>
+    </div>
     """
   end
 end

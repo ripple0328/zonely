@@ -10,8 +10,8 @@ end
 
 defmodule Zonely.HttpClient.Req do
   @behaviour Zonely.HttpClient
-  @receive_timeout Application.get_env(:zonely, :http_receive_timeout_ms, 800)
-  @connect_timeout Application.get_env(:zonely, :http_connect_timeout_ms, 300)
+  @receive_timeout Application.compile_env(:zonely, :http_receive_timeout_ms, 800)
+  @connect_timeout Application.compile_env(:zonely, :http_connect_timeout_ms, 300)
 
   @impl true
   def get(url) when is_binary(url) do

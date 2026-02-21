@@ -1,11 +1,8 @@
 defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   use Phoenix.LiveView, layout: {ZonelyWeb.Layouts, :admin}
 
-  import Phoenix.HTML
-  import Phoenix.LiveView.Helpers
   import ZonelyWeb.CoreComponents
   use Gettext, backend: ZonelyWeb.Gettext
-  alias ZonelyWeb.Layouts
 
   use Phoenix.VerifiedRoutes,
     endpoint: ZonelyWeb.Endpoint,

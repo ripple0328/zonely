@@ -133,45 +133,6 @@ defmodule Zonely.PronunceName do
 
             {:audio_url, audio_url, "external", nil}
 
-          {:error, :use_ai_fallback} ->
-            Logger.info(
-              "🤖 Using AI TTS for complete name due to partial provider coverage: #{inspect(name)} (#{language})"
-            )
-
-            started_ms = System.monotonic_time(:millisecond)
-
-            case Zonely.PronunceName.Providers.Polly.synthesize(name, language) do
-              {:ok, web_path} ->
-                duration_ms = System.monotonic_time(:millisecond) - started_ms
-                Logger.info("✅ Polly synth success for complete name -> #{web_path}")
-
-                Analytics.track_async("pronunciation_generated", %{
-                  name_hash: Analytics.hash_name(name),
-                  name_text: name,
-                  lang: language,
-                  provider: "polly",
-                  tts_provider: "polly",
-                  generation_time_ms: duration_ms
-                })
-
-                {:audio_url, web_path, "polly", nil}
-
-              {:error, reason} ->
-                Logger.warning(
-                  "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
-                )
-
-                Analytics.track_async("pronunciation_error", %{
-                  name_hash: Analytics.hash_name(name),
-                  name_text: name,
-                  lang: language,
-                  provider: "polly",
-                  reason: inspect(reason)
-                })
-
-                {:tts, name, language}
-            end
-
           {:error, :not_found} ->
             Logger.info(
               "↪️ External sources unavailable; attempting AWS Polly for #{inspect(name)} (#{language})"
