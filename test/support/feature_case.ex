@@ -32,8 +32,7 @@ if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) a
         click: 2,
         current_path: 1,
         has?: 2,
-        execute_script: 2,
-        assert_text: 2
+        execute_script: 2
       ]
 
     def refute_text(session, text) do
