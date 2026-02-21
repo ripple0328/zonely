@@ -11,21 +11,21 @@ final class AnalyticsDashboardViewModel: ObservableObject {
     @Published var connectionState: ChannelConnectionState = .disconnected
     @Published var showUpdatePulse = false
     @Published var highlightedCards: Set<String> = []
-    
+
     private let service = AnalyticsDashboardService()
     private let channelService = AnalyticsChannelService.shared
     private var cancellables = Set<AnyCancellable>()
-    
+
     init() {
         setupChannelSubscription()
     }
-    
+
     private func setupChannelSubscription() {
         // Observe connection state
         channelService.$connectionState
             .receive(on: DispatchQueue.main)
             .assign(to: &$connectionState)
-        
+
         // Observe analytics events
         channelService.eventPublisher
             .receive(on: DispatchQueue.main)
@@ -34,17 +34,17 @@ final class AnalyticsDashboardViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     private func handleAnalyticsEvent(_ event: AnalyticsEvent) {
         // Trigger pulse animation
         withAnimation(.easeInOut(duration: 0.3)) {
             showUpdatePulse = true
         }
-        
+
         // Highlight all metric cards briefly
         let cards = ["totalPlays", "cacheHitRate", "errorRate", "conversion"]
         highlightedCards = Set(cards)
-        
+
         // Reset animations after delay
         Task {
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
@@ -60,13 +60,13 @@ final class AnalyticsDashboardViewModel: ObservableObject {
                 }
             }
         }
-        
+
         // Refresh dashboard data
         Task {
             await load()
         }
     }
-    
+
     func load() async {
         isLoading = dashboard == nil // Only show loading on first load
         error = nil
@@ -78,11 +78,11 @@ final class AnalyticsDashboardViewModel: ObservableObject {
         }
         isLoading = false
     }
-    
+
     func connectChannel() {
         channelService.connect()
     }
-    
+
     func disconnectChannel() {
         channelService.disconnect()
     }
@@ -93,13 +93,13 @@ struct AnalyticsDashboardView: View {
     @State private var isMapInteracting = false
 
     private let ranges = ["24h", "7d", "30d"]
-    
+
     var body: some View {
         ZStack {
             LinearGradient(colors: [Color.black.opacity(0.22), Color.blue.opacity(0.22)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: 16) {
                     header
@@ -121,7 +121,7 @@ struct AnalyticsDashboardView: View {
             .scrollDisabled(isMapInteracting)
             .refreshable { await vm.load() }
         }
-        .task { 
+        .task {
             await vm.load()
             vm.connectChannel()
         }
@@ -130,7 +130,7 @@ struct AnalyticsDashboardView: View {
         }
         .onChange(of: vm.selectedRange) { _ in Task { await vm.load() } }
     }
-    
+
     // MARK: - Header
     private var header: some View {
         HStack {
@@ -139,9 +139,9 @@ struct AnalyticsDashboardView: View {
                 .foregroundStyle(.indigo)
             Text("Analytics Dashboard")
                 .font(.title2.bold())
-            
+
             Spacer()
-            
+
             // Live indicator with connection status
             liveIndicator
         }
@@ -153,7 +153,7 @@ struct AnalyticsDashboardView: View {
                 .animation(.easeOut(duration: 0.5), value: vm.showUpdatePulse)
         )
     }
-    
+
     // MARK: - Live Indicator
     private var liveIndicator: some View {
         HStack(spacing: 6) {
@@ -173,7 +173,7 @@ struct AnalyticsDashboardView: View {
                             value: vm.connectionState
                         )
                 )
-            
+
             Text(connectionText)
                 .font(.caption.bold())
                 .foregroundStyle(connectionColor)
@@ -182,7 +182,7 @@ struct AnalyticsDashboardView: View {
         .padding(.vertical, 6)
         .background(connectionColor.opacity(0.15), in: Capsule())
     }
-    
+
     private var connectionColor: Color {
         switch vm.connectionState {
         case .connected: return .green
@@ -190,7 +190,7 @@ struct AnalyticsDashboardView: View {
         case .disconnected: return .gray
         }
     }
-    
+
     private var connectionText: String {
         switch vm.connectionState {
         case .connected: return "Live"
@@ -199,7 +199,7 @@ struct AnalyticsDashboardView: View {
         case .disconnected: return "Offline"
         }
     }
-    
+
     // MARK: - Time Range Picker
     private var timeRangePicker: some View {
         VStack(spacing: 8) {
@@ -219,7 +219,7 @@ struct AnalyticsDashboardView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(glassOverlay(radius: 16))
     }
-    
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: 12) {
@@ -256,7 +256,7 @@ struct AnalyticsDashboardView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(glassOverlay(radius: 20))
     }
-    
+
     // MARK: - Metrics Grid
     private func metricsGrid(_ dashboard: AnalyticsDashboard) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -290,7 +290,7 @@ struct AnalyticsDashboardView: View {
             )
         }
     }
-    
+
     private func metricCard(id: String, title: String, value: String, icon: String, color: Color) -> some View {
         let isHighlighted = vm.highlightedCards.contains(id)
 
@@ -372,10 +372,11 @@ struct AnalyticsDashboardView: View {
             ForEach(Array(names.prefix(10).enumerated()), id: \.element.id) { index, name in
                 HStack(spacing: 12) {
                     rankBadge(index + 1)
+                    langPill(for: name.lang)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(name.name)
                             .font(.subheadline.bold())
-                        Text(name.lang)
+                        Text(LangCatalog.displayName(name.lang))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -398,6 +399,7 @@ struct AnalyticsDashboardView: View {
             ForEach(Array(languages.prefix(10).enumerated()), id: \.element.id) { index, language in
                 HStack(spacing: 12) {
                     rankBadge(index + 1)
+                    langPill(for: language.lang)
                     Text(LangCatalog.displayName(language.lang))
                         .font(.subheadline.bold())
                     Spacer()
@@ -488,6 +490,77 @@ struct AnalyticsDashboardView: View {
             .shadow(color: color.opacity(0.3), radius: 3, y: 1)
     }
 
+    /// Returns the script character for a language code
+    private func langScriptChar(for langCode: String) -> String {
+        let base = langCode.split(separator: "-").first.map(String.init) ?? langCode
+        switch base {
+        case "en": return "Aa"
+        case "zh": return "中"
+        case "ja": return "あ"
+        case "es": return "Eñ"
+        case "fr": return "Ça"
+        case "de": return "Ää"
+        case "pt": return "Ão"
+        case "hi": return "हि"
+        case "ar": return "عر"
+        case "bn": return "বা"
+        case "ko": return "한"
+        case "ru": return "Яа"
+        case "it": return "Àa"
+        case "tr": return "Öö"
+        case "vi": return "Đđ"
+        case "th": return "ไท"
+        case "pl": return "Łł"
+        case "nl": return "Aa"
+        case "sv": return "Åä"
+        default: return "Aa"
+        }
+    }
+
+    /// Returns the gradient colors for a language code
+    private func langGradient(for langCode: String) -> (Color, Color) {
+        let base = langCode.split(separator: "-").first.map(String.init) ?? langCode
+        switch base {
+        case "en": return (Color(red: 0.29, green: 0.56, blue: 0.85), Color(red: 0.35, green: 0.34, blue: 0.84))
+        case "es": return (Color(red: 1.0, green: 0.58, blue: 0.0), Color(red: 1.0, green: 0.23, blue: 0.19))
+        case "zh": return (Color(red: 1.0, green: 0.23, blue: 0.19), Color(red: 1.0, green: 0.84, blue: 0.04))
+        case "ja": return (Color(red: 1.0, green: 0.18, blue: 0.33), Color(red: 0.69, green: 0.32, blue: 0.87))
+        case "hi": return (Color(red: 0.20, green: 0.78, blue: 0.35), Color(red: 0.19, green: 0.69, blue: 0.78))
+        case "ar": return (Color(red: 1.0, green: 0.62, blue: 0.04), Color(red: 0.64, green: 0.52, blue: 0.37))
+        case "fr": return (Color(red: 0.35, green: 0.78, blue: 0.98), Color(red: 0.69, green: 0.32, blue: 0.87))
+        case "ko": return (Color(red: 0.69, green: 0.32, blue: 0.87), Color(red: 0.35, green: 0.34, blue: 0.84))
+        case "de": return (Color(red: 0.39, green: 0.39, blue: 0.40), Color(red: 0.0, green: 0.48, blue: 1.0))
+        case "pt": return (Color(red: 0.19, green: 0.82, blue: 0.35), Color(red: 1.0, green: 0.84, blue: 0.04))
+        case "bn": return (Color(red: 0.39, green: 0.82, blue: 1.0), Color(red: 0.20, green: 0.78, blue: 0.35))
+        case "ru": return (Color(red: 1.0, green: 0.27, blue: 0.23), Color(red: 0.04, green: 0.52, blue: 1.0))
+        case "it": return (Color(red: 0.19, green: 0.82, blue: 0.35), Color(red: 1.0, green: 0.23, blue: 0.19))
+        case "tr": return (Color(red: 1.0, green: 0.22, blue: 0.37), Color(red: 1.0, green: 0.62, blue: 0.04))
+        case "vi": return (Color(red: 1.0, green: 0.84, blue: 0.04), Color(red: 0.20, green: 0.78, blue: 0.35))
+        case "th": return (Color(red: 0.75, green: 0.35, blue: 0.95), Color(red: 1.0, green: 0.18, blue: 0.33))
+        case "pl": return (Color(red: 0.04, green: 0.52, blue: 1.0), Color(red: 0.39, green: 0.82, blue: 1.0))
+        case "nl": return (Color(red: 1.0, green: 0.58, blue: 0.0), Color(red: 1.0, green: 0.80, blue: 0.0))
+        case "sv": return (Color(red: 0.0, green: 0.48, blue: 1.0), Color(red: 1.0, green: 0.84, blue: 0.04))
+        default: return (Color(red: 0.56, green: 0.56, blue: 0.58), Color(red: 0.39, green: 0.39, blue: 0.40))
+        }
+    }
+
+    private func langPill(for langCode: String) -> some View {
+        let (startColor, endColor) = langGradient(for: langCode)
+        return Text(langScriptChar(for: langCode))
+            .font(.system(size: 10, weight: .heavy, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: 26, height: 26)
+            .background(
+                LinearGradient(
+                    colors: [startColor, endColor],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            )
+            .shadow(color: startColor.opacity(0.3), radius: 3, x: 0, y: 1)
+    }
+
     private func glassOverlay(radius: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .strokeBorder(
@@ -504,9 +577,9 @@ struct AnalyticsDashboardView: View {
 struct TimeAgoView: View {
     let date: Date
     @State private var timeAgo: String = ""
-    
+
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "clock.arrow.circlepath")
@@ -518,7 +591,7 @@ struct TimeAgoView: View {
         .onAppear { updateTimeAgo() }
         .onReceive(timer) { _ in updateTimeAgo() }
     }
-    
+
     private func updateTimeAgo() {
         let interval = Date().timeIntervalSince(date)
         if interval < 5 {
