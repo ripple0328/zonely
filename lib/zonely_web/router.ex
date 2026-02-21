@@ -10,16 +10,6 @@ defmodule ZonelyWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
-  pipeline :map_layout do
-    plug(:accepts, ["html"])
-    plug(:fetch_session)
-    plug(:fetch_live_flash)
-    plug(:put_root_layout, html: {ZonelyWeb.Layouts, :root})
-    plug(:put_layout, html: {ZonelyWeb.Layouts, :map})
-    plug(:protect_from_forgery)
-    plug(:put_secure_browser_headers)
-  end
-
   pipeline :api do
     plug(:accepts, ["json"])
   end
@@ -73,24 +63,28 @@ defmodule ZonelyWeb.Router do
     live("/native", NativePronounceLive)
   end
 
-  scope "/", ZonelyWeb do
-    pipe_through(:map_layout)
-
-    live("/", MapLive)
-  end
-
+  # SayMyName main routes — 3-tab navigation
   scope "/", ZonelyWeb do
     pipe_through(:browser)
 
     # Serve runtime audio files safely
     get("/audio-cache/:filename", AudioCacheController, :show)
 
-    live("/demo", DemoLive)
-    live("/directory", DirectoryLive)
-    live("/work-hours", WorkHoursLive)
-    live("/holidays", HolidaysLive)
+    # Tab 1: Lists (home)
+    live("/", HomeLive)
     live("/collections", CollectionsLive)
+
+    # Tab 2: Explore
+    live("/explore", ExploreLive)
+
+    # Tab 3: Me
+    live("/me", MeLive)
+    live("/me/card", MyNameCardLive)
+
+    # Legacy route for My Card (backwards compat)
     live("/my-name-card", MyNameCardLive)
+
+    # Import flows (transient, from shared links)
     live("/card/:token", ImportNameCardLive)
   end
 

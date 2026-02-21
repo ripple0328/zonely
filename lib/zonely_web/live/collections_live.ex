@@ -90,8 +90,7 @@ defmodule ZonelyWeb.CollectionsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={nil}>
-      <div class="space-y-8 px-8 py-8">
+      <div class="space-y-8">
         <!-- Header Section -->
         <div class="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -207,7 +206,6 @@ defmodule ZonelyWeb.CollectionsLive do
           </div>
         <% end %>
       </div>
-    </Layouts.app>
     """
   end
 end
