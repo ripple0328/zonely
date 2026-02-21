@@ -161,7 +161,6 @@ struct GeoHeatmapMapView: View {
     @State private var currentOffset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
 
-
     /// ISO-3 code -> play count lookup built from geoDistribution (which uses ISO-2)
     private var countryPlays: [String: Int] {
         Dictionary(uniqueKeysWithValues: geoDistribution.map {
@@ -298,20 +297,20 @@ struct GeoHeatmapMapView: View {
     // MARK: - Heatmap color by relative position (light-background friendly)
     private func heatmapColor(for count: Int, maxCount: Int) -> Color {
         guard count > 0, maxCount > 0 else {
-            return Color.gray.opacity(0.12) // no data
+            return Color(white: 0.93) // no data — warm light fill
         }
 
         // Normalize to 0.0...1.0 range relative to maxCount
         let ratio = Double(count) / Double(maxCount)
 
-        // Color stops: blue → green → yellow → orange → red
+        // Color stops: sky blue → teal → gold → orange → red
         // Each stop: (threshold, red, green, blue, opacity)
         let stops: [(Double, Double, Double, Double, Double)] = [
-            (0.0,  0.40, 0.62, 0.95, 0.55), // cool blue
-            (0.25, 0.15, 0.72, 0.50, 0.60), // green
-            (0.50, 0.90, 0.68, 0.10, 0.65), // yellow
-            (0.75, 0.92, 0.40, 0.08, 0.70), // orange
-            (1.0,  0.88, 0.22, 0.22, 0.75), // red
+            (0.0,  0.56, 0.79, 0.96, 0.70), // soft sky blue
+            (0.25, 0.30, 0.82, 0.72, 0.75), // teal/turquoise
+            (0.50, 0.98, 0.84, 0.26, 0.80), // warm gold
+            (0.75, 0.96, 0.51, 0.19, 0.85), // bright orange
+            (1.0,  0.91, 0.20, 0.26, 0.90), // vivid red
         ]
 
         // Find the two stops to interpolate between
@@ -419,7 +418,7 @@ struct GeoHeatmapView: View {
         let items: [(Color, String)] = {
             guard maxCount > 0 else {
                 return [
-                    (Color(red: 0.40, green: 0.62, blue: 0.95).opacity(0.55), "1+")
+                    (Color(red: 0.56, green: 0.79, blue: 0.96).opacity(0.70), "1+")
                 ]
             }
             // For small maxCount, show simple labels to avoid collapsed ranges like "1-1"
@@ -428,17 +427,17 @@ struct GeoHeatmapView: View {
                     let ratio = Double(value) / Double(maxCount)
                     let color: Color = {
                         if ratio > 0.75 {
-                            return Color(red: 0.88, green: 0.22, blue: 0.22).opacity(0.75)
+                            return Color(red: 0.91, green: 0.20, blue: 0.26).opacity(0.90)
                         } else if ratio > 0.50 {
-                            return Color(red: 0.92, green: 0.40, blue: 0.08).opacity(0.70)
+                            return Color(red: 0.96, green: 0.51, blue: 0.19).opacity(0.85)
                         } else if ratio > 0.25 {
-                            return Color(red: 0.90, green: 0.68, blue: 0.10).opacity(0.65)
+                            return Color(red: 0.98, green: 0.84, blue: 0.26).opacity(0.80)
                         } else {
-                            return Color(red: 0.15, green: 0.72, blue: 0.50).opacity(0.60)
+                            return Color(red: 0.30, green: 0.82, blue: 0.72).opacity(0.75)
                         }
                     }()
                     return (color, "\(value)")
-                } + [(Color.gray.opacity(0.12), "0")]
+                } + [(Color(white: 0.93), "0")]
             }
             // Show ranges relative to max
             let top = maxCount
@@ -447,11 +446,11 @@ struct GeoHeatmapView: View {
             let q25 = max(Int(Double(maxCount) * 0.25), 1)
 
             return [
-                (Color(red: 0.88, green: 0.22, blue: 0.22).opacity(0.75), "\(q75 + 1)-\(top)"),
-                (Color(red: 0.92, green: 0.40, blue: 0.08).opacity(0.70), "\(q50 + 1)-\(q75)"),
-                (Color(red: 0.90, green: 0.68, blue: 0.10).opacity(0.65), "\(q25 + 1)-\(q50)"),
-                (Color(red: 0.15, green: 0.72, blue: 0.50).opacity(0.60), "1-\(q25)"),
-                (Color.gray.opacity(0.12), "0"),
+                (Color(red: 0.91, green: 0.20, blue: 0.26).opacity(0.90), "\(q75 + 1)-\(top)"),
+                (Color(red: 0.96, green: 0.51, blue: 0.19).opacity(0.85), "\(q50 + 1)-\(q75)"),
+                (Color(red: 0.98, green: 0.84, blue: 0.26).opacity(0.80), "\(q25 + 1)-\(q50)"),
+                (Color(red: 0.30, green: 0.82, blue: 0.72).opacity(0.75), "1-\(q25)"),
+                (Color(white: 0.93), "0"),
             ]
         }()
 

@@ -295,9 +295,9 @@ struct PublicAnalyticsView: View {
                     HStack(spacing: 8) {
                         Text(langScriptIcon(for: name.lang))
                             .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.indigo.opacity(0.8))
+                            .foregroundStyle(.indigo.opacity(0.4 + ratio * 0.6))
                             .frame(width: 24, height: 24)
-                            .background(.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .background(.indigo.opacity(0.04 + ratio * 0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                         Text(name.name)
                             .font(.subheadline.weight(.semibold))
@@ -338,9 +338,9 @@ struct PublicAnalyticsView: View {
                     HStack(spacing: 8) {
                         Text(langScriptIcon(for: language.lang))
                             .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.indigo.opacity(0.8))
+                            .foregroundStyle(.indigo.opacity(0.4 + ratio * 0.6))
                             .frame(width: 24, height: 24)
-                            .background(.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .background(.indigo.opacity(0.04 + ratio * 0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                         Text(LangCatalog.displayName(language.lang))
                             .font(.subheadline.weight(.semibold))
@@ -405,6 +405,40 @@ struct PublicAnalyticsView: View {
                 .padding(.vertical, 40)
             } else {
                 GeoHeatmapView(geoDistribution: geoData)
+
+                // Country list below the map
+                VStack(spacing: 4) {
+                    ForEach(geoData.sorted(by: { $0.count > $1.count }).prefix(6)) { geo in
+                        let maxCount = geoData.map(\.count).max() ?? 1
+                        let ratio = Double(geo.count) / Double(maxCount)
+                        HStack(spacing: 8) {
+                            Text(countryFlag(for: geo.country))
+                                .font(.system(size: 18))
+                                .frame(width: 24, height: 24)
+
+                            Text(countryDisplayName(for: geo.country))
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Text("\(geo.count)")
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.indigo)
+                                .contentTransition(.numericText())
+                                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: geo.count)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.indigo.opacity(ratio * 0.25))
+                                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: ratio)
+                        )
+                    }
+                }
+                .padding(.top, 8)
             }
         }
         .padding(16)
@@ -437,6 +471,17 @@ struct PublicAnalyticsView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(glassOverlay(radius: 20))
         .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+    }
+
+    /// Convert ISO-2 country code to flag emoji (e.g., "US" → 🇺🇸)
+    private func countryFlag(for code: String) -> String {
+        let base: UInt32 = 127397 // Regional Indicator Symbol base
+        return code.uppercased().unicodeScalars.compactMap { UnicodeScalar(base + $0.value) }.map { String($0) }.joined()
+    }
+
+    /// Get localized country display name from ISO-2 code
+    private func countryDisplayName(for code: String) -> String {
+        Locale.current.localizedString(forRegionCode: code.uppercased()) ?? code.uppercased()
     }
 
     private func langScriptIcon(for langCode: String) -> String {
