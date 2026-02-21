@@ -213,15 +213,27 @@ export default {
 
     // Calculate logarithmic breakpoints
     // 0 = no data, 1+ = visible coloring
-    const stops = [
-      0, colors[0],
-      1, colors[1],  // Any country with 1+ plays gets a visible color
-      Math.max(2, Math.floor(Math.pow(10, logMax * 0.2))), colors[2],
-      Math.max(3, Math.floor(Math.pow(10, logMax * 0.4))), colors[3],
-      Math.max(5, Math.floor(Math.pow(10, logMax * 0.6))), colors[4],
-      Math.max(10, Math.floor(Math.pow(10, logMax * 0.8))), colors[5],
-      maxCount, colors[6],
+    // Cap each breakpoint to be strictly less than maxCount, then deduplicate
+    let breakpoints = [
+      0,
+      1,
+      Math.min(Math.max(2, Math.floor(Math.pow(10, logMax * 0.2))), maxCount - 1),
+      Math.min(Math.max(3, Math.floor(Math.pow(10, logMax * 0.4))), maxCount - 1),
+      Math.min(Math.max(5, Math.floor(Math.pow(10, logMax * 0.6))), maxCount - 1),
+      Math.min(Math.max(10, Math.floor(Math.pow(10, logMax * 0.8))), maxCount - 1),
+      maxCount,
     ]
+
+    // Remove duplicates while preserving order
+    breakpoints = [...new Set(breakpoints)]
+
+    // Build the stops array pairing each breakpoint with a color
+    // Spread colors evenly across available breakpoints
+    const stops = []
+    for (let i = 0; i < breakpoints.length; i++) {
+      const colorIdx = Math.round((i / (breakpoints.length - 1)) * (colors.length - 1))
+      stops.push(breakpoints[i], colors[colorIdx])
+    }
 
     return stops
   },

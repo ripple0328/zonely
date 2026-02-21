@@ -1,0 +1,14 @@
+"common_spelling_placeholder" = "Common spelling";
+"original_spelling_placeholder" = "Original spelling";
+"text_may_not_match_lang" = "Text may not match %@";
+"language" = "Language";
+"add" = "Add";
+"empty_list_message" = "No names yet. Add a name and language to begin.";
+"share_your_list" = "Share your list";
+"share" = "Share";
+"pronunciations_cached_count" = "%d pronunciations cached";
+"clear" = "Clear";
+"clear_audio_cache_title" = "Clear Audio Cache";
+"clear_audio_cache_message" = "This will remove all cached audio files. They will be downloaded again when needed.";
+"cancel" = "Cancel";
+

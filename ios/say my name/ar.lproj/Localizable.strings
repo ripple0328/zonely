@@ -1,0 +1,15 @@
+/* Right-to-left languages will auto-mirror UI in iOS */
+"common_spelling_placeholder" = "الإملاء الشائع";
+"original_spelling_placeholder" = "الإملاء الأصلي";
+"text_may_not_match_lang" = "قد لا يتطابق النص مع %@";
+"language" = "اللغة";
+"add" = "إضافة";
+"empty_list_message" = "لا توجد أسماء بعد. أضف اسماً ولغة للبدء.";
+"share_your_list" = "شارك قائمتك";
+"share" = "مشاركة";
+"pronunciations_cached_count" = "%d نُطق محفوظ في التخزين المؤقت";
+"clear" = "مسح";
+"clear_audio_cache_title" = "مسح تخزين الصوت المؤقت";
+"clear_audio_cache_message" = "هذا سيزيل جميع ملفات الصوت المحفوظة. سيتم تنزيلها مرة أخرى عند الحاجة.";
+"cancel" = "إلغاء";
+

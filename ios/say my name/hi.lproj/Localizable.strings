@@ -1,0 +1,14 @@
+"common_spelling_placeholder" = "आम वर्तनी";
+"original_spelling_placeholder" = "मूल वर्तनी";
+"text_may_not_match_lang" = "पाठ %@ से मेल नहीं खा सकता";
+"language" = "भाषा";
+"add" = "जोड़ें";
+"empty_list_message" = "अभी तक कोई नाम नहीं। शुरू करने के लिए एक नाम और भाषा जोड़ें।";
+"share_your_list" = "अपनी सूची साझा करें";
+"share" = "साझा करें";
+"pronunciations_cached_count" = "%d उच्चारण कैश में सहेजे गए";
+"clear" = "साफ करें";
+"clear_audio_cache_title" = "ऑडियो कैश साफ करें";
+"clear_audio_cache_message" = "यह सभी कैश की गई ऑडियो फाइलों को हटा देगा। आवश्यकता पड़ने पर वे फिर से डाउनलोड होंगी।";
+"cancel" = "रद्द करें";
+
