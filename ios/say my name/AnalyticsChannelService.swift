@@ -101,10 +101,8 @@ final class AnalyticsChannelService: ObservableObject {
                 guard let self = self else { return }
                 self.lastEventAt = Date()
                 
-                if let payload = message.payload as? [String: Any] {
-                    let event = AnalyticsEvent(payload: payload)
-                    self.eventSubject.send(event)
-                }
+                let event = AnalyticsEvent(payload: message.payload)
+                self.eventSubject.send(event)
             }
         }
         
@@ -114,10 +112,8 @@ final class AnalyticsChannelService: ObservableObject {
                 guard let self = self else { return }
                 self.lastEventAt = Date()
                 
-                if let payload = message.payload as? [String: Any] {
-                    let event = AnalyticsEvent(payload: payload)
-                    self.eventSubject.send(event)
-                }
+                let event = AnalyticsEvent(payload: message.payload)
+                self.eventSubject.send(event)
             }
         }
         

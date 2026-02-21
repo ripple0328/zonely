@@ -110,7 +110,6 @@ struct AnalyticsDashboardView: View {
                         errorView(error)
                     } else if let dashboard = vm.dashboard {
                         metricsGrid(dashboard)
-                        providerPerformanceSection(dashboard.providerPerformance)
                         topNamesSection(dashboard.topNames)
                         topLanguagesSection(dashboard.topLanguages)
                         geoDistributionSection(dashboard.geoDistribution)

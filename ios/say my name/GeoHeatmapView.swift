@@ -1,5 +1,4 @@
 import SwiftUI
-import MapKit
 
 // MARK: - GeoJSON Models
 struct GeoJSONFeatureCollection: Codable {
@@ -21,15 +20,20 @@ struct GeoJSONProperties: Codable {
 struct GeoJSONGeometry: Codable {
     let type: String
     let coordinates: GeoJSONCoordinates
-    
+
     enum CodingKeys: String, CodingKey {
         case type, coordinates
     }
-    
+
+    init(type: String, coordinates: GeoJSONCoordinates) {
+        self.type = type
+        self.coordinates = coordinates
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
-        
+
         if type == "Polygon" {
             let coords = try container.decode([[[Double]]].self, forKey: .coordinates)
             coordinates = .polygon(coords)
@@ -40,7 +44,7 @@ struct GeoJSONGeometry: Codable {
             coordinates = .polygon([])
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(type, forKey: .type)
@@ -58,58 +62,50 @@ enum GeoJSONCoordinates {
     case multiPolygon([[[[Double]]]])
 }
 
-// MARK: - Country Overlay
-class CountryOverlay: MKPolygon {
-    var countryCode: String = ""
-    var countryName: String = ""
-    var eventCount: Int = 0
-    var fillColor: UIColor = .systemGray5
-}
+// MARK: - Country Shape (replaces MKPolygon-based CountryOverlay)
+struct CountryShape: Identifiable {
+    let id: String
+    let iso3: String
+    let iso2: String
+    let name: String
+    let geometry: GeoJSONGeometry
 
-// MARK: - Heatmap Color Scale
-struct HeatmapColorScale {
-    static func color(for count: Int, maxCount: Int) -> UIColor {
-        guard count > 0 else {
-            return UIColor { traitCollection in
-                traitCollection.userInterfaceStyle == .dark ? 
-                    UIColor(white: 0.2, alpha: 0.6) : UIColor(white: 0.9, alpha: 0.6)
+    /// Convert geo coordinates to a SwiftUI Path using equirectangular projection
+    func path(in size: CGSize) -> Path {
+        var path = Path()
+
+        let rings: [[[[Double]]]]
+        switch geometry.coordinates {
+        case .polygon(let coords):
+            rings = [coords]
+        case .multiPolygon(let coords):
+            rings = coords
+        }
+
+        for polygon in rings {
+            for ring in polygon {
+                var first = true
+                for coord in ring {
+                    guard coord.count >= 2 else { continue }
+                    let lon = coord[0]
+                    let lat = coord[1]
+
+                    // Equirectangular projection
+                    let x = (lon + 180.0) / 360.0 * size.width
+                    let y = (90.0 - lat) / 180.0 * size.height
+
+                    if first {
+                        path.move(to: CGPoint(x: x, y: y))
+                        first = false
+                    } else {
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+                path.closeSubpath()
             }
         }
-        
-        let intensity = min(Double(count) / Double(max(maxCount, 1)), 1.0)
-        
-        // Color gradient: blue -> green -> yellow -> orange -> red
-        if intensity < 0.2 {
-            return UIColor(red: 0.58, green: 0.77, blue: 0.99, alpha: 0.7) // blue-300
-        } else if intensity < 0.4 {
-            return UIColor(red: 0.20, green: 0.83, blue: 0.60, alpha: 0.7) // green-400
-        } else if intensity < 0.6 {
-            return UIColor(red: 0.98, green: 0.75, blue: 0.14, alpha: 0.7) // yellow-400
-        } else if intensity < 0.8 {
-            return UIColor(red: 0.98, green: 0.45, blue: 0.09, alpha: 0.7) // orange-500
-        } else {
-            return UIColor(red: 0.94, green: 0.27, blue: 0.27, alpha: 0.7) // red-500
-        }
-    }
-    
-    static func colorByThreshold(for count: Int) -> UIColor {
-        switch count {
-        case 0:
-            return UIColor { traitCollection in
-                traitCollection.userInterfaceStyle == .dark ? 
-                    UIColor(white: 0.2, alpha: 0.6) : UIColor(white: 0.9, alpha: 0.6)
-            }
-        case 1...10:
-            return UIColor(red: 0.58, green: 0.77, blue: 0.99, alpha: 0.7)
-        case 11...50:
-            return UIColor(red: 0.20, green: 0.83, blue: 0.60, alpha: 0.7)
-        case 51...100:
-            return UIColor(red: 0.98, green: 0.75, blue: 0.14, alpha: 0.7)
-        case 101...500:
-            return UIColor(red: 0.98, green: 0.45, blue: 0.09, alpha: 0.7)
-        default:
-            return UIColor(red: 0.94, green: 0.27, blue: 0.27, alpha: 0.7)
-        }
+
+        return path
     }
 }
 
@@ -152,173 +148,102 @@ struct ISOCodeConverter {
     }
 }
 
-// MARK: - Map View Coordinator
-class GeoHeatmapCoordinator: NSObject, MKMapViewDelegate {
-    var parent: GeoHeatmapMapView
-    var countryOverlays: [String: CountryOverlay] = [:]
-    
-    init(_ parent: GeoHeatmapMapView) {
-        self.parent = parent
-    }
-    
-    func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-        if let countryOverlay = overlay as? CountryOverlay {
-            let renderer = MKPolygonRenderer(polygon: countryOverlay)
-            renderer.fillColor = countryOverlay.fillColor
-            renderer.strokeColor = UIColor { traitCollection in
-                traitCollection.userInterfaceStyle == .dark ?
-                    UIColor.white.withAlphaComponent(0.3) : UIColor.black.withAlphaComponent(0.2)
-            }
-            renderer.lineWidth = 0.5
-            return renderer
-        }
-        return MKOverlayRenderer(overlay: overlay)
-    }
-    
-    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-        guard let mapView = gesture.view as? MKMapView else { return }
-        let point = gesture.location(in: mapView)
-        let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
-        let mapPoint = MKMapPoint(coordinate)
-        
-        for (_, overlay) in countryOverlays {
-            let renderer = MKPolygonRenderer(polygon: overlay)
-            let pointInRenderer = renderer.point(for: mapPoint)
-            if renderer.path?.contains(pointInRenderer) == true {
-                parent.selectedCountry = (overlay.countryName, overlay.eventCount)
-                return
-            }
-        }
-        parent.selectedCountry = nil
-    }
-}
-
-// MARK: - MKMapView Representable
-struct GeoHeatmapMapView: UIViewRepresentable {
+// MARK: - Pure SwiftUI Canvas Map View (no MapKit tiles)
+struct GeoHeatmapMapView: View {
     let geoDistribution: [GeoDistribution]
     @Binding var selectedCountry: (name: String, count: Int)?
-    @Binding var isLoading: Bool
-    
-    func makeCoordinator() -> GeoHeatmapCoordinator {
-        GeoHeatmapCoordinator(self)
+
+    @State private var countries: [CountryShape] = []
+
+    /// ISO-3 code -> play count lookup built from geoDistribution (which uses ISO-2)
+    private var countryPlays: [String: Int] {
+        Dictionary(uniqueKeysWithValues: geoDistribution.map {
+            (ISOCodeConverter.toISO3($0.country), $0.count)
+        })
     }
-    
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
-        mapView.delegate = context.coordinator
-        mapView.showsCompass = true
-        mapView.isRotateEnabled = true
-        mapView.isPitchEnabled = true
-        
-        // Use globe style on iOS 17+
-        if #available(iOS 17.0, *) {
-            mapView.preferredConfiguration = MKStandardMapConfiguration(elevationStyle: .flat)
-        }
-        
-        // Set initial region to show world
-        let worldRegion = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 20, longitude: 0),
-            span: MKCoordinateSpan(latitudeDelta: 140, longitudeDelta: 360)
-        )
-        mapView.setRegion(worldRegion, animated: false)
-        
-        // Add tap gesture
-        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(GeoHeatmapCoordinator.handleTap(_:)))
-        mapView.addGestureRecognizer(tapGesture)
-        
-        // Load GeoJSON and add overlays
-        loadGeoJSON(mapView: mapView, coordinator: context.coordinator)
-        
-        return mapView
-    }
-    
-    func updateUIView(_ mapView: MKMapView, context: Context) {
-        // Update colors when data changes
-        updateOverlayColors(coordinator: context.coordinator)
-    }
-    
-    private func loadGeoJSON(mapView: MKMapView, coordinator: GeoHeatmapCoordinator) {
-        Task {
-            await MainActor.run { isLoading = true }
-            
-            let url = URL(string: "\(AppConfig.baseURL)/images/countries.geo.json")!
-            
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                let featureCollection = try JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data)
-                
-                await MainActor.run {
-                    addOverlays(featureCollection: featureCollection, mapView: mapView, coordinator: coordinator)
-                    isLoading = false
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Dark background – no map tiles
+                Color(white: 0.08)
+
+                // Render all country polygons via Canvas for performance
+                Canvas { context, size in
+                    for country in countries {
+                        let path = country.path(in: size)
+                        let count = countryPlays[country.iso3] ?? 0
+                        let fillColor = heatmapColor(for: count)
+
+                        context.fill(path, with: .color(fillColor))
+                        context.stroke(path, with: .color(Color.white.opacity(0.25)), lineWidth: 0.5)
+                    }
                 }
-            } catch {
-                print("Failed to load GeoJSON: \(error)")
-                await MainActor.run { isLoading = false }
+
+                // Invisible tap targets for countries with data
+                ForEach(countries) { country in
+                    let count = countryPlays[country.iso3] ?? 0
+                    if count > 0 {
+                        country.path(in: geometry.size)
+                            .fill(Color.clear)
+                            .contentShape(country.path(in: geometry.size))
+                            .onTapGesture {
+                                if selectedCountry?.name == country.name {
+                                    selectedCountry = nil
+                                } else {
+                                    selectedCountry = (country.name, count)
+                                }
+                            }
+                    }
+                }
+            }
+            .onAppear {
+                loadCountries()
             }
         }
     }
-    
-    private func addOverlays(featureCollection: GeoJSONFeatureCollection, mapView: MKMapView, coordinator: GeoHeatmapCoordinator) {
-        let countryData = Dictionary(uniqueKeysWithValues: geoDistribution.map { 
-            (ISOCodeConverter.toISO3($0.country), $0.count) 
-        })
-        let maxCount = geoDistribution.map(\.count).max() ?? 1
-        
-        for feature in featureCollection.features {
-            guard let countryCode = feature.id else { continue }
-            let eventCount = countryData[countryCode] ?? 0
-            let fillColor = HeatmapColorScale.colorByThreshold(for: eventCount)
-            
-            let polygons: [MKPolygon]
-            switch feature.geometry.coordinates {
-            case .polygon(let coords):
-                polygons = [createPolygon(from: coords)]
-            case .multiPolygon(let multiCoords):
-                polygons = multiCoords.map { createPolygon(from: $0) }
-            }
-            
-            for polygon in polygons {
-                let overlay = CountryOverlay(points: polygon.points(), count: polygon.pointCount)
-                overlay.countryCode = countryCode
-                overlay.countryName = feature.properties.name
-                overlay.eventCount = eventCount
-                overlay.fillColor = fillColor
-                
-                coordinator.countryOverlays[countryCode] = overlay
-                mapView.addOverlay(overlay)
-            }
+
+    // MARK: - Load GeoJSON from bundle
+    private func loadCountries() {
+        guard let url = Bundle.main.url(forResource: "countries", withExtension: "geo.json"),
+              let data = try? Data(contentsOf: url),
+              let collection = try? JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data) else {
+            print("Failed to load countries.geo.json from bundle")
+            return
+        }
+
+        // Build the reverse lookup so we can go from ISO-3 (GeoJSON id) → ISO-2
+        let iso3ToIso2: [String: String] = Dictionary(
+            uniqueKeysWithValues: ISOCodeConverter.iso2ToIso3.map { ($0.value, $0.key) }
+        )
+
+        countries = collection.features.compactMap { feature -> CountryShape? in
+            guard let iso3 = feature.id else { return nil }
+            return CountryShape(
+                id: iso3,
+                iso3: iso3,
+                iso2: iso3ToIso2[iso3] ?? String(iso3.prefix(2)),
+                name: feature.properties.name,
+                geometry: feature.geometry
+            )
         }
     }
-    
-    private func createPolygon(from coordinates: [[[Double]]]) -> MKPolygon {
-        guard let exterior = coordinates.first else {
-            return MKPolygon()
-        }
-        
-        let exteriorCoords = exterior.map { coord in
-            CLLocationCoordinate2D(latitude: coord[1], longitude: coord[0])
-        }
-        
-        if coordinates.count > 1 {
-            let interiors = coordinates.dropFirst().map { ring -> MKPolygon in
-                let coords = ring.map { CLLocationCoordinate2D(latitude: $0[1], longitude: $0[0]) }
-                return MKPolygon(coordinates: coords, count: coords.count)
-            }
-            return MKPolygon(coordinates: exteriorCoords, count: exteriorCoords.count, interiorPolygons: interiors)
-        }
-        
-        return MKPolygon(coordinates: exteriorCoords, count: exteriorCoords.count)
-    }
-    
-    private func updateOverlayColors(coordinator: GeoHeatmapCoordinator) {
-        let countryData = Dictionary(uniqueKeysWithValues: geoDistribution.map { 
-            (ISOCodeConverter.toISO3($0.country), $0.count) 
-        })
-        
-        for (countryCode, overlay) in coordinator.countryOverlays {
-            let eventCount = countryData[countryCode] ?? 0
-            overlay.eventCount = eventCount
-            overlay.fillColor = HeatmapColorScale.colorByThreshold(for: eventCount)
+
+    // MARK: - Heatmap color by threshold
+    private func heatmapColor(for count: Int) -> Color {
+        switch count {
+        case 0:
+            return Color(white: 0.15).opacity(0.4)
+        case 1...10:
+            return Color(red: 0.58, green: 0.77, blue: 0.99).opacity(0.9)
+        case 11...50:
+            return Color(red: 0.20, green: 0.83, blue: 0.60).opacity(0.9)
+        case 51...100:
+            return Color(red: 0.98, green: 0.75, blue: 0.14).opacity(0.9)
+        case 101...500:
+            return Color(red: 0.98, green: 0.45, blue: 0.09).opacity(0.9)
+        default:
+            return Color(red: 0.94, green: 0.27, blue: 0.27).opacity(0.95)
         }
     }
 }
@@ -326,27 +251,21 @@ struct GeoHeatmapMapView: UIViewRepresentable {
 // MARK: - Main GeoHeatmapView
 struct GeoHeatmapView: View {
     let geoDistribution: [GeoDistribution]
-    
+
     @State private var selectedCountry: (name: String, count: Int)?
-    @State private var isLoading = false
-    
+
     var body: some View {
         ZStack {
             GeoHeatmapMapView(
                 geoDistribution: geoDistribution,
-                selectedCountry: $selectedCountry,
-                isLoading: $isLoading
+                selectedCountry: $selectedCountry
             )
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            
-            if isLoading {
-                loadingOverlay
-            }
-            
+
             if let country = selectedCountry {
                 countryInfoOverlay(country)
             }
-            
+
             // Legend
             VStack {
                 Spacer()
@@ -363,17 +282,7 @@ struct GeoHeatmapView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Geographic distribution map showing \(geoDistribution.count) countries")
     }
-    
-    private var loadingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.3)
-            ProgressView()
-                .scaleEffect(1.2)
-                .tint(.white)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-    
+
     private func countryInfoOverlay(_ country: (name: String, count: Int)) -> some View {
         VStack {
             HStack {

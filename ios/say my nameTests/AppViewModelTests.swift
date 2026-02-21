@@ -26,9 +26,11 @@ final class MockNetwork: PronounceNetworking {
 final class MockAudio: AudioPlaying {
     var onFinish: (() -> Void)?
     var playCallback: (() -> Void)?
-    func play(url: URL, lang: String?) async throws { playCallback?(); onFinish?() }
-    func playSequence(urls: [URL], lang: String?) async throws { playCallback?(); onFinish?() }
-    func speak(text: String, bcp47: String) async throws { playCallback?(); onFinish?() }
+    /// When true, onFinish is called immediately after playCallback (default: false).
+    var callOnFinishImmediately = false
+    func play(url: URL, lang: String?) async throws { playCallback?(); if callOnFinishImmediately { onFinish?() } }
+    func playSequence(urls: [URL], lang: String?) async throws { playCallback?(); if callOnFinishImmediately { onFinish?() } }
+    func speak(text: String, bcp47: String) async throws { playCallback?(); if callOnFinishImmediately { onFinish?() } }
 }
 
 
