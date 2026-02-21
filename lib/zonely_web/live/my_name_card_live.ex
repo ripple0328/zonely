@@ -148,8 +148,7 @@ defmodule ZonelyWeb.MyNameCardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={nil}>
-      <div class="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:px-6">
+    <div class="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:px-6">
         <%!-- Header --%>
         <div class="flex items-center justify-between">
           <div>
@@ -467,8 +466,7 @@ defmodule ZonelyWeb.MyNameCardLive do
             </div>
           </div>
         <% end %>
-      </div>
-    </Layouts.app>
+    </div>
     """
   end
 end

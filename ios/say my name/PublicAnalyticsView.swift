@@ -71,7 +71,6 @@ final class PublicAnalyticsViewModel: ObservableObject {
 
 struct PublicAnalyticsView: View {
     @StateObject private var vm = PublicAnalyticsViewModel()
-    @State private var isMapInteracting = false
 
     private let ranges = ["24h", "7d", "30d"]
 
@@ -112,7 +111,7 @@ struct PublicAnalyticsView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             }
-            .scrollDisabled(isMapInteracting)
+
             .refreshable { await vm.load() }
         }
         .task {
@@ -398,7 +397,7 @@ struct PublicAnalyticsView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 40)
             } else {
-                GeoHeatmapView(geoDistribution: geoData, isInteracting: $isMapInteracting)
+                GeoHeatmapView(geoDistribution: geoData)
 
                 // Country list below the map
                 let sortedGeo = Array(geoData.sorted(by: { $0.count > $1.count }).prefix(6))

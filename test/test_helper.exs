@@ -2,6 +2,7 @@ ExUnit.start()
 
 # Ensure test support modules are loaded when running single files
 Code.require_file("support/data_case.ex", __DIR__)
+Code.require_file("support/conn_case.ex", __DIR__)
 Code.require_file("support/component_case.ex", __DIR__)
 Code.require_file("support/feature_case.ex", __DIR__)
 Code.require_file("support/fake_http_client.ex", __DIR__)

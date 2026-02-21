@@ -12,7 +12,7 @@ defmodule SayMyName.Analytics do
   """
 
   import Ecto.Query, warn: false
-  alias SayMyName.Repo
+  alias Zonely.Repo
   alias SayMyName.Analytics.{Event, Privacy}
 
   # Retention policies (in days) by event category

@@ -2,7 +2,6 @@ defmodule Zonely.PronunceName.Cache do
   @moduledoc false
   alias Zonely.AudioCache
   require Logger
-  require Logger
 
   @spec lookup_cached_audio(String.t(), String.t()) ::
           {:ok, String.t(), :local | :remote} | :not_found
@@ -10,12 +9,12 @@ defmodule Zonely.PronunceName.Cache do
     primary_dir = AudioCache.dir()
     legacy_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
 
-    variant_safe_names =
+    _variant_safe_names =
       [name | local_variants(name)]
       |> Enum.uniq()
       |> Enum.map(&String.replace(&1, ~r/[^a-zA-Z0-9_-]/, "_"))
 
-    lang_candidates =
+    _lang_candidates =
       case String.split(language || "", "-") do
         [base, _rest] when byte_size(base) > 0 -> [language, base]
         [only] when byte_size(only) > 0 -> [only]
@@ -99,9 +98,6 @@ defmodule Zonely.PronunceName.Cache do
       end
     end
   end
-
-  # S3 lookup for provider audio is disabled by policy. We only use local Polly cache.
-  defp s3_lookup_key(_name, _language, _variant_safe_names, _lang_candidates, _bucket), do: nil
 
   @spec write_binary_to_cache(binary(), String.t(), String.t(), String.t()) ::
           {:ok, String.t()} | {:error, term()}

@@ -23,10 +23,23 @@ if Code.ensure_loaded?(Wallaby.Feature) and Code.ensure_loaded?(Wallaby.Query) a
       end
     end
 
+    import ExUnit.Assertions
     import Wallaby.Query, only: [css: 1, css: 2]
 
     import Wallaby.Browser,
-      only: [has_text?: 2, click: 2, current_path: 1, has?: 2, execute_script: 2]
+      only: [
+        has_text?: 2,
+        click: 2,
+        current_path: 1,
+        has?: 2,
+        execute_script: 2,
+        assert_text: 2
+      ]
+
+    def refute_text(session, text) do
+      refute has_text?(session, text)
+      session
+    end
 
     def create_test_user(attrs \\ %{}) do
       default_attrs = %{
@@ -154,6 +167,11 @@ else
             testid: 1,
             select: 2,
             check: 2,
+            visit: 2,
+            assert_text: 2,
+            refute_text: 2,
+            assert_has: 2,
+            assert_path: 2,
             wait_for_liveview: 1,
             wait_for_map_loaded: 1,
             mock_audio_support: 1,
@@ -192,6 +210,11 @@ else
     def testid(id), do: css("[data-testid='#{id}']")
     def select(session, _query), do: session
     def check(session, _query), do: session
+    def visit(session, _path), do: session
+    def assert_text(session, _text), do: session
+    def refute_text(session, _text), do: session
+    def assert_has(session, _query), do: session
+    def assert_path(session, _path), do: session
     def wait_for_liveview(session), do: session
     def wait_for_map_loaded(session), do: session
     def mock_audio_support(session), do: session
