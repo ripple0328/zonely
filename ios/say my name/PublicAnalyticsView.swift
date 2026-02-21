@@ -295,11 +295,7 @@ struct PublicAnalyticsView: View {
                 ForEach(names.prefix(5)) { name in
                     let ratio = Double(name.count) / Double(maxCount)
                     HStack(spacing: 8) {
-                        Text(langScriptIcon(for: name.lang))
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.indigo.opacity(0.4 + ratio * 0.6))
-                            .frame(width: 24, height: 24)
-                            .background(.indigo.opacity(0.04 + ratio * 0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        langPill(for: name.lang)
 
                         Text(name.name)
                             .font(.subheadline.weight(.semibold))
@@ -338,11 +334,7 @@ struct PublicAnalyticsView: View {
                 ForEach(languages.prefix(6)) { language in
                     let ratio = Double(language.count) / Double(maxCount)
                     HStack(spacing: 8) {
-                        Text(langScriptIcon(for: language.lang))
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.indigo.opacity(0.4 + ratio * 0.6))
-                            .frame(width: 24, height: 24)
-                            .background(.indigo.opacity(0.04 + ratio * 0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        langPill(for: language.lang)
 
                         Text(LangCatalog.displayName(language.lang))
                             .font(.subheadline.weight(.semibold))
@@ -495,14 +487,15 @@ struct PublicAnalyticsView: View {
         Locale.current.localizedString(forRegionCode: code.uppercased()) ?? code.uppercased()
     }
 
-    private func langScriptIcon(for langCode: String) -> String {
+    /// Returns the script character for a language code
+    private func langScriptChar(for langCode: String) -> String {
         let base = langCode.split(separator: "-").first.map(String.init) ?? langCode
         switch base {
         case "en": return "Aa"
         case "zh": return "中"
         case "ja": return "あ"
         case "es": return "Eñ"
-        case "fr": return "Àa"
+        case "fr": return "Ça"
         case "de": return "Ää"
         case "pt": return "Ão"
         case "hi": return "हि"
@@ -519,6 +512,50 @@ struct PublicAnalyticsView: View {
         case "sv": return "Åä"
         default: return "Aa"
         }
+    }
+
+    /// Returns the gradient colors for a language code
+    private func langGradient(for langCode: String) -> (Color, Color) {
+        let base = langCode.split(separator: "-").first.map(String.init) ?? langCode
+        switch base {
+        case "en": return (Color(red: 0.29, green: 0.56, blue: 0.85), Color(red: 0.35, green: 0.34, blue: 0.84))
+        case "es": return (Color(red: 1.0, green: 0.58, blue: 0.0), Color(red: 1.0, green: 0.23, blue: 0.19))
+        case "zh": return (Color(red: 1.0, green: 0.23, blue: 0.19), Color(red: 1.0, green: 0.84, blue: 0.04))
+        case "ja": return (Color(red: 1.0, green: 0.18, blue: 0.33), Color(red: 0.69, green: 0.32, blue: 0.87))
+        case "hi": return (Color(red: 0.20, green: 0.78, blue: 0.35), Color(red: 0.19, green: 0.69, blue: 0.78))
+        case "ar": return (Color(red: 1.0, green: 0.62, blue: 0.04), Color(red: 0.64, green: 0.52, blue: 0.37))
+        case "fr": return (Color(red: 0.35, green: 0.78, blue: 0.98), Color(red: 0.69, green: 0.32, blue: 0.87))
+        case "ko": return (Color(red: 0.69, green: 0.32, blue: 0.87), Color(red: 0.35, green: 0.34, blue: 0.84))
+        case "de": return (Color(red: 0.39, green: 0.39, blue: 0.40), Color(red: 0.0, green: 0.48, blue: 1.0))
+        case "pt": return (Color(red: 0.19, green: 0.82, blue: 0.35), Color(red: 1.0, green: 0.84, blue: 0.04))
+        case "bn": return (Color(red: 0.39, green: 0.82, blue: 1.0), Color(red: 0.20, green: 0.78, blue: 0.35))
+        case "ru": return (Color(red: 1.0, green: 0.27, blue: 0.23), Color(red: 0.04, green: 0.52, blue: 1.0))
+        case "it": return (Color(red: 0.19, green: 0.82, blue: 0.35), Color(red: 1.0, green: 0.23, blue: 0.19))
+        case "tr": return (Color(red: 1.0, green: 0.22, blue: 0.37), Color(red: 1.0, green: 0.62, blue: 0.04))
+        case "vi": return (Color(red: 1.0, green: 0.84, blue: 0.04), Color(red: 0.20, green: 0.78, blue: 0.35))
+        case "th": return (Color(red: 0.75, green: 0.35, blue: 0.95), Color(red: 1.0, green: 0.18, blue: 0.33))
+        case "pl": return (Color(red: 0.04, green: 0.52, blue: 1.0), Color(red: 0.39, green: 0.82, blue: 1.0))
+        case "nl": return (Color(red: 1.0, green: 0.58, blue: 0.0), Color(red: 1.0, green: 0.80, blue: 0.0))
+        case "sv": return (Color(red: 0.0, green: 0.48, blue: 1.0), Color(red: 1.0, green: 0.84, blue: 0.04))
+        default: return (Color(red: 0.56, green: 0.56, blue: 0.58), Color(red: 0.39, green: 0.39, blue: 0.40))
+        }
+    }
+
+    private func langPill(for langCode: String) -> some View {
+        let (startColor, endColor) = langGradient(for: langCode)
+        return Text(langScriptChar(for: langCode))
+            .font(.system(size: 10, weight: .heavy, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: 26, height: 26)
+            .background(
+                LinearGradient(
+                    colors: [startColor, endColor],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            )
+            .shadow(color: startColor.opacity(0.3), radius: 3, x: 0, y: 1)
     }
 
     private func glassOverlay(radius: CGFloat) -> some View {
