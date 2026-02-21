@@ -76,10 +76,9 @@ struct PublicAnalyticsView: View {
 
     var body: some View {
         ZStack {
-            // Rich layered background
-            Color.black.ignoresSafeArea()
+            // Light glass background matching app theme
             LinearGradient(
-                colors: [Color.indigo.opacity(0.18), Color.purple.opacity(0.10), Color.black.opacity(0.0)],
+                colors: [Color.black.opacity(0.22), Color.blue.opacity(0.22)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -261,13 +260,7 @@ struct PublicAnalyticsView: View {
             Text("\(dashboard.totalPronunciations)")
                 .font(.system(size: 48, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white, .white.opacity(0.7)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .foregroundStyle(.primary)
                 .contentTransition(.numericText())
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: dashboard.totalPronunciations)
         }
@@ -476,5 +469,4 @@ extension View {
 
 #Preview {
     PublicAnalyticsView()
-        .preferredColorScheme(.dark)
 }
