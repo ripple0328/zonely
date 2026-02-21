@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - GeoJSON Models
 struct GeoJSONFeatureCollection: Codable {
@@ -148,179 +149,260 @@ struct ISOCodeConverter {
     }
 }
 
-// MARK: - Pure SwiftUI Canvas Map View (no MapKit tiles)
-struct GeoHeatmapMapView: View {
-    let geoDistribution: [GeoDistribution]
-    @Binding var selectedCountry: (name: String, count: Int)?
-    @Binding var isInteracting: Bool
+// MARK: - UIView subclass for Core Graphics rendering + UIKit gestures
+class MapCanvasView: UIView {
+    // Data
+    var countries: [CountryShape] = [] { didSet { setNeedsDisplay() } }
+    var countryPlays: [String: Int] = [:] { didSet { setNeedsDisplay() } }
+    var maxPlayCount: Int = 0 { didSet { setNeedsDisplay() } }
 
-    @State private var countries: [CountryShape] = []
+    // Transform state
+    var mapScale: CGFloat = 1.0 { didSet { setNeedsDisplay() } }
+    var mapOffset: CGPoint = .zero { didSet { setNeedsDisplay() } }
 
-    // Zoom and pan state
-    @State private var currentScale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var currentOffset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
+    // Callbacks
+    var onCountryTapped: ((String, Int) -> Void)?
+    var onInteractionChanged: ((Bool) -> Void)?
 
-    /// ISO-3 code -> play count lookup built from geoDistribution (which uses ISO-2)
-    private var countryPlays: [String: Int] {
-        Dictionary(uniqueKeysWithValues: geoDistribution.map {
-            (ISOCodeConverter.toISO3($0.country), $0.count)
-        })
+    // Gesture recognizers
+    private var panGesture: UIPanGestureRecognizer!
+    private var pinchGesture: UIPinchGestureRecognizer!
+    private var doubleTapGesture: UITapGestureRecognizer!
+    private var singleTapGesture: UITapGestureRecognizer!
+
+    // Track gesture state for cumulative transforms
+    private var lastScale: CGFloat = 1.0
+    private var lastOffset: CGPoint = .zero
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupGestures()
+        backgroundColor = .clear
+        isOpaque = false
+        contentMode = .redraw
     }
 
-    /// Maximum play count across all countries (for relative color scaling)
-    private var maxPlayCount: Int {
-        countryPlays.values.max() ?? 0
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func setupGestures() {
+        panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
+        panGesture.delegate = self
+        addGestureRecognizer(panGesture)
+
+        pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
+        pinchGesture.delegate = self
+        addGestureRecognizer(pinchGesture)
+
+        doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap))
+        doubleTapGesture.numberOfTapsRequired = 2
+        addGestureRecognizer(doubleTapGesture)
+
+        singleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
+        singleTapGesture.numberOfTapsRequired = 1
+        singleTapGesture.require(toFail: doubleTapGesture)
+        addGestureRecognizer(singleTapGesture)
     }
 
-    var body: some View {
-        GeometryReader { geometry in
-            let mapWidth = geometry.size.width
-            let mapHeight = mapWidth / 2.0  // World map ~2:1 aspect ratio
-            ZStack {
-                // Ocean background — light sea blue
-                Color(red: 0.85, green: 0.92, blue: 0.98)
+    // CRITICAL: Find parent ScrollView and make it yield to our pan
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if let scrollView = findParentScrollView() {
+            scrollView.panGestureRecognizer.require(toFail: panGesture)
+        }
+    }
 
-                // Render all country polygons via Canvas for performance
-                Canvas { context, size in
-                    for country in countries {
-                        let path = country.path(in: size)
-                        let count = countryPlays[country.iso3] ?? 0
-                        let fillColor = heatmapColor(for: count, maxCount: maxPlayCount)
-
-                        context.fill(path, with: .color(fillColor))
-                        context.stroke(path, with: .color(Color(white: 0.75)), lineWidth: 0.6)
-                    }
-                }
-
-                // Subtle vignette for depth
-                RadialGradient(
-                    colors: [Color.clear, Color.black.opacity(0.08)],
-                    center: .center,
-                    startRadius: mapWidth * 0.3,
-                    endRadius: mapWidth * 0.75
-                )
-
-                // Invisible tap targets for countries with data
-                ForEach(countries) { country in
-                    let count = countryPlays[country.iso3] ?? 0
-                    if count > 0 {
-                        country.path(in: CGSize(width: mapWidth, height: mapHeight))
-                            .fill(Color.clear)
-                            .contentShape(country.path(in: CGSize(width: mapWidth, height: mapHeight)))
-                            .onTapGesture {
-                                if selectedCountry?.name == country.name {
-                                    selectedCountry = nil
-                                } else {
-                                    selectedCountry = (country.name, count)
-                                }
-                            }
-                    }
-                }
+    private func findParentScrollView() -> UIScrollView? {
+        var view: UIView? = superview
+        while let v = view {
+            if let sv = v as? UIScrollView {
+                return sv
             }
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentScale = 1.0
-                    lastScale = 1.0
-                    currentOffset = .zero
-                    lastOffset = .zero
-                }
-            }
-            .highPriorityGesture(
-                SimultaneousGesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            isInteracting = true
-                            currentScale = min(max(lastScale * value, 1.0), 8.0)
-                        }
-                        .onEnded { _ in
-                            lastScale = currentScale
-                            isInteracting = false
-                        },
-                    DragGesture(minimumDistance: 5)
-                        .onChanged { value in
-                            isInteracting = true
-                            currentOffset = CGSize(
-                                width: lastOffset.width + value.translation.width / currentScale,
-                                height: lastOffset.height + value.translation.height / currentScale
-                            )
-                        }
-                        .onEnded { _ in
-                            lastOffset = currentOffset
-                            isInteracting = false
-                        }
-                )
+            view = v.superview
+        }
+        return nil
+    }
+
+    // MARK: - Gesture Handlers
+
+    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+        switch gesture.state {
+        case .began:
+            onInteractionChanged?(true)
+            lastOffset = mapOffset
+        case .changed:
+            let translation = gesture.translation(in: self)
+            mapOffset = CGPoint(
+                x: lastOffset.x + translation.x / mapScale,
+                y: lastOffset.y + translation.y / mapScale
             )
-            .scaleEffect(currentScale)
-            .offset(currentOffset)
-            .frame(width: mapWidth, height: mapHeight)
-            .clipped()
-            .onAppear {
-                loadCountries()
-            }
-            .onChange(of: geoDistribution) { _ in
-                // Reset zoom and pan when data changes
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentScale = 1.0
-                    lastScale = 1.0
-                    currentOffset = .zero
-                    lastOffset = .zero
+        case .ended, .cancelled:
+            onInteractionChanged?(false)
+        default: break
+        }
+    }
+
+    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        switch gesture.state {
+        case .began:
+            onInteractionChanged?(true)
+            lastScale = mapScale
+        case .changed:
+            mapScale = min(max(lastScale * gesture.scale, 1.0), 8.0)
+        case .ended, .cancelled:
+            onInteractionChanged?(false)
+        default: break
+        }
+    }
+
+    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+        UIView.animate(withDuration: 0.3) {
+            self.mapScale = 1.0
+            self.lastScale = 1.0
+            self.mapOffset = .zero
+            self.lastOffset = .zero
+        }
+    }
+
+    @objc private func handleSingleTap(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: self)
+        let mapWidth = bounds.width
+        let mapHeight = mapWidth / 2.0
+
+        // Reverse the transform: point_in_view -> point_on_map
+        let centerX = mapWidth / 2
+        let centerY = mapHeight / 2
+        let mapX = (location.x - centerX - mapOffset.x * mapScale) / mapScale + centerX
+        let mapY = (location.y - centerY - mapOffset.y * mapScale) / mapScale + centerY
+        let mapPoint = CGPoint(x: mapX, y: mapY)
+
+        // Hit test countries (reversed so topmost drawn country wins)
+        let renderSize = CGSize(width: mapWidth, height: mapHeight)
+        for country in countries.reversed() {
+            let path = country.path(in: renderSize)
+            if path.contains(mapPoint) {
+                let count = countryPlays[country.iso3] ?? 0
+                if count > 0 {
+                    onCountryTapped?(country.name, count)
+                    return
                 }
             }
         }
-        .aspectRatio(2.0, contentMode: .fit)
+        onCountryTapped?("", 0) // deselect
     }
 
-    // MARK: - Load GeoJSON from bundle
-    private func loadCountries() {
-        guard let url = Bundle.main.url(forResource: "countries", withExtension: "geo.json"),
-              let data = try? Data(contentsOf: url),
-              let collection = try? JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data) else {
-            print("Failed to load countries.geo.json from bundle")
-            return
-        }
+    // MARK: - Core Graphics Rendering
 
-        // Build the reverse lookup so we can go from ISO-3 (GeoJSON id) → ISO-2
-        let iso3ToIso2: [String: String] = Dictionary(
-            uniqueKeysWithValues: ISOCodeConverter.iso2ToIso3.map { ($0.value, $0.key) }
-        )
+    override func draw(_ rect: CGRect) {
+        guard let ctx = UIGraphicsGetCurrentContext() else { return }
 
-        countries = collection.features.enumerated().compactMap { index, feature -> CountryShape? in
-            guard let iso3 = feature.id else { return nil }
-            return CountryShape(
-                id: "\(iso3)-\(index)",
-                iso3: iso3,
-                iso2: iso3ToIso2[iso3] ?? String(iso3.prefix(2)),
-                name: feature.properties.name,
-                geometry: feature.geometry
+        let mapWidth = bounds.width
+        let mapHeight = mapWidth / 2.0
+
+        // --- Ocean gradient ---
+        let oceanColors = [
+            UIColor(red: 0.90, green: 0.95, blue: 1.0, alpha: 1.0).cgColor,
+            UIColor(red: 0.82, green: 0.90, blue: 0.98, alpha: 1.0).cgColor,
+        ]
+        if let oceanGradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: oceanColors as CFArray,
+            locations: [0, 1]
+        ) {
+            ctx.drawLinearGradient(
+                oceanGradient,
+                start: .zero,
+                end: CGPoint(x: 0, y: mapHeight),
+                options: []
             )
         }
-    }
 
-    // MARK: - Heatmap color by relative position (light-background friendly)
-    private func heatmapColor(for count: Int, maxCount: Int) -> Color {
-        guard count > 0, maxCount > 0 else {
-            return Color(white: 0.93) // no data — warm light fill
+        // --- Subtle graticule (lat/lon grid lines) ---
+        ctx.setStrokeColor(UIColor(white: 0.80, alpha: 0.3).cgColor)
+        ctx.setLineWidth(0.5)
+        for lat in stride(from: -60.0, through: 60.0, by: 30.0) {
+            let y = (90.0 - lat) / 180.0 * mapHeight
+            ctx.move(to: CGPoint(x: 0, y: y))
+            ctx.addLine(to: CGPoint(x: mapWidth, y: y))
+        }
+        for lon in stride(from: -120.0, through: 120.0, by: 60.0) {
+            let x = (lon + 180.0) / 360.0 * mapWidth
+            ctx.move(to: CGPoint(x: x, y: 0))
+            ctx.addLine(to: CGPoint(x: x, y: mapHeight))
+        }
+        ctx.strokePath()
+
+        // --- Apply transform for zoom/pan ---
+        ctx.saveGState()
+        let centerX = mapWidth / 2
+        let centerY = mapHeight / 2
+        ctx.translateBy(x: centerX + mapOffset.x * mapScale, y: centerY + mapOffset.y * mapScale)
+        ctx.scaleBy(x: mapScale, y: mapScale)
+        ctx.translateBy(x: -centerX, y: -centerY)
+
+        // --- Render countries ---
+        let renderSize = CGSize(width: mapWidth, height: mapHeight)
+
+        // First pass: fill all countries
+        for country in countries {
+            let swiftPath = country.path(in: renderSize)
+            let cgPath = swiftPath.cgPath
+            let count = countryPlays[country.iso3] ?? 0
+
+            if count > 0 {
+                let color = heatmapUIColor(for: count, maxCount: maxPlayCount)
+                ctx.addPath(cgPath)
+                ctx.setFillColor(color.cgColor)
+                ctx.fillPath()
+            } else {
+                ctx.addPath(cgPath)
+                ctx.setFillColor(UIColor(white: 0.94, alpha: 1.0).cgColor)
+                ctx.fillPath()
+            }
         }
 
-        // Normalize to 0.0...1.0 range relative to maxCount
+        // Second pass: borders (on top of fills)
+        ctx.setLineWidth(0.4 / mapScale)
+        ctx.setStrokeColor(UIColor(white: 0.70, alpha: 0.6).cgColor)
+        for country in countries {
+            let cgPath = country.path(in: renderSize).cgPath
+            ctx.addPath(cgPath)
+        }
+        ctx.strokePath()
+
+        // Third pass: highlight countries with data via subtle inner glow
+        for country in countries {
+            let count = countryPlays[country.iso3] ?? 0
+            if count > 0 {
+                let cgPath = country.path(in: renderSize).cgPath
+                ctx.addPath(cgPath)
+                ctx.setLineWidth(1.2 / mapScale)
+                let ratio = Double(count) / Double(max(maxPlayCount, 1))
+                ctx.setStrokeColor(UIColor(white: 1.0, alpha: CGFloat(0.2 + ratio * 0.3)).cgColor)
+                ctx.strokePath()
+            }
+        }
+
+        ctx.restoreGState()
+    }
+
+    // MARK: - Heatmap Color (UIKit)
+
+    private func heatmapUIColor(for count: Int, maxCount: Int) -> UIColor {
+        guard count > 0, maxCount > 0 else { return UIColor(white: 0.94, alpha: 1.0) }
+
         let ratio = Double(count) / Double(maxCount)
 
-        // Color stops: sky blue → teal → gold → orange → red
-        // Each stop: (threshold, red, green, blue, opacity)
-        let stops: [(Double, Double, Double, Double, Double)] = [
-            (0.0,  0.56, 0.79, 0.96, 0.70), // soft sky blue
-            (0.25, 0.30, 0.82, 0.72, 0.75), // teal/turquoise
-            (0.50, 0.98, 0.84, 0.26, 0.80), // warm gold
-            (0.75, 0.96, 0.51, 0.19, 0.85), // bright orange
-            (1.0,  0.91, 0.20, 0.26, 0.90), // vivid red
+        // Vibrant 5-stop gradient: teal → green → gold → orange → coral red
+        let stops: [(Double, CGFloat, CGFloat, CGFloat, CGFloat)] = [
+            (0.0,  0.36, 0.78, 0.82, 0.85), // teal
+            (0.25, 0.35, 0.80, 0.55, 0.88), // green-teal
+            (0.50, 0.95, 0.82, 0.25, 0.90), // warm gold
+            (0.75, 0.96, 0.55, 0.22, 0.92), // orange
+            (1.0,  0.90, 0.25, 0.30, 0.95), // coral red
         ]
 
-        // Find the two stops to interpolate between
         var lower = stops[0]
-        var upper = stops[stops.count - 1]
+        var upper = stops.last!
         for i in 0..<(stops.count - 1) {
             if ratio >= stops[i].0 && ratio <= stops[i + 1].0 {
                 lower = stops[i]
@@ -329,16 +411,74 @@ struct GeoHeatmapMapView: View {
             }
         }
 
-        // Interpolate between the two stops
         let range = upper.0 - lower.0
-        let t = range > 0 ? (ratio - lower.0) / range : 1.0
+        let t = range > 0 ? CGFloat((ratio - lower.0) / range) : 1.0
 
         let r = lower.1 + (upper.1 - lower.1) * t
         let g = lower.2 + (upper.2 - lower.2) * t
         let b = lower.3 + (upper.3 - lower.3) * t
         let a = lower.4 + (upper.4 - lower.4) * t
 
-        return Color(red: r, green: g, blue: b).opacity(a)
+        return UIColor(red: r, green: g, blue: b, alpha: a)
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension MapCanvasView: UIGestureRecognizerDelegate {
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+    ) -> Bool {
+        // Allow pan and pinch simultaneously
+        if (gestureRecognizer == panGesture && other == pinchGesture) ||
+           (gestureRecognizer == pinchGesture && other == panGesture) {
+            return true
+        }
+        return false
+    }
+}
+
+// MARK: - UIViewRepresentable Bridge
+struct GeoHeatmapMapView: UIViewRepresentable {
+    let geoDistribution: [GeoDistribution]
+    @Binding var selectedCountry: (name: String, count: Int)?
+    @Binding var isInteracting: Bool
+    let countries: [CountryShape]
+
+    private var countryPlays: [String: Int] {
+        Dictionary(uniqueKeysWithValues: geoDistribution.map {
+            (ISOCodeConverter.toISO3($0.country), $0.count)
+        })
+    }
+
+    private var maxPlayCount: Int {
+        countryPlays.values.max() ?? 0
+    }
+
+    func makeUIView(context: Context) -> MapCanvasView {
+        let view = MapCanvasView()
+        view.countries = countries
+        view.countryPlays = countryPlays
+        view.maxPlayCount = maxPlayCount
+        view.onCountryTapped = { name, count in
+            if name.isEmpty {
+                selectedCountry = nil
+            } else if selectedCountry?.name == name {
+                selectedCountry = nil
+            } else {
+                selectedCountry = (name, count)
+            }
+        }
+        view.onInteractionChanged = { interacting in
+            isInteracting = interacting
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: MapCanvasView, context: Context) {
+        uiView.countries = countries
+        uiView.countryPlays = countryPlays
+        uiView.maxPlayCount = maxPlayCount
     }
 }
 
@@ -348,14 +488,17 @@ struct GeoHeatmapView: View {
     @Binding var isInteracting: Bool
 
     @State private var selectedCountry: (name: String, count: Int)?
+    @State private var countries: [CountryShape] = []
 
     var body: some View {
         ZStack {
             GeoHeatmapMapView(
                 geoDistribution: geoDistribution,
                 selectedCountry: $selectedCountry,
-                isInteracting: $isInteracting
+                isInteracting: $isInteracting,
+                countries: countries
             )
+            .aspectRatio(2.0, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             if let country = selectedCountry {
@@ -374,11 +517,37 @@ struct GeoHeatmapView: View {
         }
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(glassOverlay(radius: 18))
+        .onAppear { loadCountries() }
         .onChange(of: geoDistribution) { _ in
             selectedCountry = nil
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Geographic distribution map showing \(geoDistribution.count) countries")
+    }
+
+    // MARK: - Load GeoJSON from bundle
+    private func loadCountries() {
+        guard let url = Bundle.main.url(forResource: "countries", withExtension: "geo.json"),
+              let data = try? Data(contentsOf: url),
+              let collection = try? JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data) else {
+            print("Failed to load countries.geo.json from bundle")
+            return
+        }
+
+        let iso3ToIso2: [String: String] = Dictionary(
+            uniqueKeysWithValues: ISOCodeConverter.iso2ToIso3.map { ($0.value, $0.key) }
+        )
+
+        countries = collection.features.enumerated().compactMap { index, feature -> CountryShape? in
+            guard let iso3 = feature.id else { return nil }
+            return CountryShape(
+                id: "\(iso3)-\(index)",
+                iso3: iso3,
+                iso2: iso3ToIso2[iso3] ?? String(iso3.prefix(2)),
+                name: feature.properties.name,
+                geometry: feature.geometry
+            )
+        }
     }
 
     private func countryInfoOverlay(_ country: (name: String, count: Int)) -> some View {
