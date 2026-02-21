@@ -77,26 +77,60 @@ defmodule Zonely.PronunceName do
     case Zonely.PronunceName.Cache.lookup_cached_audio(name, language) do
       {:ok, cached_url, source} ->
         Logger.info("📦 Cache hit for name=#{inspect(name)} lang=#{language} -> #{cached_url}")
-        Analytics.track_async("pronunciation_cache_hit", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: "cache", source: to_string(source)})
+
+        Analytics.track_async("pronunciation_cache_hit", %{
+          name_hash: Analytics.hash_name(name),
+          name_text: name,
+          lang: language,
+          provider: "cache",
+          source: to_string(source)
+        })
+
         {:audio_url, cached_url, "polly", source}
 
       :not_found ->
         Logger.info("📦 Cache miss for name=#{inspect(name)} lang=#{language}")
-        Analytics.track_async("pronunciation_cache_miss", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language})
+
+        Analytics.track_async("pronunciation_cache_miss", %{
+          name_hash: Analytics.hash_name(name),
+          name_text: name,
+          lang: language
+        })
+
         # 2) Try name variants systematically: full name first, then decide on fallback strategy
         case try_name_variants_with_providers(name, language) do
           {:ok, {:sequence, provider, urls}} ->
-            Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: provider})
+            Analytics.track_async("pronunciation_generated", %{
+              name_hash: Analytics.hash_name(name),
+              name_text: name,
+              lang: language,
+              provider: provider
+            })
+
             {:sequence, urls, provider}
 
           {:ok, {:provider, provider, audio_url}} ->
             Logger.info("🌐 External audio found -> #{audio_url}")
-            Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: provider})
+
+            Analytics.track_async("pronunciation_generated", %{
+              name_hash: Analytics.hash_name(name),
+              name_text: name,
+              lang: language,
+              provider: provider
+            })
+
             {:audio_url, audio_url, provider, nil}
 
           {:ok, audio_url} ->
             Logger.info("🌐 External audio found -> #{audio_url}")
-            Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: "external"})
+
+            Analytics.track_async("pronunciation_generated", %{
+              name_hash: Analytics.hash_name(name),
+              name_text: name,
+              lang: language,
+              provider: "external"
+            })
+
             {:audio_url, audio_url, "external", nil}
 
           {:error, :use_ai_fallback} ->
@@ -110,14 +144,30 @@ defmodule Zonely.PronunceName do
               {:ok, web_path} ->
                 duration_ms = System.monotonic_time(:millisecond) - started_ms
                 Logger.info("✅ Polly synth success for complete name -> #{web_path}")
-                Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: "polly", tts_provider: "polly", generation_time_ms: duration_ms})
+
+                Analytics.track_async("pronunciation_generated", %{
+                  name_hash: Analytics.hash_name(name),
+                  name_text: name,
+                  lang: language,
+                  provider: "polly",
+                  tts_provider: "polly",
+                  generation_time_ms: duration_ms
+                })
+
                 {:audio_url, web_path, "polly", nil}
 
               {:error, reason} ->
                 Logger.warning(
                   "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
                 )
-                Analytics.track_async("pronunciation_error", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: "polly", reason: inspect(reason)})
+
+                Analytics.track_async("pronunciation_error", %{
+                  name_hash: Analytics.hash_name(name),
+                  name_text: name,
+                  lang: language,
+                  provider: "polly",
+                  reason: inspect(reason)
+                })
 
                 {:tts, name, language}
             end
@@ -133,14 +183,30 @@ defmodule Zonely.PronunceName do
               {:ok, web_path} ->
                 duration_ms = System.monotonic_time(:millisecond) - started_ms
                 Logger.info("✅ Polly synth success -> #{web_path}")
-                Analytics.track_async("pronunciation_generated", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: "polly", tts_provider: "polly", generation_time_ms: duration_ms})
+
+                Analytics.track_async("pronunciation_generated", %{
+                  name_hash: Analytics.hash_name(name),
+                  name_text: name,
+                  lang: language,
+                  provider: "polly",
+                  tts_provider: "polly",
+                  generation_time_ms: duration_ms
+                })
+
                 {:audio_url, web_path, "polly", nil}
 
               {:error, reason} ->
                 Logger.warning(
                   "❌ Polly synth failed (#{inspect(reason)}); falling back to browser TTS"
                 )
-                Analytics.track_async("pronunciation_error", %{name_hash: Analytics.hash_name(name), name_text: name, lang: language, provider: "polly", reason: inspect(reason)})
+
+                Analytics.track_async("pronunciation_error", %{
+                  name_hash: Analytics.hash_name(name),
+                  name_text: name,
+                  lang: language,
+                  provider: "polly",
+                  reason: inspect(reason)
+                })
 
                 {:tts, name, language}
             end
@@ -200,10 +266,12 @@ defmodule Zonely.PronunceName do
 
     providers =
       [
-        {:name_shouts, fn ->
+        {:name_shouts,
+         fn ->
            Zonely.PronunceName.Providers.NameShouts.fetch_single(variant, language, original_name)
          end},
-        {:forvo, fn ->
+        {:forvo,
+         fn ->
            Zonely.PronunceName.Providers.Forvo.fetch_single(variant, language, original_name)
          end}
       ]
@@ -235,15 +303,24 @@ defmodule Zonely.PronunceName do
 
         case res do
           {:ok, {:name_shouts, duration_ms, {:ok, {:sequence, _} = seq}}} ->
-            Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
+            Logger.info(
+              "⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)"
+            )
+
             Map.put(acc, :ns, {:ok, {:sequence, "name_shouts", seq}})
 
           {:ok, {:name_shouts, duration_ms, {:ok, url}}} when is_binary(url) ->
-            Logger.info("⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)}")
+            Logger.info(
+              "⚡ Provider :name_shouts succeeded in #{duration_ms}ms for #{inspect(variant)}"
+            )
+
             Map.put(acc, :ns, {:ok, {:provider, "name_shouts", url}})
 
           {:ok, {:forvo, duration_ms, {:ok, {:sequence, _} = seq}}} ->
-            Logger.info("⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)")
+            Logger.info(
+              "⚡ Provider :forvo succeeded in #{duration_ms}ms for #{inspect(variant)} (sequence)"
+            )
+
             Map.put(acc, :fv, {:ok, {:sequence, "forvo", seq}})
 
           {:ok, {:forvo, duration_ms, {:ok, url}}} when is_binary(url) ->
@@ -251,18 +328,27 @@ defmodule Zonely.PronunceName do
             Map.put(acc, :fv, {:ok, {:provider, "forvo", url}})
 
           {:ok, {^tag, duration_ms, {:error, reason}}} ->
-            Logger.info("⏭ Provider #{inspect(tag)} failed in #{duration_ms}ms (#{inspect(reason)}) for #{inspect(variant)}")
+            Logger.info(
+              "⏭ Provider #{inspect(tag)} failed in #{duration_ms}ms (#{inspect(reason)}) for #{inspect(variant)}"
+            )
+
             Zonely.PronunceName.NegativeCache.put_failure(tag, variant, language, reason)
             acc
 
           nil ->
-            Logger.warning("⛔ Provider task exited: :timeout for #{inspect(variant)} (#{inspect(tag)})")
+            Logger.warning(
+              "⛔ Provider task exited: :timeout for #{inspect(variant)} (#{inspect(tag)})"
+            )
+
             Task.shutdown(task, :brutal_kill)
             Zonely.PronunceName.NegativeCache.put_failure(tag, variant, language, :timeout)
             acc
 
           {:exit, reason} ->
-            Logger.warning("⛔ Provider task exited: #{inspect(reason)} for #{inspect(variant)} (#{inspect(tag)})")
+            Logger.warning(
+              "⛔ Provider task exited: #{inspect(reason)} for #{inspect(variant)} (#{inspect(tag)})"
+            )
+
             acc
         end
       end)

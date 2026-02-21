@@ -1,12 +1,12 @@
 defmodule Zonely.Analytics do
   @moduledoc """
   The Analytics context for SayMyName usage tracking and metrics.
-  
+
   Provides functions for:
   - Recording analytics events
   - Querying metrics and statistics
   - Computing dashboard data
-  
+
   Privacy-first design: no PII, all names are hashed.
   """
 
@@ -90,8 +90,13 @@ defmodule Zonely.Analytics do
   Build a minimal user context map from request headers.
   """
   def user_context_from_headers(headers) when is_list(headers) do
-    ua = headers |> Enum.find_value("", fn {k, v} -> if String.downcase(k) == "user-agent", do: v end)
-    country = headers |> Enum.find_value(nil, fn {k, v} -> if String.downcase(k) == "cf-ipcountry", do: v end)
+    ua =
+      headers
+      |> Enum.find_value("", fn {k, v} -> if String.downcase(k) == "user-agent", do: v end)
+
+    country =
+      headers
+      |> Enum.find_value(nil, fn {k, v} -> if String.downcase(k) == "cf-ipcountry", do: v end)
 
     %{
       user_agent: if(ua == "", do: nil, else: hash_name(ua)),
@@ -100,7 +105,6 @@ defmodule Zonely.Analytics do
     |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
     |> Enum.into(%{})
   end
-
 
   @doc """
   Get total pronunciation count for a date range.
@@ -149,7 +153,9 @@ defmodule Zonely.Analytics do
       |> Repo.all()
 
     rows
-    |> Enum.reduce(%{"cache_local" => 0, "cache_remote" => 0, "cache_client" => 0}, fn {provider, count}, acc ->
+    |> Enum.reduce(%{"cache_local" => 0, "cache_remote" => 0, "cache_client" => 0}, fn {provider,
+                                                                                        count},
+                                                                                       acc ->
       key = provider || "cache_local"
       Map.put(acc, key, count)
     end)
@@ -183,9 +189,23 @@ defmodule Zonely.Analytics do
     rows
     |> Enum.reduce(%{}, fn row, acc ->
       key = {row.name || "Unknown", row.lang || "Unknown"}
-      entry = Map.get(acc, key, %{name: elem(key, 0), lang: elem(key, 1), count: 0, provider_counts: %{}})
-      provider_counts = Map.update(entry.provider_counts, row.provider || "unknown", row.count, &(&1 + row.count))
-      Map.put(acc, key, %{entry | count: entry.count + row.count, provider_counts: provider_counts})
+
+      entry =
+        Map.get(acc, key, %{
+          name: elem(key, 0),
+          lang: elem(key, 1),
+          count: 0,
+          provider_counts: %{}
+        })
+
+      provider_counts =
+        Map.update(entry.provider_counts, row.provider || "unknown", row.count, &(&1 + row.count))
+
+      Map.put(acc, key, %{
+        entry
+        | count: entry.count + row.count,
+          provider_counts: provider_counts
+      })
     end)
     |> Map.values()
     |> Enum.map(fn entry ->
@@ -196,7 +216,7 @@ defmodule Zonely.Analytics do
 
       Map.put(entry, :provider, provider)
     end)
-    |> Enum.sort_by(&(&1.count), :desc)
+    |> Enum.sort_by(& &1.count, :desc)
     |> Enum.take(limit)
   end
 
@@ -289,8 +309,7 @@ defmodule Zonely.Analytics do
         where: fragment("properties->>'provider' IN ('polly','forvo','name_shouts')"),
         select: %{
           provider: fragment("properties->>'provider'"),
-          avg_generation_time_ms:
-            fragment("AVG((properties->>'duration_ms')::integer)::integer"),
+          avg_generation_time_ms: fragment("AVG((properties->>'duration_ms')::integer)::integer"),
           p95_generation_time_ms:
             fragment(
               "PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (properties->>'duration_ms')::integer)::integer"
@@ -478,6 +497,7 @@ defmodule Zonely.Analytics do
 
     Repo.all(query)
   end
+
   # Private helpers
 
   defp generate_session_id do

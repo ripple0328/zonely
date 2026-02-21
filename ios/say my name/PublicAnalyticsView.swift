@@ -293,8 +293,11 @@ struct PublicAnalyticsView: View {
                 ForEach(names.prefix(5)) { name in
                     let ratio = Double(name.count) / Double(maxCount)
                     HStack(spacing: 8) {
-                        Text(flagEmoji(for: name.lang))
-                            .font(.system(size: 14))
+                        Text(langScriptIcon(for: name.lang))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.indigo.opacity(0.8))
+                            .frame(width: 24, height: 24)
+                            .background(.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                         Text(name.name)
                             .font(.subheadline.weight(.semibold))
@@ -333,8 +336,11 @@ struct PublicAnalyticsView: View {
                 ForEach(languages.prefix(6)) { language in
                     let ratio = Double(language.count) / Double(maxCount)
                     HStack(spacing: 8) {
-                        Text(flagEmoji(for: language.lang))
-                            .font(.system(size: 14))
+                        Text(langScriptIcon(for: language.lang))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.indigo.opacity(0.8))
+                            .frame(width: 24, height: 24)
+                            .background(.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                         Text(LangCatalog.displayName(language.lang))
                             .font(.subheadline.weight(.semibold))
@@ -433,15 +439,30 @@ struct PublicAnalyticsView: View {
         .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
     }
 
-    private func flagEmoji(for langCode: String) -> String {
-        let parts = langCode.split(separator: "-")
-        guard parts.count >= 2 else { return "🌐" }
-        let countryCode = String(parts.last!)
-        let base: UInt32 = 127397
-        let flag = countryCode.uppercased().unicodeScalars.compactMap {
-            UnicodeScalar(base + $0.value)
-        }.map { String($0) }.joined()
-        return flag.isEmpty ? "🌐" : flag
+    private func langScriptIcon(for langCode: String) -> String {
+        let base = langCode.split(separator: "-").first.map(String.init) ?? langCode
+        switch base {
+        case "en": return "Aa"
+        case "zh": return "中"
+        case "ja": return "あ"
+        case "es": return "Eñ"
+        case "fr": return "Àa"
+        case "de": return "Ää"
+        case "pt": return "Ão"
+        case "hi": return "हि"
+        case "ar": return "عر"
+        case "bn": return "বা"
+        case "ko": return "한"
+        case "ru": return "Яа"
+        case "it": return "Àa"
+        case "tr": return "Öö"
+        case "vi": return "Đđ"
+        case "th": return "ไท"
+        case "pl": return "Łł"
+        case "nl": return "Aa"
+        case "sv": return "Åä"
+        default: return "Aa"
+        }
     }
 
     private func glassOverlay(radius: CGFloat) -> some View {

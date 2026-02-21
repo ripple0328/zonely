@@ -64,6 +64,7 @@ defmodule Zonely.PronunceName.NegativeCache do
     case :ets.whereis(@table) do
       :undefined ->
         :ets.new(@table, [:named_table, :public, read_concurrency: true])
+
       _ ->
         :ok
     end

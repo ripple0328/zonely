@@ -211,4 +211,3 @@ defmodule ZonelyWeb.CollectionsLive do
     """
   end
 end
-

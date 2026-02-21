@@ -33,14 +33,23 @@ defmodule Zonely.PronunceName.Providers.Forvo do
     Logger.debug("🌐 Forvo request: #{name} (#{language})")
 
     started_ms = System.monotonic_time(:millisecond)
+
     case PronunceName.http_client().get(url) do
       {:ok, %{status: 200, body: body}} ->
-        Analytics.track_async("external_api_call", %{provider: "forvo", status: 200, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        Analytics.track_async("external_api_call", %{
+          provider: "forvo",
+          status: 200,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms
+        })
+
         case body do
           %{"items" => [item | _]} ->
             cond do
               is_binary(item["pathmp3"]) ->
-                Logger.info("✅ Forvo found MP3 for #{inspect(original_name)}; returning direct URL")
+                Logger.info(
+                  "✅ Forvo found MP3 for #{inspect(original_name)}; returning direct URL"
+                )
+
                 {:ok, item["pathmp3"]}
 
               # OGG is not supported on iOS/Safari; do not return OGG
@@ -48,6 +57,7 @@ defmodule Zonely.PronunceName.Providers.Forvo do
                 Logger.info(
                   "🚫 Forvo returned only OGG for #{inspect(original_name)}; skipping unsupported format"
                 )
+
                 {:error, :no_audio_url}
 
               true ->
@@ -62,10 +72,16 @@ defmodule Zonely.PronunceName.Providers.Forvo do
         end
 
       {:ok, %{status: status}} ->
-        Analytics.track_async("external_api_call", %{provider: "forvo", status: status, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        Analytics.track_async("external_api_call", %{
+          provider: "forvo",
+          status: status,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms
+        })
+
         if status == 429 do
           Analytics.track_async("external_api_rate_limited", %{provider: "forvo", status: status})
         end
+
         {:error, :api_error}
 
       {:error, reason} ->

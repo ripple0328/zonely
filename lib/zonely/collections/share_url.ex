@@ -79,4 +79,3 @@ defmodule Zonely.Collections.ShareUrl do
 
   defp valid_lang_item?(_), do: false
 end
-

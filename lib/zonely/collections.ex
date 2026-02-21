@@ -75,4 +75,3 @@ defmodule Zonely.Collections do
     })
   end
 end
-

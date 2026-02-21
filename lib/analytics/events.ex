@@ -1,20 +1,20 @@
 defmodule SayMyName.Analytics.Events do
   @moduledoc """
   Helper functions for building event-specific property maps.
-  
+
   These functions ensure consistent structure for each event type
   and help prevent typos in property names.
   """
-  
+
   alias SayMyName.Analytics.Privacy
-  
+
   # Page View Events
-  
+
   @doc """
   Build properties for a landing page view event.
-  
+
   ## Examples
-  
+
       iex> SayMyName.Analytics.Events.page_view_landing(%{
       ...>   utm_source: "twitter",
       ...>   utm_campaign: "launch",
@@ -35,7 +35,7 @@ defmodule SayMyName.Analytics.Events do
       entry_point: attrs[:entry_point] || "direct"
     }
   end
-  
+
   @doc """
   Build properties for a pronunciation page view event.
   """
@@ -47,7 +47,7 @@ defmodule SayMyName.Analytics.Events do
       source: attrs[:source] || "direct_link"
     }
   end
-  
+
   @doc """
   Build properties for a share page view event.
   """
@@ -57,9 +57,9 @@ defmodule SayMyName.Analytics.Events do
       source: attrs[:source] || "link"
     }
   end
-  
+
   # Interaction Events
-  
+
   @doc """
   Build properties for an audio playback event.
   """
@@ -73,7 +73,7 @@ defmodule SayMyName.Analytics.Events do
       autoplay: attrs[:autoplay] || false
     }
   end
-  
+
   @doc """
   Build properties for a share interaction event.
   """
@@ -84,7 +84,7 @@ defmodule SayMyName.Analytics.Events do
       name_hash: Privacy.hash_name(attrs[:name] || attrs[:name_hash] || "")
     }
   end
-  
+
   @doc """
   Build properties for a copy link event.
   """
@@ -94,7 +94,7 @@ defmodule SayMyName.Analytics.Events do
       link_type: attrs[:link_type] || "pronunciation"
     }
   end
-  
+
   @doc """
   Build properties for a report issue event.
   """
@@ -102,12 +102,13 @@ defmodule SayMyName.Analytics.Events do
     %{
       name_hash: Privacy.hash_name(attrs[:name] || attrs[:name_hash] || ""),
       issue_type: attrs[:issue_type] || "other",
-      has_feedback_text: is_binary(attrs[:feedback_text]) && String.length(attrs[:feedback_text]) > 0
+      has_feedback_text:
+        is_binary(attrs[:feedback_text]) && String.length(attrs[:feedback_text]) > 0
     }
   end
-  
+
   # Pronunciation Events
-  
+
   @doc """
   Build properties for a pronunciation generation event.
   """
@@ -122,7 +123,7 @@ defmodule SayMyName.Analytics.Events do
       character_count: attrs[:character_count] || 0
     }
   end
-  
+
   @doc """
   Build properties for a pronunciation cache hit event.
   """
@@ -134,7 +135,7 @@ defmodule SayMyName.Analytics.Events do
       cache_age_hours: attrs[:cache_age_hours] || 0.0
     }
   end
-  
+
   @doc """
   Build properties for a pronunciation error event.
   """
@@ -148,9 +149,9 @@ defmodule SayMyName.Analytics.Events do
       retry_attempt: attrs[:retry_attempt] || 0
     }
   end
-  
+
   # System Events
-  
+
   @doc """
   Build properties for a system API error event.
   """
@@ -163,7 +164,7 @@ defmodule SayMyName.Analytics.Events do
       response_time_ms: attrs[:response_time_ms]
     }
   end
-  
+
   @doc """
   Build properties for a rate limit event.
   """
@@ -175,7 +176,7 @@ defmodule SayMyName.Analytics.Events do
       max_allowed: attrs[:max_allowed] || 0
     }
   end
-  
+
   @doc """
   Build properties for a cache miss event.
   """
@@ -186,10 +187,12 @@ defmodule SayMyName.Analytics.Events do
       lookup_key_hash: attrs[:lookup_key_hash] || Privacy.hash_name(attrs[:lookup_key] || "")
     }
   end
-  
+
   # Private helpers
-  
-  defp categorize_error(status_code) when status_code >= 400 and status_code < 500, do: "client_error"
+
+  defp categorize_error(status_code) when status_code >= 400 and status_code < 500,
+    do: "client_error"
+
   defp categorize_error(status_code) when status_code >= 500, do: "server_error"
   defp categorize_error(_), do: "network_error"
 end

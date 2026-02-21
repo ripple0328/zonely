@@ -6,7 +6,10 @@ defmodule Zonely.AnalyticsTest do
   describe "track/3" do
     test "creates event successfully" do
       assert {:ok, event} =
-               Analytics.track("page_view_landing", %{utm_source: "twitter", entry_point: "social"})
+               Analytics.track("page_view_landing", %{
+                 utm_source: "twitter",
+                 entry_point: "social"
+               })
 
       assert event.event_name == "page_view_landing"
       assert event.properties["utm_source"] == "twitter"
@@ -82,9 +85,23 @@ defmodule Zonely.AnalyticsTest do
       end_date = ~U[2026-02-02 00:00:00Z]
 
       # Create events with different name hashes
-      for _ <- 1..5, do: Analytics.track("pronunciation_generated", %{name_hash: "popular"}, timestamp: start_date)
-      for _ <- 1..3, do: Analytics.track("pronunciation_generated", %{name_hash: "medium"}, timestamp: start_date)
-      for _ <- 1..1, do: Analytics.track("pronunciation_generated", %{name_hash: "rare"}, timestamp: start_date)
+      for _ <- 1..5,
+          do:
+            Analytics.track("pronunciation_generated", %{name_hash: "popular"},
+              timestamp: start_date
+            )
+
+      for _ <- 1..3,
+          do:
+            Analytics.track("pronunciation_generated", %{name_hash: "medium"},
+              timestamp: start_date
+            )
+
+      for _ <- 1..1,
+          do:
+            Analytics.track("pronunciation_generated", %{name_hash: "rare"},
+              timestamp: start_date
+            )
 
       top_names = Analytics.top_requested_names(start_date, end_date, 3)
 
@@ -98,8 +115,15 @@ defmodule Zonely.AnalyticsTest do
       end_date = ~U[2026-02-02 00:00:00Z]
 
       # 2 errors out of 10 total events = 20%
-      for _ <- 1..2, do: Analytics.track("pronunciation_error", %{error_type: "timeout"}, timestamp: start_date)
-      for _ <- 1..8, do: Analytics.track("pronunciation_generated", %{name_hash: "ok"}, timestamp: start_date)
+      for _ <- 1..2,
+          do:
+            Analytics.track("pronunciation_error", %{error_type: "timeout"},
+              timestamp: start_date
+            )
+
+      for _ <- 1..8,
+          do:
+            Analytics.track("pronunciation_generated", %{name_hash: "ok"}, timestamp: start_date)
 
       result = Analytics.error_rate(start_date, end_date)
 

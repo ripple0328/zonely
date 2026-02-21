@@ -2,10 +2,16 @@ import SwiftUI
 
 struct LangPill: View {
     let item: LangItem
+    var displayName: String = ""
     let isLoading: Bool
     let isPlaying: Bool
     let onTap: () -> Void
     @EnvironmentObject private var vm: AppViewModel
+
+    /// Hide text when it matches the display name (case-insensitive) — avoids visual redundancy
+    private var shouldHideText: Bool {
+        !displayName.isEmpty && item.text.lowercased() == displayName.lowercased()
+    }
 
     var body: some View {
         Button(action: {
@@ -17,10 +23,12 @@ struct LangPill: View {
                     Text(LangCatalog.displayName(item.bcp47))
                         .font(.caption)
                         .foregroundStyle(isPlaying ? .white.opacity(0.9) : .secondary)
-                    Text(item.text.isEmpty ? "" : item.text)
-                        .font(.callout)
-                        .lineLimit(1)
-                        .foregroundStyle(isPlaying ? .white : .primary)
+                    if !shouldHideText {
+                        Text(item.text.isEmpty ? "" : item.text)
+                            .font(.callout)
+                            .lineLimit(1)
+                            .foregroundStyle(isPlaying ? .white : .primary)
+                    }
                 }
                 if isLoading {
                     ProgressView().progressViewStyle(.circular)

@@ -1,7 +1,7 @@
 defmodule Zonely.Analytics.Event do
   @moduledoc """
   Schema for analytics events.
-  
+
   All events follow a consistent structure with:
   - event_name: identifies the type of event
   - timestamp: when it occurred
@@ -17,12 +17,12 @@ defmodule Zonely.Analytics.Event do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "analytics_events" do
-    field :event_name, :string
-    field :timestamp, :utc_datetime_usec
-    field :session_id, :binary_id
-    field :user_context, :map
-    field :metadata, :map
-    field :properties, :map
+    field(:event_name, :string)
+    field(:timestamp, :utc_datetime_usec)
+    field(:session_id, :binary_id)
+    field(:user_context, :map)
+    field(:metadata, :map)
+    field(:properties, :map)
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

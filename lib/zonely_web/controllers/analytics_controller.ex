@@ -6,7 +6,14 @@ defmodule ZonelyWeb.AnalyticsController do
   def play(conn, params) do
     properties =
       params
-      |> Map.take(["provider", "cache_source", "original_provider", "name_text", "lang", "platform"])
+      |> Map.take([
+        "provider",
+        "cache_source",
+        "original_provider",
+        "name_text",
+        "lang",
+        "platform"
+      ])
       |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
       |> Enum.into(%{})
 

@@ -1,16 +1,16 @@
 defmodule SayMyName.Analytics.Privacy do
   @moduledoc """
   Privacy-focused helper functions for analytics data.
-  
+
   These functions ensure that no PII (Personally Identifiable Information) is stored
   in the analytics system by hashing or anonymizing sensitive data.
   """
-  
+
   @doc """
   Hash user agent to prevent fingerprinting while allowing bot detection.
-  
+
   ## Examples
-  
+
       iex> SayMyName.Analytics.Privacy.hash_user_agent("Mozilla/5.0...")
       "7a3f8c4e1b9d2a5f"
   """
@@ -20,18 +20,18 @@ defmodule SayMyName.Analytics.Privacy do
     |> Base.encode16(case: :lower)
     |> String.slice(0, 16)
   end
-  
+
   def hash_user_agent(nil), do: nil
   def hash_user_agent(_), do: nil
-  
+
   @doc """
   Extract domain from referrer URL, discard path/query.
-  
+
   This ensures we only track the referring domain, not specific pages
   which might contain sensitive query parameters.
-  
+
   ## Examples
-  
+
       iex> SayMyName.Analytics.Privacy.extract_referrer_domain("https://example.com/path?query=secret")
       "example.com"
       
@@ -45,17 +45,17 @@ defmodule SayMyName.Analytics.Privacy do
       _ -> nil
     end
   end
-  
+
   def extract_referrer_domain(nil), do: nil
-  
+
   @doc """
   Hash name for analytics, irreversible.
-  
+
   Names are normalized (lowercased, trimmed) before hashing to ensure
   the same name always produces the same hash.
-  
+
   ## Examples
-  
+
       iex> SayMyName.Analytics.Privacy.hash_name("John")
       "61409aa1fd47d4a5"
       
@@ -71,12 +71,12 @@ defmodule SayMyName.Analytics.Privacy do
     |> Base.encode16(case: :lower)
     |> String.slice(0, 16)
   end
-  
+
   @doc """
   Build sanitized user context from request data.
-  
+
   ## Examples
-  
+
       iex> SayMyName.Analytics.Privacy.build_user_context(%{
       ...>   user_agent: "Mozilla/5.0...",
       ...>   country: "US",
@@ -101,7 +101,7 @@ defmodule SayMyName.Analytics.Privacy do
     |> put_if_present(:viewport_width, attrs[:viewport_width] || attrs["viewport_width"])
     |> put_if_present(:viewport_height, attrs[:viewport_height] || attrs["viewport_height"])
   end
-  
+
   defp put_if_present(map, _key, nil), do: map
   defp put_if_present(map, key, value), do: Map.put(map, key, value)
 end

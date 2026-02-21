@@ -42,9 +42,15 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
     Logger.info("🌐 NameShouts single request to: #{url_with_lang}")
 
     started_ms = System.monotonic_time(:millisecond)
+
     case PronunceName.http_client().get(url_with_lang, headers) do
       {:ok, %{status: 200, body: body}} ->
-        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: 200, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        Analytics.track_async("external_api_call", %{
+          provider: "name_shouts",
+          status: 200,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms
+        })
+
         Logger.info("🔍 DEBUG: NameShouts response body for '#{name}': #{inspect(body)}")
         handle_nameshouts_response(body, name, original_name, language)
 
@@ -60,23 +66,46 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
         end
 
       {:ok, %{status: 403}} ->
-        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: 403, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        Analytics.track_async("external_api_call", %{
+          provider: "name_shouts",
+          status: 403,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms
+        })
+
         {:error, :invalid_api_key}
 
       {:ok, %{status: 404}} ->
-        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: 404, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        Analytics.track_async("external_api_call", %{
+          provider: "name_shouts",
+          status: 404,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms
+        })
+
         Logger.info("❌ NameShouts: No pronunciation found for '#{name}'")
         {:error, :not_found}
 
       {:ok, %{status: status}} ->
-        Analytics.track_async("external_api_call", %{provider: "name_shouts", status: status, duration_ms: System.monotonic_time(:millisecond) - started_ms})
+        Analytics.track_async("external_api_call", %{
+          provider: "name_shouts",
+          status: status,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms
+        })
+
         if status == 429 do
-          Analytics.track_async("external_api_rate_limited", %{provider: "name_shouts", status: status})
+          Analytics.track_async("external_api_rate_limited", %{
+            provider: "name_shouts",
+            status: status
+          })
         end
+
         {:error, :api_error}
 
       {:error, reason} ->
-        Analytics.track_async("external_api_error", %{provider: "name_shouts", reason: inspect(reason)})
+        Analytics.track_async("external_api_error", %{
+          provider: "name_shouts",
+          reason: inspect(reason)
+        })
+
         {:error, :request_failed}
     end
   end
@@ -99,7 +128,10 @@ defmodule Zonely.PronunceName.Providers.NameShouts do
 
       {:ok, path} when is_binary(path) ->
         audio_url = "https://nslibrary01.blob.core.windows.net/ns-audio/#{path}.mp3"
-        Logger.info("✅ NameShouts found audio for #{inspect(original_name)}; returning direct URL")
+
+        Logger.info(
+          "✅ NameShouts found audio for #{inspect(original_name)}; returning direct URL"
+        )
 
         Logger.info(
           "🔍 DEBUG: NameShouts returned path '#{path}' for requested name '#{requested_name}'"

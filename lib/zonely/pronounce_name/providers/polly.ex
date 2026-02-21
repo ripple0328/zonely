@@ -19,16 +19,30 @@ defmodule Zonely.PronunceName.Providers.Polly do
       )
 
     started_ms = System.monotonic_time(:millisecond)
+
     case aws_request(op) do
       {:ok, %{status_code: 200, body: audio_bin}} when is_binary(audio_bin) ->
-        Analytics.track_async("external_api_call", %{provider: "polly", status: 200, duration_ms: System.monotonic_time(:millisecond) - started_ms, engine: "neural"})
+        Analytics.track_async("external_api_call", %{
+          provider: "polly",
+          status: 200,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms,
+          engine: "neural"
+        })
+
         Cache.write_binary_to_cache(audio_bin, text, language, ".mp3")
 
       {:ok, %{status_code: status} = resp} ->
-        Analytics.track_async("external_api_call", %{provider: "polly", status: status, duration_ms: System.monotonic_time(:millisecond) - started_ms, engine: "neural"})
+        Analytics.track_async("external_api_call", %{
+          provider: "polly",
+          status: status,
+          duration_ms: System.monotonic_time(:millisecond) - started_ms,
+          engine: "neural"
+        })
+
         if status == 429 do
           Analytics.track_async("external_api_rate_limited", %{provider: "polly", status: status})
         end
+
         {:error, {:bad_status, status, resp}}
 
       {:error, {:http_error, 400, _}} ->

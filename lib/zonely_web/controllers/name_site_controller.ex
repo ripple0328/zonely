@@ -24,17 +24,26 @@ defmodule ZonelyWeb.NameSiteController do
       end
     end
 
-    Analytics.track_async("page_view_landing", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
+    Analytics.track_async("page_view_landing", %{},
+      user_context: Analytics.user_context_from_headers(conn.req_headers)
+    )
+
     render(conn, :index, names: state, base_path: base_path(conn))
   end
 
   def privacy(conn, _params) do
-    Analytics.track_async("page_view_privacy", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
+    Analytics.track_async("page_view_privacy", %{},
+      user_context: Analytics.user_context_from_headers(conn.req_headers)
+    )
+
     render(conn, :privacy, base_path: base_path(conn))
   end
 
   def about(conn, _params) do
-    Analytics.track_async("page_view_about", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
+    Analytics.track_async("page_view_about", %{},
+      user_context: Analytics.user_context_from_headers(conn.req_headers)
+    )
+
     render(conn, :about, base_path: base_path(conn))
   end
 
@@ -44,18 +53,33 @@ defmodule ZonelyWeb.NameSiteController do
       %{name_hash: Analytics.hash_name(name), name_text: name, lang: lang},
       user_context: Analytics.user_context_from_headers(conn.req_headers)
     )
+
     case PronunceName.play(name, lang) do
       {:play_audio, %{url: url, provider: provider, cache_source: cache_source}} ->
-        json(conn, %{type: "audio", url: absolute_url(conn, url), provider: provider, cache_source: cache_source})
+        json(conn, %{
+          type: "audio",
+          url: absolute_url(conn, url),
+          provider: provider,
+          cache_source: cache_source
+        })
 
       {:play_tts_audio, %{url: url, provider: provider, cache_source: cache_source}} ->
-        json(conn, %{type: "tts_audio", url: absolute_url(conn, url), provider: provider, cache_source: cache_source})
+        json(conn, %{
+          type: "tts_audio",
+          url: absolute_url(conn, url),
+          provider: provider,
+          cache_source: cache_source
+        })
 
       {:play_tts, %{text: text, lang: tts_lang, provider: provider}} ->
         json(conn, %{type: "tts", text: text, lang: tts_lang, provider: provider})
 
       {:play_sequence, %{urls: urls, provider: provider}} ->
-        json(conn, %{type: "sequence", urls: Enum.map(urls, &absolute_url(conn, &1)), provider: provider})
+        json(conn, %{
+          type: "sequence",
+          urls: Enum.map(urls, &absolute_url(conn, &1)),
+          provider: provider
+        })
     end
   end
 

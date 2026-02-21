@@ -4,7 +4,8 @@ defmodule Zonely.PronunceName.Cache do
   require Logger
   require Logger
 
-  @spec lookup_cached_audio(String.t(), String.t()) :: {:ok, String.t(), :local | :remote} | :not_found
+  @spec lookup_cached_audio(String.t(), String.t()) ::
+          {:ok, String.t(), :local | :remote} | :not_found
   def lookup_cached_audio(name, language) do
     primary_dir = AudioCache.dir()
     legacy_dir = Path.join([Application.app_dir(:zonely, "priv"), "static", "audio", "cache"])
@@ -43,8 +44,8 @@ defmodule Zonely.PronunceName.Cache do
           # Look for Polly cached files (AI-generated audio)
           polly_voice = Zonely.PronunceName.pick_polly_voice(language)
 
+          # Use original name to avoid collisions for non-Latin characters
           polly_key =
-            # Use original name to avoid collisions for non-Latin characters
             :crypto.hash(:sha256, Enum.join([name, language, polly_voice], ":"))
             |> Base.encode16(case: :lower)
 
@@ -61,13 +62,11 @@ defmodule Zonely.PronunceName.Cache do
         end)
 
       # Pick newest Polly file (lexicographically last). If none, not_found.
-      case (
-             matches
-             |> Enum.filter(fn {_d, _f, k} -> k == :polly end)
-             |> Enum.map(&elem(&1, 1))
-             |> Enum.sort()
-             |> List.last()
-           ) do
+      case matches
+           |> Enum.filter(fn {_d, _f, k} -> k == :polly end)
+           |> Enum.map(&elem(&1, 1))
+           |> Enum.sort()
+           |> List.last() do
         nil ->
           # Try remote cache (S3) if enabled
           polly_voice = Zonely.PronunceName.pick_polly_voice(language)
@@ -159,7 +158,14 @@ defmodule Zonely.PronunceName.Cache do
           String.t()
         ) ::
           {:ok, String.t()} | {:error, atom()}
-  def write_external_and_cache_with_metadata(_audio_url, _cache_name, _original_name, _found_variant, _language, _ext) do
+  def write_external_and_cache_with_metadata(
+        _audio_url,
+        _cache_name,
+        _original_name,
+        _found_variant,
+        _language,
+        _ext
+      ) do
     Logger.warning("External provider caching disabled by policy")
     {:error, :disabled_by_policy}
   end

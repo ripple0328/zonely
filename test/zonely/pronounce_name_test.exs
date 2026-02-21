@@ -54,10 +54,12 @@ defmodule Zonely.PronunceNameTest do
 
       # Simulate Polly cached file by calling write_binary_to_cache directly
       # Use local backend so the file is written to the local cache directory
-      Application.put_env(:zonely, :audio_cache, [backend: "local"])
+      Application.put_env(:zonely, :audio_cache, backend: "local")
       on_exit(fn -> Application.delete_env(:zonely, :audio_cache) end)
 
-      {:ok, url} = Zonely.PronunceName.Cache.write_binary_to_cache("FAKE_MP3", "Test Name", "en-US", ".mp3")
+      {:ok, url} =
+        Zonely.PronunceName.Cache.write_binary_to_cache("FAKE_MP3", "Test Name", "en-US", ".mp3")
+
       assert String.ends_with?(url, ".mp3")
 
       result = PronunceName.play("Test Name", "en-US")
