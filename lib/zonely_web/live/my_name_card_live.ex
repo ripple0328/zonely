@@ -16,7 +16,6 @@ defmodule ZonelyWeb.MyNameCardLive do
      |> assign(:show_add_lang, false)
      |> assign(:new_lang, "zh-CN")
      |> assign(:new_lang_name, "")
-     |> assign(:new_lang_pronunciation, "")
      |> assign(:show_share, false)
      |> assign(:copied, false)
      |> assign(:saved, false)}
@@ -65,8 +64,7 @@ defmodule ZonelyWeb.MyNameCardLive do
      socket
      |> assign(:show_add_lang, true)
      |> assign(:new_lang, default_lang)
-     |> assign(:new_lang_name, "")
-     |> assign(:new_lang_pronunciation, "")}
+     |> assign(:new_lang_name, "")}
   end
 
   def handle_event("cancel_add_lang", _params, socket) do
@@ -77,7 +75,7 @@ defmodule ZonelyWeb.MyNameCardLive do
     {:noreply, assign(socket, new_lang: lang)}
   end
 
-  def handle_event("add_language", %{"name" => name, "pronunciation" => pron}, socket) do
+  def handle_event("add_language", %{"name" => name}, socket) do
     lang = socket.assigns.new_lang
 
     if String.trim(name) == "" do
@@ -85,8 +83,7 @@ defmodule ZonelyWeb.MyNameCardLive do
     else
       variant = %{
         "language" => lang,
-        "name" => String.trim(name),
-        "pronunciation" => String.trim(pron)
+        "name" => String.trim(name)
       }
 
       variants = socket.assigns.language_variants ++ [variant]
@@ -239,11 +236,6 @@ defmodule ZonelyWeb.MyNameCardLive do
                           <span class="font-medium text-gray-900">
                             {variant["name"]}
                           </span>
-                          <%= if variant["pronunciation"] && variant["pronunciation"] != "" do %>
-                            <span class="ml-2 text-sm text-gray-500">
-                              ({variant["pronunciation"]})
-                            </span>
-                          <% end %>
                           <span class="ml-2 text-xs text-gray-400">
                             {NameCard.language_label(variant["language"])}
                           </span>
@@ -354,20 +346,6 @@ defmodule ZonelyWeb.MyNameCardLive do
                   <p class="mt-1 text-xs text-gray-500">
                     Write in native script (e.g. 陈莎拉 for Chinese)
                   </p>
-                </div>
-
-                <div>
-                  <label for="new-lang-pron" class="block text-sm font-semibold text-zinc-800">
-                    Pronunciation Guide (optional)
-                  </label>
-                  <input
-                    id="new-lang-pron"
-                    type="text"
-                    name="pronunciation"
-                    value={@new_lang_pronunciation}
-                    placeholder="e.g. Chén Shā Lā"
-                    class="mt-1 block w-full rounded-lg border border-zinc-300 text-zinc-900 focus:border-blue-400 focus:ring-0 sm:text-sm"
-                  />
                 </div>
 
                 <div class="flex justify-end gap-3 pt-2">

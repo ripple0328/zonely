@@ -32,19 +32,9 @@
       .input-row .lang-field{flex:0 0 auto;min-width:120px}
       .input-row .lang-field select{height:100%}
       .input-row button.primary{flex-shrink:0;white-space:nowrap}
-      /* Pronunciation text override (hidden by default) */
-      .pron-override{display:none;gap:8px;align-items:start}
-      .pron-override.visible{display:flex}
-      .pron-override .field{flex:1}
-      .pron-override-toggle{appearance:none;border:none;background:transparent;color:var(--muted);cursor:pointer;padding:0;font-size:12px;text-align:left}
-      .pron-override-toggle:hover{color:#4f46e5}
-      .pron-override-toggle:focus-visible{outline:2px solid #4f46e5;outline-offset:2px;border-radius:4px}
       .script-hint{font-size:12px;color:#f59e0b;margin:0;display:none;align-items:center;gap:4px}
       .script-hint.visible{display:flex}
-      /* Legacy pron-row styles kept for "+ Add pronunciation" on cards */
-      .pron-section{display:none}
-      .pron-label{font-size:13px;color:var(--muted);font-weight:600;margin:0}
-      .add-pron{display:none}
+
       input,select{width:100%;padding:10px 12px;border:1px solid var(--ring);border-radius:10px;background:transparent;color:inherit}
       button{appearance:none;border:1px solid var(--ring);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;cursor:pointer}
       button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
@@ -64,16 +54,7 @@
       @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       .entry{display:flex;align-items:center;gap:8px}
       .text{font-weight:600;color:var(--fg)}
-      /* Add-pronunciation button on cards */
-      .add-pron-card{appearance:none;border:1px dashed var(--ring);background:transparent;color:var(--muted);border-radius:999px;padding:4px 10px;cursor:pointer;font-size:12px;white-space:nowrap;line-height:1.4}
-      .add-pron-card:hover{border-color:#4f46e5;color:#4f46e5}
-      .add-pron-card:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
-      /* Inline add-pron form on cards */
-      .add-pron-inline{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%;grid-column:2;grid-row:3}
-      .add-pron-inline input{padding:6px 10px;border-radius:8px;font-size:13px;flex:1;min-width:100px}
-      .add-pron-inline select{padding:6px 10px;border-radius:8px;font-size:13px;min-width:100px}
-      .add-pron-inline button{padding:4px 12px;border-radius:8px;font-size:13px}
-      .add-pron-inline .cancel-inline{color:var(--muted);border-color:var(--ring)}
+
       @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
       .empty{color:var(--muted);text-align:center;padding:28px}
       .footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--ring)}
@@ -107,7 +88,6 @@
       @media (max-width: 640px){
         .wrap{padding:16px}
         .title{font-size:16px}
-        .pron-row{flex-direction:column;align-items:stretch}
         input,select{width:100%}
         button.primary{width:100%}
         .item{padding:8px;grid-template-columns:48px 1fr auto}
@@ -213,18 +193,6 @@
             <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
             <span id="script-hint-text"></span>
           </p>
-          <div class="pron-override" id="pron-override">
-            <div class="field">
-              <input id="pron_text_override" placeholder="Pronunciation text (optional)" aria-label="Custom pronunciation text" autocomplete="off" />
-            </div>
-          </div>
-          <button type="button" class="pron-override-toggle" id="pron-override-toggle" aria-expanded="false">✎ Customize pronunciation text</button>
-
-          <%!-- Hidden legacy pron section for backward compat --%>
-          <div class="pron-section" id="pron-rows" aria-label="Pronunciations" style="display:none">
-            <p class="pron-label">Pronunciations</p>
-          </div>
-          <button type="button" class="add-pron" id="add-pron" aria-label="Add another pronunciation" style="display:none">+ Add pronunciation</button>
         </div>
 
         <div class="list" id="list" role="list" aria-label="Name pronunciation list">
@@ -247,7 +215,6 @@
                     <% end %>
                   </div>
                 <% end %>
-                <button type="button" class="add-pron-card" title="Add pronunciation" aria-label={"Add pronunciation for #{item.name}"}>+</button>
               </div>
               <button class="remove" title="Remove" aria-label={"Remove #{item.name} from list"}>✕</button>
             </div>
@@ -272,17 +239,12 @@
       const listEl = document.getElementById('list');
       const audio = document.getElementById('audio');
       const nameInputEl = document.getElementById('name_input');
-      const pronRowsEl = document.getElementById('pron-rows');
-      const addPronEl = document.getElementById('add-pron');
       const addEl = document.getElementById('add');
       const shareEl = document.getElementById('share');
       const demoEl = document.getElementById('demo');
       const langPickerEl = document.getElementById('lang_picker');
       const scriptHintEl = document.getElementById('script-hint');
       const scriptHintTextEl = document.getElementById('script-hint-text');
-      const pronOverrideEl = document.getElementById('pron-override');
-      const pronOverrideToggleEl = document.getElementById('pron-override-toggle');
-      const pronTextOverrideEl = document.getElementById('pron_text_override');
       const supportedLangs = ["en-US","es-ES","fr-FR","de-DE","pt-BR","zh-CN","ja-JP","hi-IN","bn-IN","ar-SA"];
       const langNames = {"en-US":"English","zh-CN":"中文","es-ES":"Español","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","fr-FR":"Français","pt-BR":"Português","ja-JP":"日本語","de-DE":"Deutsch"};
 
@@ -552,116 +514,28 @@
       }
       function toggleInvalid(el, flag){ el.classList.toggle('invalid', !!flag); }
 
-      // --- Pronunciation row management ---
-      let pronRowCounter = 0;
       const defaultLangOrder = ['en-US','zh-CN','ja-JP','es-ES','fr-FR','de-DE','pt-BR','hi-IN','bn-IN','ar-SA'];
-
-      function getUsedLangs(){
-        return [...pronRowsEl.querySelectorAll('.pron-row select')].map(s => s.value);
-      }
-
-      function nextDefaultLang(){
-        const used = getUsedLangs();
-        return defaultLangOrder.find(l => !used.includes(l)) || 'en-US';
-      }
-
-      function createPronRow(lang, text, removable){
-        pronRowCounter++;
-        const idx = pronRowCounter;
-        const row = document.createElement('div');
-        row.className = 'pron-row';
-        row.dataset.idx = idx;
-        const textField = document.createElement('div');
-        textField.className = 'field pron-text-field';
-        textField.id = `field_pron_${idx}`;
-        const inp = document.createElement('input');
-        inp.id = `pron_text_${idx}`;
-        inp.placeholder = `Pronunciation text`;
-        inp.setAttribute('aria-label', `Pronunciation ${idx} text`);
-        inp.value = text || '';
-        inp.autocomplete = 'off';
-        textField.appendChild(inp);
-        const hint = document.createElement('div');
-        hint.className = 'hint';
-        hint.id = `hint_pron_${idx}`;
-        hint.textContent = 'Text may not match language';
-        textField.appendChild(hint);
-        row.appendChild(textField);
-
-        const langField = document.createElement('div');
-        langField.className = 'field pron-lang-field';
-        const sel = document.createElement('select');
-        sel.id = `pron_lang_${idx}`;
-        sel.setAttribute('aria-label', `Pronunciation ${idx} language`);
-        sel.innerHTML = langOptionsHtml(lang || nextDefaultLang());
-        langField.appendChild(sel);
-        row.appendChild(langField);
-
-        if(removable){
-          const rm = document.createElement('button');
-          rm.type = 'button';
-          rm.className = 'pron-remove';
-          rm.setAttribute('aria-label', `Remove pronunciation ${idx}`);
-          rm.textContent = '✕';
-          rm.addEventListener('click', () => { row.remove(); validateInputs(); });
-          row.appendChild(rm);
-        }
-
-        inp.addEventListener('input', () => { delete inp.dataset.autoFilled; validateInputs(); });
-        inp.addEventListener('blur', validateInputs);
-        inp.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !addEl.disabled){ addEl.click(); }});
-        sel.addEventListener('change', validateInputs);
-        pronRowsEl.appendChild(row);
-        return row;
-      }
-
-      function getPronRows(){
-        return [...pronRowsEl.querySelectorAll('.pron-row')];
-      }
 
       function validateInputs(){
         const name = nameInputEl.value.trim();
         const lang = langPickerEl.value;
-        const overrideVisible = pronOverrideEl.classList.contains('visible');
-        const overrideText = pronTextOverrideEl.value.trim();
-        // The text that will be sent to TTS
-        const pronText = (overrideVisible && overrideText) ? overrideText : name;
         // Check if name script mismatches the selected language
         const nameMismatch = name && !matchesTextToLang(name, lang);
         if(nameMismatch){
           scriptHintTextEl.textContent = `"${name}" may not match ${langNames[lang]||lang}`;
           scriptHintEl.classList.add('visible');
-          // Auto-reveal the override field on mismatch
-          if(!overrideVisible){
-            pronOverrideEl.classList.add('visible');
-            pronOverrideToggleEl.setAttribute('aria-expanded', 'true');
-          }
         } else {
           scriptHintEl.classList.remove('visible');
         }
-        // Final mismatch: check the actual pronunciation text against lang
-        const finalMismatch = pronText && !matchesTextToLang(pronText, lang);
-        addEl.disabled = !name || finalMismatch;
-        return !finalMismatch;
+        addEl.disabled = !name || nameMismatch;
+        return !nameMismatch;
       }
 
       // Validate on name input change
       nameInputEl.addEventListener('input', () => { validateInputs(); });
 
-      // Validate on override text change
-      pronTextOverrideEl.addEventListener('input', () => { validateInputs(); });
-
       // Validate on language change
       langPickerEl.addEventListener('change', () => { validateInputs(); });
-
-      // Toggle pronunciation text override
-      pronOverrideToggleEl.addEventListener('click', () => {
-        const visible = pronOverrideEl.classList.contains('visible');
-        pronOverrideEl.classList.toggle('visible', !visible);
-        pronOverrideToggleEl.setAttribute('aria-expanded', String(!visible));
-        if(!visible) pronTextOverrideEl.focus();
-        validateInputs();
-      });
 
       // Initialize language picker
       langPickerEl.innerHTML = langOptionsHtml('en-US');
@@ -887,10 +761,7 @@
           textSpan.textContent = p.text;
           entry.appendChild(textSpan);
         }
-        // Insert before the "+" button if it exists, otherwise append
-        const addBtn = langsEl.querySelector('.add-pron-card');
-        if(addBtn) langsEl.insertBefore(entry, addBtn);
-        else langsEl.appendChild(entry);
+        langsEl.appendChild(entry);
         setNativeLabelEl(pill.querySelector('.label'), pill.dataset.lang);
         return entry;
       }
@@ -911,15 +782,6 @@
 
         const langsEl = el.querySelector('.langs');
         (pronunciations || []).forEach(p => appendPronEntry(langsEl, name, p));
-
-        // "+" button to add another pronunciation on this card
-        const addPronCardBtn = document.createElement('button');
-        addPronCardBtn.type = 'button';
-        addPronCardBtn.className = 'add-pron-card';
-        addPronCardBtn.textContent = '+';
-        addPronCardBtn.title = 'Add pronunciation';
-        addPronCardBtn.setAttribute('aria-label', `Add pronunciation for ${name}`);
-        langsEl.appendChild(addPronCardBtn);
 
         listEl.appendChild(el);
         attachItemEvents(el);
@@ -1146,83 +1008,16 @@
       function attachItemEvents(item){
         item.querySelectorAll('.pill').forEach(pill => bindPillEvents(item, pill));
         item.querySelector('.remove').addEventListener('click', () => { removeWithUndo(item); });
-
-        // "+" add pronunciation on card
-        const addPronBtn = item.querySelector('.add-pron-card');
-        if(addPronBtn){
-          addPronBtn.addEventListener('click', () => {
-            // Don't open if inline form already showing
-            if(item.querySelector('.add-pron-inline')) return;
-            addPronBtn.style.display = 'none';
-            const form = document.createElement('div');
-            form.className = 'add-pron-inline';
-            const textInp = document.createElement('input');
-            textInp.placeholder = 'Pronunciation text';
-            textInp.setAttribute('aria-label', 'New pronunciation text');
-            textInp.autocomplete = 'off';
-            form.appendChild(textInp);
-            const sel = document.createElement('select');
-            sel.setAttribute('aria-label', 'New pronunciation language');
-            // Pick a default lang not yet used on this card
-            const usedLangs = [...item.querySelectorAll('.pill')].map(p => p.dataset.lang);
-            const defLang = defaultLangOrder.find(l => !usedLangs.includes(l)) || 'en-US';
-            sel.innerHTML = langOptionsHtml(defLang);
-            form.appendChild(sel);
-            const okBtn = document.createElement('button');
-            okBtn.type = 'button';
-            okBtn.className = 'primary';
-            okBtn.textContent = 'Add';
-            okBtn.setAttribute('aria-label', 'Confirm add pronunciation');
-            form.appendChild(okBtn);
-            const cancelBtn = document.createElement('button');
-            cancelBtn.type = 'button';
-            cancelBtn.className = 'cancel-inline';
-            cancelBtn.textContent = '✕';
-            cancelBtn.setAttribute('aria-label', 'Cancel');
-            form.appendChild(cancelBtn);
-            item.appendChild(form);
-            textInp.focus();
-
-            function closeForm(){ form.remove(); addPronBtn.style.display = ''; }
-            function confirmAdd(){
-              const text = textInp.value.trim();
-              const lang = sel.value;
-              if(!text){ textInp.focus(); return; }
-              const langsEl = item.querySelector('.langs');
-              const name = item.dataset.name;
-              const entry = appendPronEntry(langsEl, name, { text, lang });
-              if(entry){
-                // Bind play/edit events to new pill
-                const newPill = entry.querySelector('.pill');
-                if(newPill) bindPillEvents(item, newPill);
-              }
-              closeForm();
-              refreshURL();
-            }
-            okBtn.addEventListener('click', confirmAdd);
-            cancelBtn.addEventListener('click', closeForm);
-            textInp.addEventListener('keydown', (e) => {
-              if(e.key === 'Enter') confirmAdd();
-              if(e.key === 'Escape') closeForm();
-            });
-          });
-        }
       }
 
       addEl.addEventListener('click', () => {
         const name = nameInputEl.value.trim();
         if(!name) return;
         const lang = langPickerEl.value;
-        const overrideVisible = pronOverrideEl.classList.contains('visible');
-        const overrideText = pronTextOverrideEl.value.trim();
-        const pronText = (overrideVisible && overrideText) ? overrideText : name;
-        if(!pronText || !matchesTextToLang(pronText, lang)) return;
-        addItem(name, [{text: pronText, lang}]);
+        if(!matchesTextToLang(name, lang)) return;
+        addItem(name, [{text: name, lang}]);
         // Reset form
         nameInputEl.value = '';
-        pronTextOverrideEl.value = '';
-        pronOverrideEl.classList.remove('visible');
-        pronOverrideToggleEl.setAttribute('aria-expanded', 'false');
         scriptHintEl.classList.remove('visible');
         langPickerEl.value = 'en-US';
         nameInputEl.focus();
@@ -1230,9 +1025,8 @@
         validateInputs();
       });
 
-      // Enter key on name input or override field triggers add
+      // Enter key on name input triggers add
       nameInputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !addEl.disabled){ addEl.click(); }});
-      pronTextOverrideEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !addEl.disabled){ addEl.click(); }});
 
       shareEl.addEventListener('click', async () => {
         const url = (shareEl && shareEl.dataset.url) ? shareEl.dataset.url : window.location.href;
@@ -1374,9 +1168,6 @@
 
         function resetInputForm(){
           nameInputEl.value = '';
-          pronTextOverrideEl.value = '';
-          pronOverrideEl.classList.remove('visible');
-          pronOverrideToggleEl.setAttribute('aria-expanded', 'false');
           scriptHintEl.classList.remove('visible');
           langPickerEl.value = 'en-US';
           validateInputs();

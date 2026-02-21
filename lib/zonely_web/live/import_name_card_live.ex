@@ -172,11 +172,6 @@ defmodule ZonelyWeb.ImportNameCardLive do
                         <span class="text-lg">{NameCard.language_flag(variant["language"])}</span>
                         <div>
                           <span class="font-medium text-gray-900">{variant["name"]}</span>
-                          <%= if variant["pronunciation"] && variant["pronunciation"] != "" do %>
-                            <span class="ml-2 text-sm text-gray-500">
-                              ({variant["pronunciation"]})
-                            </span>
-                          <% end %>
                         </div>
                       </div>
                     <% end %>
