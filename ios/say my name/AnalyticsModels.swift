@@ -74,7 +74,7 @@ struct ProviderPerformance: Codable, Identifiable {
     }
 }
 
-struct GeoDistribution: Codable, Identifiable {
+struct GeoDistribution: Codable, Identifiable, Equatable {
     var id: String { country }
     let country: String
     let count: Int

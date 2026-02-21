@@ -26,8 +26,18 @@
       .logo{width:28px;height:28px}
       .title{font-size:18px;font-weight:600;letter-spacing:0.2px}
       .card{background:var(--card);border:1px solid var(--ring);border-radius:12px;padding:16px}
-      .row{display:flex;gap:12px;align-items:center}
-      .input{flex:1;display:flex;gap:8px}
+      .input-section{display:flex;flex-direction:column;gap:12px}
+      .pron-section{display:flex;flex-direction:column;gap:8px}
+      .pron-label{font-size:13px;color:var(--muted);font-weight:600;margin:0}
+      .pron-row{display:flex;gap:8px;align-items:start}
+      .pron-text-field{flex:2}
+      .pron-lang-field{flex:1;min-width:120px}
+      .pron-remove{appearance:none;border:none;background:transparent;color:var(--muted);cursor:pointer;padding:8px 4px;font-size:16px;line-height:1;border-radius:8px;flex-shrink:0}
+      .pron-remove:hover{color:#dc2626}
+      .pron-remove:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      .add-pron{appearance:none;border:1px dashed var(--ring);background:transparent;color:var(--muted);border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;text-align:left;width:100%}
+      .add-pron:hover{border-color:#4f46e5;color:#4f46e5}
+      .add-pron:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
       input,select{width:100%;padding:10px 12px;border:1px solid var(--ring);border-radius:10px;background:transparent;color:inherit}
       button{appearance:none;border:1px solid var(--ring);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;cursor:pointer}
       button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
@@ -58,13 +68,29 @@
       #share{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:none;border-radius:999px;background:#4f46e5;color:#fff;box-shadow:0 10px 20px rgba(79,70,229,.25);font-weight:600}
       #share:hover{background:#4338ca}
       #share:active{transform:translateY(1px)}
+      #share:disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
       #share .icon{width:16px;height:16px}
+      /* Focus-visible states for keyboard accessibility */
+      input:focus-visible, select:focus-visible{outline:2px solid #4f46e5;outline-offset:2px;border-color:#4f46e5}
+      button:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      .pill:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      a:focus-visible{outline:2px solid #4f46e5;outline-offset:2px;border-radius:4px}
+      /* Disabled button state */
+      button.primary:disabled,button.primary[disabled]{opacity:0.4;cursor:not-allowed;pointer-events:none}
+      /* Error pill state */
+      .pill.error{background:#fef2f2;color:#dc2626;border-color:#fca5a5;animation:none}
+      @media (prefers-color-scheme: dark){
+        .pill.error{background:#450a0a;color:#fca5a5;border-color:#991b1b}
+        .pill.playing-user{background:#052e16;color:#4ade80;border-color:#166534}
+        .pill.playing-robot{background:#431407;color:#fb923c;border-color:#9a3412}
+        .pill.loading{background:#172554;color:#60a5fa;border-color:#1e3a5f;animation:breath-dark 1.2s ease-in-out infinite}
+      }
+      @keyframes breath-dark{0%{background:#172554}50%{background:#1e3a5f}100%{background:#172554}}
       /* Mobile tweaks */
       @media (max-width: 640px){
         .wrap{padding:16px}
         .title{font-size:16px}
-        .row{flex-direction:column;align-items:stretch;gap:10px}
-        .input{flex-direction:column}
+        .pron-row{flex-direction:column;align-items:stretch}
         input,select{width:100%}
         button.primary{width:100%}
         .item{padding:8px;grid-template-columns:48px 1fr auto}
@@ -75,6 +101,7 @@
         .text{font-size:0.95rem}
         .footer{flex-direction:column;align-items:stretch;gap:8px}
         #share,#demo{width:100%}
+        .dash-sep{display:none}
       }
       /* How it works collapsible */
       .how{margin-top:12px;border:1px solid var(--ring);border-radius:10px}
@@ -94,6 +121,45 @@
         background-repeat:no-repeat; background-position:right 10px center; background-size:14px;
         padding-right:28px;
       }
+      /* Collections tab bar */
+      .collections-bar{display:flex;align-items:center;gap:8px;padding:8px 0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+      .collections-bar::-webkit-scrollbar{display:none}
+      .col-tab{appearance:none;border:1px solid var(--ring);background:transparent;color:var(--fg);padding:8px 16px;border-radius:999px;font-size:13px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,transform .1s}
+      .col-tab:hover{background:var(--ring)}
+      .col-tab:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      .col-tab:active{transform:scale(0.98);opacity:0.9}
+      .col-tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+      .col-tab.active:hover{opacity:0.9}
+      .col-new{appearance:none;border:1px dashed var(--ring);background:transparent;color:var(--muted);padding:8px 12px;border-radius:999px;font-size:13px;cursor:pointer;white-space:nowrap}
+      .col-new:hover{border-color:#4f46e5;color:#4f46e5}
+      .col-new:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      .col-new-input{border:1px solid var(--accent);background:transparent;color:var(--fg);padding:8px 12px;border-radius:999px;font-size:13px;outline:none;min-width:120px}
+      .col-ctx{position:fixed;background:var(--card);border:1px solid var(--ring);border-radius:10px;padding:4px;z-index:100;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+      .col-ctx-item{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:transparent;color:var(--fg);font-size:13px;cursor:pointer;border-radius:6px}
+      .col-ctx-item:hover{background:var(--ring)}
+      .col-ctx-item.danger{color:#dc2626}
+      .col-ctx-item.danger:hover{background:#fef2f2}
+      @media (prefers-color-scheme: dark){.col-ctx-item.danger:hover{background:#451a1a}}
+      /* Import banner */
+      .import-banner{background:var(--card-bg,#f8fafc);border:1px solid var(--ring);border-radius:16px;padding:16px;margin-bottom:8px;display:flex;flex-direction:column;gap:12px}
+      .import-banner-text{font-size:14px;color:var(--fg);line-height:1.5}
+      .import-banner-text strong{font-weight:600}
+      .import-banner-actions{display:flex;gap:8px;flex-wrap:wrap}
+      .import-banner-actions button{padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+      .import-banner-actions button:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      .import-btn-primary{background:#4f46e5;color:#fff}
+      .import-btn-primary:hover{background:#4338ca}
+      .import-btn-secondary{background:transparent;color:var(--fg);border:1px solid var(--ring) !important}
+      .import-btn-secondary:hover{background:var(--ring)}
+      .import-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-size:12px;background:var(--card-bg,#f8fafc);border:1px solid var(--ring);color:var(--muted);cursor:pointer}
+      .import-pill button{background:none;border:none;color:#4f46e5;font-weight:600;cursor:pointer;padding:0;font-size:12px}
+      .import-pill button:hover{text-decoration:underline}
+      /* Undo toast */
+      .undo-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100%);background:#1f2937;color:#fff;padding:0 16px;height:48px;border-radius:12px;display:flex;align-items:center;gap:12px;font-size:14px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .25s ease,opacity .25s ease;opacity:0;max-width:400px;white-space:nowrap}
+      .undo-toast.visible{transform:translateX(-50%) translateY(0);opacity:1}
+      .undo-toast button{background:none;border:none;color:#60a5fa;font-weight:700;font-size:14px;cursor:pointer;padding:0}
+      .undo-toast button:hover{text-decoration:underline}
+      .undo-toast button:focus-visible{outline:2px solid #60a5fa;outline-offset:2px;border-radius:4px}
     </style>
   </head>
   <body>
@@ -101,7 +167,7 @@
       <div class="header">
         <div class="brand">
           <img class="logo" src={~p"/favicon-32x32.png?v=3"} alt="Say my name" />
-          <div class="title">Say my name</div>
+          <h1 class="title">Say my name</h1>
         </div>
         <div>
           <button id="share" aria-label="Share name list" class="primary">
@@ -111,63 +177,37 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="row">
-          <div class="input">
-            <div class="field" id="field_en">
-              <input id="text_en" placeholder="Name for English (e.g., San Zhang)" />
-              <div class="hint" id="hint_en">Text may not match English</div>
-            </div>
-            <div class="field" id="field_en_lang">
-              <select id="lang_en">
-              <option value="en-US" selected>English</option>
-              <option value="es-ES">Español</option>
-              <option value="fr-FR">Français</option>
-              <option value="de-DE">Deutsch</option>
-              <option value="pt-BR">Português</option>
-              <option value="zh-CN">中文</option>
-              <option value="ja-JP">日本語</option>
-              <option value="hi-IN">हिन्दी</option>
-              <option value="bn-IN">বাংলা</option>
-              <option value="ar-SA">العربية</option>
-              </select>
-            </div>
-            <span aria-hidden="true" style="align-self:center;color:var(--muted);">—</span>
-            <div class="field" id="field_zh">
-              <input id="text_zh" placeholder="Name for native language (e.g., 张三)" />
-              <div class="hint" id="hint_zh">Text may not match native</div>
-            </div>
-            <div class="field" id="field_zh_lang">
-              <select id="lang_zh">
-              <option value="en-US">English</option>
-              <option value="es-ES">Español</option>
-              <option value="fr-FR">Français</option>
-              <option value="de-DE">Deutsch</option>
-              <option value="pt-BR">Português</option>
-              <option value="zh-CN" selected>中文</option>
-              <option value="ja-JP">日本語</option>
-              <option value="hi-IN">हिन्दी</option>
-              <option value="bn-IN">বাংলা</option>
-              <option value="ar-SA">العربية</option>
-              </select>
-            </div>
+      <div id="import-banner" role="alert" aria-live="assertive" style="display:none"></div>
 
+      <div class="collections-bar" id="collections-bar" role="tablist" aria-label="Collections"></div>
+
+      <div class="card">
+        <div class="input-section">
+          <div class="field">
+            <input id="name_input" placeholder="Name (e.g., Zhang Wei)" aria-label="Display name" autocomplete="off" />
           </div>
-          <button id="add" class="primary">Add</button>
+
+          <div class="pron-section" id="pron-rows" aria-label="Pronunciations">
+            <p class="pron-label">Pronunciations</p>
+          </div>
+
+          <button type="button" class="add-pron" id="add-pron" aria-label="Add another pronunciation">+ Add pronunciation</button>
+
+          <button id="add" class="primary" disabled>Add to list</button>
         </div>
 
-        <div class="list" id="list">
+        <div class="list" id="list" role="list" aria-label="Name pronunciation list">
           <%= if @names == [] do %>
-            <div class="empty">No names yet. Add a name and language to begin.</div>
+            <div class="empty" role="status" aria-live="polite">No names yet. Add a name and language to begin.</div>
           <% end %>
           <%= for item <- @names do %>
-            <div class="item" data-name={item.name}>
-              <img class="avatar" src={item.avatar} alt="" />
+            <div class="item" data-name={item.name} role="listitem">
+              <img class="avatar" src={item.avatar} alt={"Avatar for #{item.name}"} />
               <div class="name"><%= item.name %></div>
               <div class="langs">
                 <%= for e <- item.entries || [] do %>
                   <div class="entry">
-                    <button class="pill" data-lang={e.lang} data-text={e.text}>
+                    <button class="pill" data-lang={e.lang} data-text={e.text} aria-label={"Play #{e.text} pronunciation"}>
                       <span class="label"></span>
                       <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
                     </button>
@@ -175,7 +215,7 @@
                   </div>
                 <% end %>
               </div>
-              <button class="remove" title="Remove">✕</button>
+              <button class="remove" title="Remove" aria-label={"Remove #{item.name} from list"}>✕</button>
             </div>
           <% end %>
         </div>
@@ -184,9 +224,9 @@
 
         <div class="footer">
           <div class="muted site-links">
-            <a href={~p"/privacy"} class="muted" style="text-decoration:underline">Privacy</a>
+            <a href={"#{@base_path}/privacy"} class="muted" style="text-decoration:underline">Privacy</a>
             <span aria-hidden="true">·</span>
-            <a href={~p"/about"} class="muted" style="text-decoration:underline">About</a>
+            <a href={"#{@base_path}/about"} class="muted" style="text-decoration:underline">About</a>
           </div>
         </div>
       </div>
@@ -197,14 +237,217 @@
     <script>
       const listEl = document.getElementById('list');
       const audio = document.getElementById('audio');
-      const textEnEl = document.getElementById('text_en');
-      const textZhEl = document.getElementById('text_zh');
-      const langEnEl = document.getElementById('lang_en');
-      const langZhEl = document.getElementById('lang_zh');
+      const nameInputEl = document.getElementById('name_input');
+      const pronRowsEl = document.getElementById('pron-rows');
+      const addPronEl = document.getElementById('add-pron');
       const addEl = document.getElementById('add');
       const shareEl = document.getElementById('share');
       const demoEl = document.getElementById('demo');
       const supportedLangs = ["en-US","es-ES","fr-FR","de-DE","pt-BR","zh-CN","ja-JP","hi-IN","bn-IN","ar-SA"];
+      const langNames = {"en-US":"English","zh-CN":"中文","es-ES":"Español","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","fr-FR":"Français","pt-BR":"Português","ja-JP":"日本語","de-DE":"Deutsch"};
+
+      function langOptionsHtml(selected){
+        return supportedLangs.map(l => `<option value="${l}"${l===selected?' selected':''}>${langNames[l]||l}</option>`).join('');
+      }
+
+      // --- Collections ---
+      const collectionsBarEl = document.getElementById('collections-bar');
+      const STORE_KEY = 'smn_collections';
+
+      function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+      function loadStore(){
+        try{
+          const raw = localStorage.getItem(STORE_KEY);
+          if(raw){
+            const s = JSON.parse(raw);
+            if(s && Array.isArray(s.collections) && s.collections.length > 0) return s;
+          }
+        }catch(_){}
+        const def = { id: genId(), name: 'My Names', entries: [], createdAt: new Date().toISOString() };
+        return { collections: [def], activeId: def.id };
+      }
+
+      function saveStore(st){
+        try{ localStorage.setItem(STORE_KEY, JSON.stringify(st)); }catch(_){}
+      }
+
+      function getCurrentEntries(){
+        return [...listEl.querySelectorAll('.item')].map(el => ({
+          name: el.dataset.name,
+          entries: [...el.querySelectorAll('.pill')].map(p => ({ lang: p.dataset.lang, text: p.dataset.text || el.dataset.name }))
+        }));
+      }
+
+      function clearList(){
+        listEl.querySelectorAll('.item').forEach(el => el.remove());
+        const existing = listEl.querySelector('.empty');
+        if(!existing){
+          const d = document.createElement('div');
+          d.className = 'empty';
+          d.setAttribute('role', 'status');
+          d.setAttribute('aria-live', 'polite');
+          d.textContent = 'No names yet. Add a name and language to begin.';
+          listEl.appendChild(d);
+        }
+      }
+
+      function hydrateList(entries){
+        clearList();
+        (entries || []).forEach(item => {
+          addItem(item.name, (item.entries || []).map(e => ({ text: e.text, lang: e.lang })));
+        });
+      }
+
+      let store = loadStore();
+
+      function saveActiveCollection(){
+        const col = store.collections.find(c => c.id === store.activeId);
+        if(col){ col.entries = getCurrentEntries(); }
+        saveStore(store);
+      }
+
+      function renderTabs(){
+        collectionsBarEl.innerHTML = '';
+        store.collections.forEach(col => {
+          const btn = document.createElement('button');
+          btn.className = 'col-tab' + (col.id === store.activeId ? ' active' : '');
+          btn.setAttribute('role', 'tab');
+          btn.setAttribute('aria-selected', col.id === store.activeId ? 'true' : 'false');
+          btn.dataset.id = col.id;
+          btn.textContent = col.name;
+          btn.addEventListener('click', () => switchCollection(col.id));
+          btn.addEventListener('contextmenu', (e) => { e.preventDefault(); showCtxMenu(e, col); });
+          collectionsBarEl.appendChild(btn);
+        });
+        const newBtn = document.createElement('button');
+        newBtn.className = 'col-new';
+        newBtn.textContent = '+ New';
+        newBtn.setAttribute('aria-label', 'Create new collection');
+        newBtn.addEventListener('click', () => showNewCollectionInput());
+        collectionsBarEl.appendChild(newBtn);
+      }
+
+      function switchCollection(id){
+        if(id === store.activeId) return;
+        saveActiveCollection();
+        store.activeId = id;
+        saveStore(store);
+        const col = store.collections.find(c => c.id === id);
+        if(col){ hydrateList(col.entries); }
+        renderTabs();
+        refreshURL();
+      }
+
+      function showNewCollectionInput(){
+        const nb = collectionsBarEl.querySelector('.col-new');
+        if(!nb) return;
+        const inp = document.createElement('input');
+        inp.className = 'col-new-input';
+        inp.placeholder = 'Collection name';
+        inp.setAttribute('aria-label', 'New collection name');
+        nb.replaceWith(inp);
+        inp.focus();
+        function finish(create){
+          const name = inp.value.trim();
+          if(create && name){
+            saveActiveCollection();
+            const col = { id: genId(), name, entries: [], createdAt: new Date().toISOString() };
+            store.collections.push(col);
+            store.activeId = col.id;
+            saveStore(store);
+            hydrateList(col.entries);
+          }
+          renderTabs();
+          if(create && name) refreshURL();
+        }
+        inp.addEventListener('keydown', (e) => {
+          if(e.key === 'Enter') finish(true);
+          if(e.key === 'Escape') finish(false);
+        });
+        inp.addEventListener('blur', () => finish(false));
+      }
+
+      let ctxMenuEl = null;
+      function hideCtxMenu(){ if(ctxMenuEl){ ctxMenuEl.remove(); ctxMenuEl = null; } document.removeEventListener('click', hideCtxMenu); }
+
+      function showCtxMenu(e, col){
+        hideCtxMenu();
+        ctxMenuEl = document.createElement('div');
+        ctxMenuEl.className = 'col-ctx';
+        ctxMenuEl.style.left = e.clientX + 'px';
+        ctxMenuEl.style.top = e.clientY + 'px';
+
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'col-ctx-item';
+        renameBtn.textContent = 'Rename';
+        renameBtn.addEventListener('click', () => { hideCtxMenu(); renameCollection(col.id); });
+        ctxMenuEl.appendChild(renameBtn);
+
+        const dupBtn = document.createElement('button');
+        dupBtn.className = 'col-ctx-item';
+        dupBtn.textContent = 'Duplicate';
+        dupBtn.addEventListener('click', () => { hideCtxMenu(); duplicateCollection(col.id); });
+        ctxMenuEl.appendChild(dupBtn);
+
+        if(store.collections.length > 1){
+          const delBtn = document.createElement('button');
+          delBtn.className = 'col-ctx-item danger';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', () => { hideCtxMenu(); deleteCollection(col.id); });
+          ctxMenuEl.appendChild(delBtn);
+        }
+        document.body.appendChild(ctxMenuEl);
+        setTimeout(() => document.addEventListener('click', hideCtxMenu), 0);
+      }
+
+      function renameCollection(id){
+        const tab = collectionsBarEl.querySelector(`.col-tab[data-id="${id}"]`);
+        const col = store.collections.find(c => c.id === id);
+        if(!tab || !col) return;
+        const inp = document.createElement('input');
+        inp.className = 'col-new-input';
+        inp.value = col.name;
+        inp.setAttribute('aria-label', 'Rename collection');
+        tab.replaceWith(inp);
+        inp.focus();
+        inp.select();
+        function finish(){
+          const name = inp.value.trim();
+          if(name){ col.name = name; saveStore(store); }
+          renderTabs();
+        }
+        inp.addEventListener('keydown', (e) => { if(e.key==='Enter') finish(); if(e.key==='Escape'){ inp.value=col.name; finish(); } });
+        inp.addEventListener('blur', finish);
+      }
+
+      function duplicateCollection(id){
+        const col = store.collections.find(c => c.id === id);
+        if(!col) return;
+        saveActiveCollection();
+        const dup = { id: genId(), name: col.name + ' (copy)', entries: JSON.parse(JSON.stringify(col.entries)), createdAt: new Date().toISOString() };
+        const idx = store.collections.findIndex(c => c.id === id);
+        store.collections.splice(idx + 1, 0, dup);
+        store.activeId = dup.id;
+        saveStore(store);
+        hydrateList(dup.entries);
+        renderTabs();
+        refreshURL();
+      }
+
+      function deleteCollection(id){
+        if(store.collections.length <= 1) return;
+        const idx = store.collections.findIndex(c => c.id === id);
+        store.collections.splice(idx, 1);
+        if(store.activeId === id){
+          store.activeId = store.collections[Math.max(0, idx - 1)].id;
+          const col = store.collections.find(c => c.id === store.activeId);
+          if(col) hydrateList(col.entries);
+        }
+        saveStore(store);
+        renderTabs();
+        refreshURL();
+      }
       const playedUrls = new Set();
       const playedKeys = new Set();
 
@@ -268,30 +511,123 @@
         return allowedScripts(lang).includes(dom) || dom==='unknown';
       }
       function toggleInvalid(el, flag){ el.classList.toggle('invalid', !!flag); }
-      function validateInputs(){
-        const en = textEnEl.value.trim();
-        const zh = textZhEl.value.trim();
-        const le = langEnEl.value; const lz = langZhEl.value;
-        const enMismatch = en && !matchesTextToLang(en, le);
-        const zhMismatch = zh && !matchesTextToLang(zh, lz);
-        toggleInvalid(textEnEl, enMismatch); toggleInvalid(langEnEl, enMismatch);
-        toggleInvalid(textZhEl, zhMismatch); toggleInvalid(langZhEl, zhMismatch);
-        addEl.disabled = enMismatch || zhMismatch || (!en && !zh);
-        const map = {"en-US":"English","zh-CN":"中文","es-ES":"Español","hi-IN":"हिन्दी","ar-SA":"العربية","bn-IN":"বাংলা","fr-FR":"Français","pt-BR":"Português","ja-JP":"日本語","de-DE":"Deutsch"};
-        const hintEn = document.getElementById('hint_en');
-        const hintZh = document.getElementById('hint_zh');
-        if(hintEn){ hintEn.textContent = `Text may not match ${map[le]||le}`; hintEn.style.opacity = enMismatch ? '1' : '0'; }
-        if(hintZh){ hintZh.textContent = `Text may not match ${map[lz]||lz}`; hintZh.style.opacity = zhMismatch ? '1' : '0'; }
-        return !(enMismatch || zhMismatch);
+
+      // --- Pronunciation row management ---
+      let pronRowCounter = 0;
+      const defaultLangOrder = ['en-US','zh-CN','ja-JP','es-ES','fr-FR','de-DE','pt-BR','hi-IN','bn-IN','ar-SA'];
+
+      function getUsedLangs(){
+        return [...pronRowsEl.querySelectorAll('.pron-row select')].map(s => s.value);
       }
-      [textEnEl, textZhEl].forEach(el=>{
-        el.addEventListener('input', validateInputs);
-        el.addEventListener('blur', validateInputs);
+
+      function nextDefaultLang(){
+        const used = getUsedLangs();
+        return defaultLangOrder.find(l => !used.includes(l)) || 'en-US';
+      }
+
+      function createPronRow(lang, text, removable){
+        pronRowCounter++;
+        const idx = pronRowCounter;
+        const row = document.createElement('div');
+        row.className = 'pron-row';
+        row.dataset.idx = idx;
+        const textField = document.createElement('div');
+        textField.className = 'field pron-text-field';
+        textField.id = `field_pron_${idx}`;
+        const inp = document.createElement('input');
+        inp.id = `pron_text_${idx}`;
+        inp.placeholder = `Pronunciation text`;
+        inp.setAttribute('aria-label', `Pronunciation ${idx} text`);
+        inp.value = text || '';
+        inp.autocomplete = 'off';
+        textField.appendChild(inp);
+        const hint = document.createElement('div');
+        hint.className = 'hint';
+        hint.id = `hint_pron_${idx}`;
+        hint.textContent = 'Text may not match language';
+        textField.appendChild(hint);
+        row.appendChild(textField);
+
+        const langField = document.createElement('div');
+        langField.className = 'field pron-lang-field';
+        const sel = document.createElement('select');
+        sel.id = `pron_lang_${idx}`;
+        sel.setAttribute('aria-label', `Pronunciation ${idx} language`);
+        sel.innerHTML = langOptionsHtml(lang || nextDefaultLang());
+        langField.appendChild(sel);
+        row.appendChild(langField);
+
+        if(removable){
+          const rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'pron-remove';
+          rm.setAttribute('aria-label', `Remove pronunciation ${idx}`);
+          rm.textContent = '✕';
+          rm.addEventListener('click', () => { row.remove(); validateInputs(); });
+          row.appendChild(rm);
+        }
+
+        inp.addEventListener('input', () => { delete inp.dataset.autoFilled; validateInputs(); });
+        inp.addEventListener('blur', validateInputs);
+        inp.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !addEl.disabled){ addEl.click(); }});
+        sel.addEventListener('change', validateInputs);
+        pronRowsEl.appendChild(row);
+        return row;
+      }
+
+      function getPronRows(){
+        return [...pronRowsEl.querySelectorAll('.pron-row')];
+      }
+
+      function validateInputs(){
+        const name = nameInputEl.value.trim();
+        const rows = getPronRows();
+        let anyMismatch = false;
+        let anyText = false;
+        rows.forEach(row => {
+          const inp = row.querySelector('input');
+          const sel = row.querySelector('select');
+          const hint = row.querySelector('.hint');
+          const text = inp.value.trim();
+          const lang = sel.value;
+          if(text) anyText = true;
+          const mismatch = text && !matchesTextToLang(text, lang);
+          if(mismatch) anyMismatch = true;
+          toggleInvalid(inp, mismatch);
+          toggleInvalid(sel, mismatch);
+          if(hint){
+            hint.textContent = `Text may not match ${langNames[lang]||lang}`;
+            hint.style.opacity = mismatch ? '1' : '0';
+          }
+        });
+        addEl.disabled = anyMismatch || !name || !anyText;
+        return !anyMismatch;
+      }
+
+      // Auto-fill first pronunciation row text from name field
+      nameInputEl.addEventListener('input', () => {
+        const rows = getPronRows();
+        if(rows.length > 0){
+          const firstInp = rows[0].querySelector('input');
+          // Only auto-fill if user hasn't manually edited the first row
+          if(firstInp && (firstInp.dataset.autoFilled === '1' || !firstInp.value.trim())){
+            firstInp.value = nameInputEl.value;
+            firstInp.dataset.autoFilled = '1';
+          }
+        }
+        validateInputs();
       });
-      [langEnEl, langZhEl].forEach(el=>{
-        el.addEventListener('change', validateInputs);
-        el.addEventListener('blur', validateInputs);
+
+      addPronEl.addEventListener('click', () => {
+        createPronRow(nextDefaultLang(), '', true);
+        const rows = getPronRows();
+        const lastInp = rows[rows.length - 1].querySelector('input');
+        if(lastInp) lastInp.focus();
+        validateInputs();
       });
+
+      // Create initial pronunciation row (not removable)
+      createPronRow('en-US', '', false);
       validateInputs();
       // Unicode-safe Base64 URL helpers (for names with non-Latin chars)
       function utf8ToB64(str){
@@ -361,34 +697,91 @@
         demoEl.href = buildDemoUrl();
       }
 
-      // Cookie helpers for state persistence
-      function setStateCookie(s){
-        try{
-          if(!s){ document.cookie = 'names_state=; Max-Age=0; path=/; SameSite=Lax'; return; }
-          document.cookie = `names_state=${s}; Max-Age=31536000; path=/; SameSite=Lax`;
-        }catch(_){ }
-      }
-      function getStateCookie(){
-        try{
-          const m = document.cookie.match(/(?:^|; )names_state=([^;]+)/);
-          return m ? decodeURIComponent(m[1]) : null;
-        }catch(_){ return null; }
+      // --- Collections initialization ---
+      const importBannerEl = document.getElementById('import-banner');
+      let sharedEntries = null; // Temp entries when "just viewing"
+      let sharedColName = null;
+
+      function showImportBanner(colName, count){
+        const safeN = document.createElement('strong');
+        safeN.textContent = colName;
+        importBannerEl.innerHTML = '';
+        importBannerEl.className = 'import-banner';
+        importBannerEl.style.display = '';
+        const textDiv = document.createElement('div');
+        textDiv.className = 'import-banner-text';
+        textDiv.append('📋 ', safeN, ` — ${count} name${count !== 1 ? 's' : ''} shared with you`);
+        importBannerEl.appendChild(textDiv);
+        const actions = document.createElement('div');
+        actions.className = 'import-banner-actions';
+        const importBtn = document.createElement('button');
+        importBtn.className = 'import-btn-primary';
+        importBtn.textContent = 'Import as new collection';
+        importBtn.addEventListener('click', () => importSharedCollection());
+        actions.appendChild(importBtn);
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'import-btn-secondary';
+        viewBtn.textContent = 'Just view for now';
+        viewBtn.addEventListener('click', () => collapseImportBanner());
+        actions.appendChild(viewBtn);
+        importBannerEl.appendChild(actions);
       }
 
-      // If no URL state, try cookie state and hydrate via redirect
+      function importSharedCollection(){
+        if(!sharedEntries) return;
+        const name = sharedColName || 'Shared List';
+        const col = { id: genId(), name, entries: JSON.parse(JSON.stringify(sharedEntries)), createdAt: new Date().toISOString() };
+        saveActiveCollection();
+        store.collections.push(col);
+        store.activeId = col.id;
+        saveStore(store);
+        hydrateList(col.entries);
+        renderTabs();
+        refreshURL();
+        importBannerEl.style.display = 'none';
+        importBannerEl.innerHTML = '';
+        sharedEntries = null;
+        sharedColName = null;
+      }
+
+      function collapseImportBanner(){
+        importBannerEl.className = '';
+        importBannerEl.innerHTML = '';
+        const pill = document.createElement('div');
+        pill.className = 'import-pill';
+        pill.textContent = 'Viewing shared list · ';
+        const importLink = document.createElement('button');
+        importLink.textContent = 'Import';
+        importLink.addEventListener('click', () => importSharedCollection());
+        pill.appendChild(importLink);
+        importBannerEl.appendChild(pill);
+        importBannerEl.style.display = '';
+      }
+
       (function(){
         try{
           const url = new URL(window.location.href);
           const hasS = url.searchParams.has('s');
-          if(!hasS){
-            const cs = getStateCookie();
-            if(cs){
-              url.searchParams.set('s', cs);
-              window.location.replace(url.toString());
-              return;
+          if(hasS){
+            // Shared link — server already rendered entries in the DOM
+            const cnParam = url.searchParams.get('cn');
+            sharedColName = cnParam ? b64UrlDecode(cnParam) : null;
+            const colName = sharedColName || 'Shared List';
+            const entries = getCurrentEntries();
+            if(entries && entries.length > 0){
+              sharedEntries = entries;
+              showImportBanner(colName, entries.length);
+            }
+          } else {
+            // No URL state — load from active collection
+            const col = store.collections.find(c => c.id === store.activeId);
+            if(col && col.entries.length > 0){
+              hydrateList(col.entries);
             }
           }
         }catch(_){ }
+        renderTabs();
+        refreshURL();
       })();
       function encodeState(items){
         const data = items.map(el => ({
@@ -420,12 +813,18 @@
         const url = new URL(window.location.href);
         if(s && s.length>0){ url.searchParams.set('s', s); }
         else { url.searchParams.delete('s'); }
+        // Add collection name to share URL
+        const activeCol = store.collections.find(c => c.id === store.activeId);
+        if(activeCol && s && s.length>0){ url.searchParams.set('cn', b64UrlEncode(activeCol.name)); }
+        else { url.searchParams.delete('cn'); }
         history.replaceState(null, '', url.toString());
         // Update visible deep-link button
-        const share = document.getElementById('share');
-        if(share){ share.dataset.url = url.toString(); }
-        // Persist to cookie
-        setStateCookie(s || '');
+        if(shareEl){ shareEl.dataset.url = url.toString(); }
+        // Persist to active collection
+        saveActiveCollection();
+        // Disable share when list is empty
+        const hasItems = items.length > 0;
+        if(shareEl){ shareEl.disabled = !hasItems; shareEl.title = hasItems ? '' : 'Add some names first'; }
       }
 
       function avatarFor(name){
@@ -433,52 +832,39 @@
         return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=48`;
       }
 
-      function addItem(enText, zhText, langEn, langZh){
-        if(!enText && !zhText) return;
+      function addItem(displayName, pronunciations){
+        if(!displayName && (!pronunciations || pronunciations.length === 0)) return;
+        const name = displayName || (pronunciations[0] && pronunciations[0].text) || '';
         const el = document.createElement('div');
         el.className = 'item';
-        el.dataset.name = zhText || enText || '';
+        el.dataset.name = name;
+        el.setAttribute('role', 'listitem');
         el.innerHTML = `
-          <img class="avatar" src="${avatarFor(zhText || enText || '')}" alt="" />
+          <img class="avatar" src="${avatarFor(name)}" alt="Avatar for ${name}" />
           <div class="name"></div>
           <div class="langs"></div>
-          <button class="remove" title="Remove">✕</button>`;
-        el.querySelector('.name').textContent = zhText || enText || '';
+          <button class="remove" title="Remove" aria-label="Remove ${name} from list">✕</button>`;
+        el.querySelector('.name').textContent = name;
 
-        // Only add the languages the user actually typed
-        if(enText){
-          const entryEn = document.createElement('div');
-          entryEn.className = 'entry';
-          const pillEn = document.createElement('button');
-          pillEn.className = 'pill';
-          pillEn.dataset.lang = langEn || 'en-US';
-          pillEn.dataset.text = enText;
-          pillEn.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
-          entryEn.appendChild(pillEn);
-          const textSpanEn = document.createElement('span');
-          textSpanEn.className = 'text';
-          textSpanEn.textContent = pillEn.dataset.text;
-          entryEn.appendChild(textSpanEn);
-          el.querySelector('.langs').appendChild(entryEn);
-          setNativeLabelEl(pillEn.querySelector('.label'), pillEn.dataset.lang);
-        }
-
-        if(zhText){
-          const entryZh = document.createElement('div');
-          entryZh.className = 'entry';
-          const pillZh = document.createElement('button');
-          pillZh.className = 'pill';
-          pillZh.dataset.lang = langZh || 'zh-CN';
-          pillZh.dataset.text = zhText;
-          pillZh.innerHTML = `<span class=\"label\"></span> <svg class=\"icon\" width=\"16\" height=\"16\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z\" clip-rule=\"evenodd\"></path></svg>`;
-          entryZh.appendChild(pillZh);
-          const textSpanZh = document.createElement('span');
-          textSpanZh.className = 'text';
-          textSpanZh.textContent = pillZh.dataset.text;
-          entryZh.appendChild(textSpanZh);
-          el.querySelector('.langs').appendChild(entryZh);
-          setNativeLabelEl(pillZh.querySelector('.label'), pillZh.dataset.lang);
-        }
+        const langsEl = el.querySelector('.langs');
+        (pronunciations || []).forEach(p => {
+          if(!p.text) return;
+          const entry = document.createElement('div');
+          entry.className = 'entry';
+          const pill = document.createElement('button');
+          pill.className = 'pill';
+          pill.dataset.lang = p.lang || 'en-US';
+          pill.dataset.text = p.text;
+          pill.setAttribute('aria-label', `Play ${p.text} pronunciation`);
+          pill.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
+          entry.appendChild(pill);
+          const textSpan = document.createElement('span');
+          textSpan.className = 'text';
+          textSpan.textContent = p.text;
+          entry.appendChild(textSpan);
+          langsEl.appendChild(entry);
+          setNativeLabelEl(pill.querySelector('.label'), pill.dataset.lang);
+        });
 
         listEl.appendChild(el);
         attachItemEvents(el);
@@ -489,13 +875,20 @@
       let currentPill = null;
 
       function setPillState(pill, state){
-        pill.classList.remove('playing','loading','playing-user','playing-robot','animate');
+        pill.classList.remove('playing','loading','playing-user','playing-robot','animate','error');
         const icon = pill.querySelector('svg');
         if(state==='loading'){
           pill.classList.add('loading');
           if(icon){
             icon.outerHTML = '<svg class="icon spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity="0.25"/><path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
           }
+        }else if(state==='error'){
+          pill.classList.add('error');
+          if(icon){
+            icon.outerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+          }
+          // Auto-reset after 3 seconds
+          setTimeout(()=>{ if(pill.classList.contains('error')) resetPillState(pill); }, 3000);
         }else if(state==='playing-user'){
           pill.classList.add('playing-user','animate');
           icon.outerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
@@ -512,9 +905,75 @@
       function stopAllPronunciations(){
         try { audio.pause(); audio.currentTime = 0; } catch(_){ }
         try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(_){ }
-        document.querySelectorAll('.pill.playing-user, .pill.playing-robot, .pill.loading')
+        document.querySelectorAll('.pill.playing-user, .pill.playing-robot, .pill.loading, .pill.error')
           .forEach(p => setPillState(p, 'idle'));
         currentPill = null;
+      }
+
+      // --- Undo on remove ---
+      let pendingRemoval = null;
+      let undoTimer = null;
+      let toastEl = null;
+
+      function finalizeRemoval(){
+        pendingRemoval = null;
+        if(undoTimer){ clearTimeout(undoTimer); undoTimer = null; }
+        hideUndoToast();
+      }
+
+      function showUndoToast(name){
+        if(!toastEl){
+          toastEl = document.createElement('div');
+          toastEl.className = 'undo-toast';
+          toastEl.setAttribute('role', 'status');
+          toastEl.setAttribute('aria-live', 'polite');
+          document.body.appendChild(toastEl);
+        }
+        toastEl.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = `"${name}" removed`;
+        toastEl.appendChild(span);
+        const btn = document.createElement('button');
+        btn.textContent = 'Undo';
+        btn.addEventListener('click', () => undoRemoval());
+        toastEl.appendChild(btn);
+        // Force reflow then show
+        toastEl.classList.remove('visible');
+        void toastEl.offsetWidth;
+        toastEl.classList.add('visible');
+      }
+
+      function hideUndoToast(){
+        if(toastEl){ toastEl.classList.remove('visible'); }
+      }
+
+      function removeWithUndo(item){
+        // If there's a pending removal, finalize it first (one toast at a time)
+        if(pendingRemoval) finalizeRemoval();
+        // Record the item's position
+        const siblings = [...listEl.querySelectorAll('.item')];
+        const idx = siblings.indexOf(item);
+        const name = item.dataset.name;
+        item.remove();
+        refreshURL();
+        pendingRemoval = { element: item, index: idx };
+        showUndoToast(name);
+        undoTimer = setTimeout(() => finalizeRemoval(), 5000);
+      }
+
+      function undoRemoval(){
+        if(!pendingRemoval) return;
+        const { element, index } = pendingRemoval;
+        // Re-insert at original position
+        const items = listEl.querySelectorAll('.item');
+        const empty = listEl.querySelector('.empty');
+        if(empty) empty.remove();
+        if(index >= items.length){ listEl.appendChild(element); }
+        else { listEl.insertBefore(element, items[index]); }
+        if(undoTimer){ clearTimeout(undoTimer); undoTimer = null; }
+        pendingRemoval = null;
+        hideUndoToast();
+        refreshURL();
       }
 
       function attachItemEvents(item){
@@ -559,8 +1018,17 @@
             const url = new URL(api, window.location.origin);
             url.searchParams.set('name', text);
             url.searchParams.set('lang', lang);
-            const res = await fetch(url.toString());
-            const data = await res.json();
+            let res, data;
+            try {
+              res = await fetch(url.toString());
+              if(!res.ok) throw new Error(`Server error: ${res.status}`);
+              data = await res.json();
+            } catch(fetchErr) {
+              console.error('Pronunciation fetch failed', fetchErr);
+              setPillState(pill, 'error');
+              currentPill = null;
+              return;
+            }
             if(data.type === 'audio' || data.type === 'tts_audio'){
               const key = `${lang}|${text}`;
               const isReplay = playedUrls.has(data.url) || playedKeys.has(key);
@@ -620,24 +1088,30 @@
             }
           });
         });
-        item.querySelector('.remove').addEventListener('click', () => { item.remove(); refreshURL(); });
+        item.querySelector('.remove').addEventListener('click', () => { removeWithUndo(item); });
       }
 
       addEl.addEventListener('click', () => {
         if(!validateInputs()) return;
-        const en = textEnEl.value.trim();
-        const zh = textZhEl.value.trim();
-        const langEn = langEnEl.value;
-        const langZh = langZhEl.value;
-        addItem(en, zh, langEn, langZh);
-        textEnEl.value = '';
-        textZhEl.value = '';
-        textEnEl.focus();
+        const name = nameInputEl.value.trim();
+        if(!name) return;
+        const prons = getPronRows().map(row => ({
+          text: row.querySelector('input').value.trim(),
+          lang: row.querySelector('select').value
+        })).filter(p => p.text);
+        if(prons.length === 0) return;
+        addItem(name, prons);
+        // Reset form
+        nameInputEl.value = '';
+        pronRowsEl.querySelectorAll('.pron-row').forEach(r => r.remove());
+        createPronRow('en-US', '', false);
+        nameInputEl.focus();
         refreshURL();
         validateInputs();
       });
 
-      [textEnEl, textZhEl].forEach(inp => inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addEl.click(); }}));
+      // Enter key on name input or pron text fields triggers add
+      nameInputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !addEl.disabled){ addEl.click(); }});
 
       shareEl.addEventListener('click', async () => {
         const url = (shareEl && shareEl.dataset.url) ? shareEl.dataset.url : window.location.href;
@@ -724,230 +1198,145 @@
         }
       })();
 
-      // --- Guided Demo Overlay ---
+      // --- Guided Demo — Sandbox Mode ---
       (function(){
-        const guided = null; // legacy link removed; use banner CTA instead
         const HIDE_KEY = 'hide_name_guided_demo';
         const SEEN_KEY = 'seen_name_guided_demo';
-        const BASE = 1.4; // slow down steps slightly for clarity
+        let savedState = null;
+        let bannerEl = null;
 
-        function makeOverlay(){
-          const wrap = document.createElement('div');
-          wrap.id = 'guide-overlay';
-          wrap.style.position = 'sticky';
-          wrap.style.top = '8px';
-          wrap.style.zIndex = '3000';
-          wrap.style.width = '100%';
-          wrap.style.maxWidth = '720px';
-          wrap.style.background = '#ffffff';
-          wrap.style.border = '1px solid #e5e7eb';
-          wrap.style.borderRadius = '12px';
-          wrap.style.boxShadow = '0 18px 36px rgba(0,0,0,0.18)';
-          wrap.style.padding = '12px';
-          wrap.innerHTML = `
-            <div style="font-weight:600; font-size:14px; color:#111827" id="guide-title">Guided Demo</div>
-            <div style="font-size:13px; color:#4b5563; margin-top:6px" id="guide-desc">Follow along</div>
-            <div style="height:6px; background:#f3f4f6; border-radius:999px; overflow:hidden; margin:8px 0 10px">
-              <div id="guide-progress" style="height:100%; width:0%; background:#6366f1; transition:width .25s"></div>
-            </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap">
-              <button id="guide-toggle" style="padding:6px 10px; border-radius:8px; background:#111827; color:#ffffff; font-size:12px">Pause</button>
-              <button id="guide-skip" style="padding:6px 10px; border-radius:8px; background:#374151; color:#ffffff; font-size:12px">Skip</button>
-              <button id="guide-replay" style="padding:6px 10px; border-radius:8px; background:#374151; color:#ffffff; font-size:12px">Replay</button>
-            </div>
-          `;
-          const container = document.querySelector('.wrap') || document.body;
-          container.insertBefore(wrap, container.children[1] || null);
-
-          // Highlight box
-          const hi = document.createElement('div');
-          hi.id = 'guide-highlight';
-          hi.style.position = 'fixed';
-          hi.style.border = '3px solid #6366f1';
-          hi.style.borderRadius = '10px';
-          hi.style.boxShadow = '0 0 0 9999px rgba(0,0,0,0.35)';
-          hi.style.pointerEvents = 'none';
-          hi.style.zIndex = '2999';
-          hi.style.display = 'none';
-          document.body.appendChild(hi);
-          return wrap;
+        function typeInto(input, text){
+          return new Promise(res => {
+            try{ input.focus(); }catch(_){}
+            input.value = '';
+            let i = 0;
+            function tick(){
+              if(i <= text.length){
+                input.value = text.slice(0, i++);
+                input.dispatchEvent(new Event('input', {bubbles:true}));
+                setTimeout(tick, 50);
+              } else { res(); }
+            }
+            tick();
+          });
         }
 
-        function setHighlight(selector){
-          const hi = document.getElementById('guide-highlight');
-          if(!hi) return;
-          const el = selector && document.querySelector(selector);
-          if(!el){ hi.style.display='none'; return; }
-          const r = el.getBoundingClientRect();
-          hi.style.left = (r.left - 8) + 'px';
-          hi.style.top = (r.top - 8) + 'px';
-          hi.style.width = (r.width + 16) + 'px';
-          hi.style.height = (r.height + 16) + 'px';
-          hi.style.display = 'block';
-        }
+        function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-        function typeInto(input, text, onDone){
-          try{ input.focus(); }catch(_){ }
-          input.value = '';
-          let i = 0;
-          function tick(){
-            if(i <= text.length){ input.value = text.slice(0, i++); setTimeout(tick, 40); }
-            else { onDone && onDone(); }
+        function makeBanner(stepIdx, total, title, desc){
+          if(!bannerEl){
+            bannerEl = document.createElement('div');
+            bannerEl.id = 'guide-banner';
+            bannerEl.style.cssText = 'position:sticky;top:8px;z-index:3000;background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px';
+            const container = document.querySelector('.wrap');
+            if(container){
+              const colBar = document.getElementById('collections-bar');
+              container.insertBefore(bannerEl, colBar || container.querySelector('.card') || container.firstChild);
+            }
           }
-          tick();
-        }
-
-        function progress(stepIdx, total){
-          const bar = document.getElementById('guide-progress');
-          if(bar){ bar.style.width = Math.min(100, Math.round(stepIdx / Math.max(1,total-1) * 100)) + '%'; }
-        }
-
-        const steps = [
-          { title: 'Enter English name', desc: 'Type the English rendering of the name', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ming Wang', res)), delay: 400 },
-          { title: 'Choose language', desc: 'Pick the language for this text (English)', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 400 },
-          { title: 'Enter native name', desc: 'Now type the native script name', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, '王明', res)), delay: 400 },
-          { title: 'Choose native language', desc: 'Set the correct native language', selector: '#lang_zh', run: async () => { langZhEl.value = 'zh-CN'; }, delay: 400 },
-          { title: 'Add to list', desc: 'Click Add to create the entry', selector: '#add', run: async () => { addEl.click(); }, delay: 600 },
-          { title: 'Play English pronunciation', desc: 'Click to hear the English version', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1500 },
-          { title: 'Play native pronunciation', desc: 'Now the native version', selector: '.item:last-of-type .pill[data-lang="zh-CN"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="zh-CN"]'); if(p) p.click(); }, delay: 1500 },
-          { title: 'Add another name', desc: 'Repeat: another row with two languages', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ana Garcia', res)), delay: 300 },
-          { title: 'Set English', desc: 'Keep English here', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 200 },
-          { title: 'Enter native', desc: 'Use accents in native language', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, 'Ana García', res)), delay: 300 },
-          { title: 'Set Spanish', desc: 'Choose Español for native', selector: '#lang_zh', run: async () => { langZhEl.value = 'es-ES'; }, delay: 200 },
-          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 600 },
-          { title: 'Play Spanish', desc: 'Play native (Spanish) pronunciation', selector: '.item:last-of-type .pill[data-lang="es-ES"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="es-ES"]'); if(p) p.click(); }, delay: 1500 },
-          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1500 },
-          // Hindi name
-          { title: 'Add Hindi example', desc: 'Type English rendering', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ravi Kumar', res)), delay: 400 },
-          { title: 'Keep English', desc: 'English text is set', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 300 },
-          { title: 'Type native Hindi', desc: 'Use Devanagari script', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, 'रवि कुमार', res)), delay: 400 },
-          { title: 'Choose Hindi', desc: 'Set native language to Hindi', selector: '#lang_zh', run: async () => { langZhEl.value = 'hi-IN'; }, delay: 300 },
-          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 700 },
-          { title: 'Play Hindi', desc: 'Play native Hindi pronunciation', selector: '.item:last-of-type .pill[data-lang="hi-IN"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="hi-IN"]'); if(p) p.click(); }, delay: 1600 },
-          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1600 },
-          // Arabic name
-          { title: 'Add Arabic example', desc: 'Type English rendering', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Ahmed Ali', res)), delay: 400 },
-          { title: 'Keep English', desc: 'English text is set', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 300 },
-          { title: 'Type native Arabic', desc: 'Use Arabic script', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, 'أحمد علي', res)), delay: 400 },
-          { title: 'Choose Arabic', desc: 'Set native language to Arabic', selector: '#lang_zh', run: async () => { langZhEl.value = 'ar-SA'; }, delay: 300 },
-          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 700 },
-          { title: 'Play Arabic', desc: 'Play native Arabic pronunciation', selector: '.item:last-of-type .pill[data-lang="ar-SA"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="ar-SA"]'); if(p) p.click(); }, delay: 1600 },
-          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1600 },
-          // Japanese name
-          { title: 'Add Japanese example', desc: 'Type English rendering', selector: '#text_en', run: async () => new Promise(res=> typeInto(textEnEl, 'Yuki Tanaka', res)), delay: 400 },
-          { title: 'Keep English', desc: 'English text is set', selector: '#lang_en', run: async () => { langEnEl.value = 'en-US'; }, delay: 300 },
-          { title: 'Type native Japanese', desc: 'Use Japanese script', selector: '#text_zh', run: async () => new Promise(res=> typeInto(textZhEl, '田中 友紀', res)), delay: 400 },
-          { title: 'Choose Japanese', desc: 'Set native language to Japanese', selector: '#lang_zh', run: async () => { langZhEl.value = 'ja-JP'; }, delay: 300 },
-          { title: 'Add row', desc: 'Click Add', selector: '#add', run: async () => { addEl.click(); }, delay: 700 },
-          { title: 'Play Japanese', desc: 'Play native Japanese pronunciation', selector: '.item:last-of-type .pill[data-lang="ja-JP"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="ja-JP"]'); if(p) p.click(); }, delay: 1600 },
-          { title: 'Play English', desc: 'Play English pronunciation', selector: '.item:last-of-type .pill[data-lang="en-US"]', run: async () => { const p = document.querySelector('.item:last-of-type .pill[data-lang="en-US"]'); if(p) p.click(); }, delay: 1600 },
-          { title: 'That’s it', desc: 'You can add more rows and copy link to share.', selector: '.footer', run: async () => {}, delay: 1200 }
-        ];
-
-        let stepIndex = 0, paused = false, timer = null;
-
-        async function runStep(){
-          if(paused) return;
-          const step = steps[stepIndex];
-          if(!step){ finish(); return; }
-          document.getElementById('guide-title').textContent = step.title;
-          document.getElementById('guide-desc').textContent = step.desc;
-          progress(stepIndex, steps.length);
-          setHighlight(step.selector);
-          try { await step.run(); } catch(_){ }
-          timer = setTimeout(()=>{ stepIndex += 1; runStep(); }, Math.round((step.delay || 800) * BASE));
-        }
-
-        function start(){
-          if(!document.getElementById('guide-overlay')) makeOverlay();
-          stepIndex = 0; paused = false; clearTimeout(timer); runStep();
-          try{ localStorage.setItem(SEEN_KEY, '1'); }catch(_){ }
-          const cta = document.getElementById('guide-cta'); if(cta) cta.remove();
-          const t = document.getElementById('guide-toggle');
-          const s = document.getElementById('guide-skip');
-          const r = document.getElementById('guide-replay');
-          if(t){ t.onclick = ()=>{ paused = !paused; t.textContent = paused ? 'Resume' : 'Pause'; if(!paused) runStep(); else clearTimeout(timer); }; }
-          if(s){ s.onclick = ()=>{ clearTimeout(timer); stepIndex += 1; runStep(); }; }
-          if(r){ r.onclick = ()=>{ clearTimeout(timer); stepIndex = 0; paused = false; document.getElementById('guide-toggle').textContent = 'Pause'; runStep(); }; }
-        }
-
-        function finish(){
-          // Ask whether to remove demo permanently
-          const ov = document.getElementById('guide-overlay'); if(!ov) return;
-          const title = document.getElementById('guide-title');
-          const desc = document.getElementById('guide-desc');
-          if(title) title.textContent = 'Demo complete';
-          if(desc) desc.textContent = 'Would you like to hide the guided demo from this page?';
-          const bar = document.getElementById('guide-progress'); if(bar) bar.style.width = '100%';
-          const actions = document.createElement('div');
-          actions.style.display = 'flex';
-          actions.style.gap = '6px';
-          actions.style.marginTop = '8px';
-          actions.innerHTML = `
-            <button id="guide-remove" style="padding:6px 10px; border-radius:8px; background:#dc2626; color:#ffffff; font-size:12px">Remove</button>
-            <button id="guide-keep" style="padding:6px 10px; border-radius:8px; background:#10b981; color:#ffffff; font-size:12px">Keep</button>
+          const dots = Array.from({length:total}, (_,i) => `<span style="width:8px;height:8px;border-radius:50%;background:${i<=stepIdx ? '#4f46e5' : '#c7d2fe'};display:inline-block"></span>`).join('');
+          bannerEl.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-weight:600;font-size:14px;color:#3730a3">${title}</div>
+              <button id="guide-exit" style="background:none;border:none;color:#6366f1;font-size:12px;cursor:pointer;padding:4px 8px" aria-label="Exit demo">✕ Exit</button>
+            </div>
+            <div style="font-size:13px;color:#4b5563">${desc}</div>
+            <div style="display:flex;gap:6px;align-items:center">${dots}</div>
           `;
-          ov.appendChild(actions);
-          const rm = document.getElementById('guide-remove');
-          const kp = document.getElementById('guide-keep');
-          if(rm){ rm.onclick = ()=>{ try{ localStorage.setItem(HIDE_KEY, '1'); }catch(_){ } const cta = document.getElementById('guide-cta'); if(cta) cta.remove(); ov.remove(); const hi = document.getElementById('guide-highlight'); if(hi) hi.remove(); }; }
-          if(kp){ kp.onclick = ()=>{ ov.remove(); const hi = document.getElementById('guide-highlight'); if(hi) hi.remove(); showCTA(); }; }
+          const exitBtn = bannerEl.querySelector('#guide-exit');
+          if(exitBtn) exitBtn.onclick = () => exitDemo();
         }
 
-        function cleanup(){
-          const hi = document.getElementById('guide-highlight'); if(hi) hi.remove();
-          const ov = document.getElementById('guide-overlay'); if(ov) ov.remove();
+        function removeBanner(){
+          if(bannerEl){ bannerEl.remove(); bannerEl = null; }
+        }
+
+        async function startDemo(){
+          try{ localStorage.setItem(SEEN_KEY, '1'); }catch(_){}
+          const cta = document.getElementById('guide-cta'); if(cta) cta.remove();
+          savedState = getCurrentEntries();
+          clearList();
+          nameInputEl.value = '';
+          const existingRows = document.querySelectorAll('.pron-row');
+          existingRows.forEach(r => r.remove());
+          createPronRow('en-US', '', false);
+          const STEPS = 4;
+
+          makeBanner(0, STEPS, 'Step 1: Type a name', 'Let\'s add "Zhang Wei" to the list');
+          await delay(600);
+          await typeInto(nameInputEl, 'Zhang Wei');
+          await delay(400);
+
+          makeBanner(1, STEPS, 'Step 2: Add a pronunciation', 'Adding a Chinese pronunciation row');
+          await delay(400);
+          addPronEl.click();
+          await delay(300);
+          const rows = getPronRows();
+          if(rows.length >= 2){
+            const lastRow = rows[rows.length - 1];
+            const sel = lastRow.querySelector('select');
+            const inp = lastRow.querySelector('input');
+            if(sel) sel.value = 'zh-CN';
+            if(inp) await typeInto(inp, '张伟');
+          }
+          await delay(400);
+
+          makeBanner(2, STEPS, 'Step 3: Add and play', 'Adding to the list, then playing pronunciation');
+          await delay(400);
+          addEl.click();
+          await delay(800);
+          const pill = document.querySelector('.item:last-of-type .pill');
+          if(pill) pill.click();
+          await delay(2000);
+
+          makeBanner(3, STEPS, 'Demo complete!', 'Your names are restored. Try it yourself!');
+          await delay(2500);
+          exitDemo();
+        }
+
+        function exitDemo(){
+          removeBanner();
+          if(savedState !== null){
+            hydrateList(savedState);
+            savedState = null;
+          }
+          refreshURL();
+          nameInputEl.value = '';
+          const existingRows = document.querySelectorAll('.pron-row');
+          existingRows.forEach(r => r.remove());
+          createPronRow('en-US', '', false);
+          validateInputs();
         }
 
         function showCTA(){
-          try{ if(localStorage.getItem(HIDE_KEY) === '1') return; }catch(_){ }
+          try{ if(localStorage.getItem(HIDE_KEY) === '1') return; }catch(_){}
           if(document.getElementById('guide-cta')) return;
           const banner = document.createElement('div');
           banner.id = 'guide-cta';
-          banner.style.margin = '8px 0 12px';
-          banner.style.padding = '10px 12px';
-          banner.style.border = '1px solid #c7d2fe';
-          banner.style.background = '#eef2ff';
-          banner.style.borderRadius = '10px';
-          banner.style.display = 'flex';
-          banner.style.justifyContent = 'space-between';
-          banner.style.alignItems = 'center';
-          banner.style.gap = '8px';
+          banner.style.cssText = 'margin:8px 0 12px;padding:10px 12px;border:1px solid #c7d2fe;background:#eef2ff;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:8px';
           banner.innerHTML = `
-            <div style="font-size:13px; color:#3730a3; font-weight:600">Try the guided demo</div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap">
-              <button id="guide-start" style="padding:6px 10px; border-radius:8px; background:#4f46e5; color:#ffffff; font-size:12px; border:none">Start</button>
-              <button id="guide-dismiss" style="padding:6px 10px; border-radius:8px; background:#e0e7ff; color:#3730a3; font-size:12px; border:1px solid #c7d2fe">Dismiss</button>
+            <div style="font-size:13px;color:#3730a3;font-weight:600">Try the guided demo</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button id="guide-start" style="padding:6px 10px;border-radius:8px;background:#4f46e5;color:#fff;font-size:12px;border:none;cursor:pointer">Start</button>
+              <button id="guide-dismiss" style="padding:6px 10px;border-radius:8px;background:#e0e7ff;color:#3730a3;font-size:12px;border:1px solid #c7d2fe;cursor:pointer">Dismiss</button>
             </div>
           `;
           const container = document.querySelector('.wrap');
           if(container){ container.insertBefore(banner, container.querySelector('.card') || container.firstChild); }
           const startBtn = banner.querySelector('#guide-start');
           const dismissBtn = banner.querySelector('#guide-dismiss');
-          if(startBtn){ startBtn.onclick = ()=> start(); }
-          if(dismissBtn){ dismissBtn.onclick = ()=> { try{ localStorage.setItem(HIDE_KEY, '1'); }catch(_){ } banner.remove(); } }
+          if(startBtn){ startBtn.onclick = () => startDemo(); }
+          if(dismissBtn){ dismissBtn.onclick = () => { try{ localStorage.setItem(HIDE_KEY, '1'); }catch(_){} banner.remove(); }; }
         }
 
-        // legacy guided link removed
+        // Auto-show CTA on first visit (unless hidden or already seen)
         try {
           const u = new URL(window.location.href);
-          if(u.searchParams.get('guide') === '1'){ start(); }
-          else {
-            // First visit hint: show CTA if not hidden
-            if(!localStorage.getItem(SEEN_KEY) && !localStorage.getItem(HIDE_KEY)){
-              showCTA();
-            }
+          if(u.searchParams.get('guide') === '1'){ startDemo(); }
+          else if(!localStorage.getItem(SEEN_KEY) && !localStorage.getItem(HIDE_KEY) && !u.searchParams.has('s')){
+            showCTA();
           }
-        } catch(_){ showCTA(); }
-
-        // When script finishes all steps (no more step), call finish
-        const _origRunStep = runStep;
-        runStep = async function(){
-          if(paused) return;
-          const step = steps[stepIndex];
-          if(!step){ finish(); return; }
-          await _origRunStep();
-        }
+        } catch(_){ }
       })();
     </script>
   </body>

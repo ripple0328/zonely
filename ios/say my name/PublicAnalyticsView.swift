@@ -97,13 +97,13 @@ struct PublicAnalyticsView: View {
                         totalPlaysCard(dashboard)
                             .staggerIn(index: 0, appeared: vm.hasAppeared)
 
-                        topNamesSection(dashboard.topNames)
+                        topNamesSection(dashboard.topNames, showPulse: vm.showUpdatePulse)
                             .staggerIn(index: 1, appeared: vm.hasAppeared)
 
-                        topLanguagesSection(dashboard.topLanguages)
+                        topLanguagesSection(dashboard.topLanguages, showPulse: vm.showUpdatePulse)
                             .staggerIn(index: 2, appeared: vm.hasAppeared)
 
-                        geoDistributionSection(dashboard.geoDistribution)
+                        geoDistributionSection(dashboard.geoDistribution, showPulse: vm.showUpdatePulse)
                             .staggerIn(index: 3, appeared: vm.hasAppeared)
                     }
                 }
@@ -238,10 +238,10 @@ struct PublicAnalyticsView: View {
 
     // MARK: - Total Plays Card
     private func totalPlaysCard(_ dashboard: AnalyticsDashboard) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center) {
                 Image(systemName: "play.circle.fill")
-                    .font(.title3)
+                    .font(.subheadline)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.indigo)
                 Text("Total Plays")
@@ -258,13 +258,13 @@ struct PublicAnalyticsView: View {
             }
 
             Text("\(dashboard.totalPronunciations)")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .font(.system(size: 34, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.primary)
                 .contentTransition(.numericText())
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: dashboard.totalPronunciations)
         }
-        .padding(20)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {
@@ -286,29 +286,23 @@ struct PublicAnalyticsView: View {
     }
 
     // MARK: - Top Names Section
-    private func topNamesSection(_ names: [TopName]) -> some View {
-        sectionCard(title: "Top Requested Names", icon: "person.2.fill") {
-            VStack(spacing: 6) {
-                ForEach(Array(names.prefix(5).enumerated()), id: \.element.id) { index, name in
+    private func topNamesSection(_ names: [TopName], showPulse: Bool) -> some View {
+        let maxCount = names.first?.count ?? 1
+        return sectionCard(title: "Top Requested Names", icon: "person.2.fill", showPulse: showPulse) {
+            VStack(spacing: 4) {
+                ForEach(names.prefix(5)) { name in
+                    let ratio = Double(name.count) / Double(maxCount)
                     HStack(spacing: 8) {
-                        rankBadge(index + 1)
+                        Text(flagEmoji(for: name.lang))
+                            .font(.system(size: 14))
 
                         Text(name.name)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
 
-                        let voiceType = voiceTypeIcon(for: name.provider)
-                        Image(systemName: voiceType.icon)
-                            .font(.system(size: 10))
-                            .foregroundStyle(voiceType.color)
-
                         Text(LangCatalog.displayName(name.lang))
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(.quaternary.opacity(0.6), in: Capsule())
-                            .lineLimit(1)
 
                         Spacer()
 
@@ -316,46 +310,51 @@ struct PublicAnalyticsView: View {
                             .font(.caption.weight(.bold))
                             .monospacedDigit()
                             .foregroundStyle(.indigo)
+                            .contentTransition(.numericText())
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: name.count)
                     }
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(.indigo.opacity(ratio * 0.25))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: ratio)
+                    )
                 }
             }
         }
     }
 
     // MARK: - Top Languages Section
-    private func topLanguagesSection(_ languages: [TopLanguage]) -> some View {
-        sectionCard(title: "Top Languages", icon: "globe.americas.fill") {
-            let columns = [
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8)
-            ]
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(languages.prefix(8)) { language in
-                    HStack(spacing: 6) {
+    private func topLanguagesSection(_ languages: [TopLanguage], showPulse: Bool) -> some View {
+        let maxCount = languages.first?.count ?? 1
+        return sectionCard(title: "Top Languages", icon: "globe.americas.fill", showPulse: showPulse) {
+            VStack(spacing: 4) {
+                ForEach(languages.prefix(6)) { language in
+                    let ratio = Double(language.count) / Double(maxCount)
+                    HStack(spacing: 8) {
                         Text(flagEmoji(for: language.lang))
-                            .font(.system(size: 16))
+                            .font(.system(size: 14))
 
                         Text(LangCatalog.displayName(language.lang))
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
 
-                        Spacer(minLength: 2)
+                        Spacer()
 
                         Text("\(language.count)")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.caption.weight(.bold))
                             .monospacedDigit()
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(.indigo.gradient, in: Capsule())
+                            .foregroundStyle(.indigo)
+                            .contentTransition(.numericText())
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: language.count)
                     }
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(.white.opacity(0.1))
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(.indigo.opacity(ratio * 0.25))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: ratio)
                     )
                 }
             }
@@ -363,7 +362,7 @@ struct PublicAnalyticsView: View {
     }
 
     // MARK: - Geographic Distribution Section
-    private func geoDistributionSection(_ geoData: [GeoDistribution]) -> some View {
+    private func geoDistributionSection(_ geoData: [GeoDistribution], showPulse: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "map.fill")
@@ -372,10 +371,18 @@ struct PublicAnalyticsView: View {
                 Text("Geographic Distribution")
                     .font(.headline)
                 Spacer()
+                if showPulse {
+                    Image(systemName: "sparkle")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .transition(.scale.combined(with: .opacity))
+                }
                 if !geoData.isEmpty {
                     Text("\(geoData.count) countries")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+                        .contentTransition(.numericText())
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: geoData.count)
                 }
             }
 
@@ -402,7 +409,7 @@ struct PublicAnalyticsView: View {
     }
 
     // MARK: - Reusable Components
-    private func sectionCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+    private func sectionCard<Content: View>(title: String, icon: String, showPulse: Bool = false, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
@@ -410,6 +417,12 @@ struct PublicAnalyticsView: View {
                     .foregroundStyle(.indigo)
                 Text(title)
                     .font(.headline)
+                if showPulse {
+                    Image(systemName: "sparkle")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .transition(.scale.combined(with: .opacity))
+                }
             }
             content()
         }
@@ -418,38 +431,6 @@ struct PublicAnalyticsView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(glassOverlay(radius: 20))
         .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
-    }
-
-    private func rankBadge(_ rank: Int) -> some View {
-        let color: Color = {
-            switch rank {
-            case 1: return .yellow
-            case 2: return Color(white: 0.65)
-            case 3: return .orange
-            default: return .indigo.opacity(0.4)
-            }
-        }()
-        return Text("\(rank)")
-            .font(.system(size: 9, weight: .heavy))
-            .foregroundStyle(.white)
-            .frame(width: 20, height: 20)
-            .background(color.gradient, in: Circle())
-            .shadow(color: color.opacity(0.3), radius: 2, y: 1)
-    }
-
-    private func voiceTypeIcon(for provider: String?) -> (icon: String, color: Color) {
-        guard let provider = provider else {
-            return ("speaker.wave.2.fill", .gray)
-        }
-        if provider == "forvo" || provider == "nameshouts" {
-            return ("person.wave.2.fill", .green)
-        } else if provider == "polly" {
-            return ("wand.and.stars", .purple)
-        } else if provider.hasPrefix("cache_") {
-            return ("bolt.fill", .orange)
-        } else {
-            return ("speaker.wave.2.fill", .gray)
-        }
     }
 
     private func flagEmoji(for langCode: String) -> String {

@@ -25,17 +25,17 @@ defmodule ZonelyWeb.NameSiteController do
     end
 
     Analytics.track_async("page_view_landing", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
-    render(conn, :index, names: state)
+    render(conn, :index, names: state, base_path: base_path(conn))
   end
 
   def privacy(conn, _params) do
     Analytics.track_async("page_view_privacy", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
-    render(conn, :privacy)
+    render(conn, :privacy, base_path: base_path(conn))
   end
 
   def about(conn, _params) do
     Analytics.track_async("page_view_about", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
-    render(conn, :about)
+    render(conn, :about, base_path: base_path(conn))
   end
 
   def pronounce(conn, %{"name" => name, "lang" => lang}) do
@@ -141,6 +141,14 @@ defmodule ZonelyWeb.NameSiteController do
     conn
     |> Plug.Conn.put_resp_content_type("application/json")
     |> Phoenix.Controller.text(Jason.encode!(aasa))
+  end
+
+  # Detect whether the name site is being served under /name (dev) or / (production host)
+  defp base_path(conn) do
+    case conn.path_info do
+      ["name" | _] -> "/name"
+      _ -> ""
+    end
   end
 
   defp absolute_url(conn, path) when is_binary(path) do
