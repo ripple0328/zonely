@@ -199,8 +199,9 @@ struct ContentView: View {
                         inputCard
                         list
                         footer
-                        // About link appended at end of scroll view so it can be scrolled out of view
-                        aboutLink
+                        analyticsCard
+                        // Privacy/About links at the bottom
+                        footerLinks
                     }
                     .padding(16)
                 }
@@ -210,7 +211,7 @@ struct ContentView: View {
                     vm.recomputeMismatches()
                 }
             }
-            // Keep About link within scrollable content so it can scroll off-screen
+
         }
     }
 
@@ -414,7 +415,46 @@ struct ContentView: View {
         )
     }
 
-    private var aboutLink: some View {
+    private var analyticsCard: some View {
+        NavigationLink {
+            PublicAnalyticsView()
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.title2)
+                    .foregroundStyle(.indigo)
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 32, height: 32)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Community Stats")
+                        .font(.headline)
+                    Text("See top names, languages & global usage")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.18), .white.opacity(0.06)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var footerLinks: some View {
         HStack(spacing: 12) {
             NavigationLink("Privacy") {
                 PrivacyView()
@@ -424,12 +464,6 @@ struct ContentView: View {
             Text("·").font(.caption2).foregroundStyle(.tertiary)
             NavigationLink("About") {
                 AboutView()
-            }
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-            Text("·").font(.caption2).foregroundStyle(.tertiary)
-            NavigationLink("Analytics") {
-                PublicAnalyticsView()
             }
             .font(.caption2)
             .foregroundStyle(.tertiary)

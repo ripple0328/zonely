@@ -207,15 +207,15 @@ struct AnalyticsDashboardView: View {
                 }
             }
             .pickerStyle(.segmented)
-            
+
             // Last updated timestamp
             if let lastUpdated = vm.lastUpdatedAt {
                 TimeAgoView(date: lastUpdated)
             }
         }
         .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.14)))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(glassOverlay(radius: 16))
     }
     
     // MARK: - Loading View
@@ -229,10 +229,10 @@ struct AnalyticsDashboardView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(40)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(glassOverlay(radius: 18))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(glassOverlay(radius: 20))
     }
-    
+
     // MARK: - Error View
     private func errorView(_ error: Error) -> some View {
         VStack(spacing: 12) {
@@ -251,8 +251,8 @@ struct AnalyticsDashboardView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(24)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(glassOverlay(radius: 18))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(glassOverlay(radius: 20))
     }
     
     // MARK: - Metrics Grid
@@ -291,31 +291,47 @@ struct AnalyticsDashboardView: View {
     
     private func metricCard(id: String, title: String, value: String, icon: String, color: Color) -> some View {
         let isHighlighted = vm.highlightedCards.contains(id)
-        
+
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
                     .foregroundStyle(color)
+                    .symbolRenderingMode(.hierarchical)
                 Spacer()
             }
             Text(value)
                 .font(.title.bold())
+                .monospacedDigit()
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.08), Color.clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+        }
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(color.opacity(isHighlighted ? 0.8 : 0), lineWidth: 2)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(color.opacity(isHighlighted ? 0.15 : 0))
         )
-        .overlay(glassOverlay(radius: 16))
+        .overlay(glassOverlay(radius: 20))
+        .shadow(color: color.opacity(0.06), radius: 8, y: 4)
         .scaleEffect(isHighlighted ? 1.02 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHighlighted)
     }
@@ -400,32 +416,46 @@ struct AnalyticsDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "map.fill")
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.indigo)
                 Text("Geographic Distribution")
                     .font(.headline)
+                Spacer()
+                if !geoData.isEmpty {
+                    Text("\(geoData.count) countries")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
-            
+
             if geoData.isEmpty {
-                Text("No geographic data available")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 40)
+                VStack(spacing: 8) {
+                    Image(systemName: "globe")
+                        .font(.largeTitle)
+                        .foregroundStyle(.quaternary)
+                    Text("No geographic data yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 40)
             } else {
                 GeoHeatmapView(geoDistribution: geoData)
             }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(glassOverlay(radius: 18))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(glassOverlay(radius: 20))
+        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
     }
 
     // MARK: - Reusable Components
     private func sectionCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.indigo)
                 Text(title)
                     .font(.headline)
@@ -434,27 +464,37 @@ struct AnalyticsDashboardView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(glassOverlay(radius: 18))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(glassOverlay(radius: 20))
+        .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
     }
 
     private func rankBadge(_ rank: Int) -> some View {
-        let color: Color = rank == 1 ? .yellow : (rank == 2 ? .gray : (rank == 3 ? .orange : .indigo.opacity(0.5)))
+        let color: Color = {
+            switch rank {
+            case 1: return .yellow
+            case 2: return Color(white: 0.65)
+            case 3: return .orange
+            default: return .indigo.opacity(0.4)
+            }
+        }()
         return Text("\(rank)")
-            .font(.caption.bold())
+            .font(.caption2.weight(.heavy))
             .foregroundStyle(.white)
             .frame(width: 24, height: 24)
-            .background(color, in: Circle())
+            .background(color.gradient, in: Circle())
+            .shadow(color: color.opacity(0.3), radius: 3, y: 1)
     }
 
     private func glassOverlay(radius: CGFloat) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .strokeBorder(.white.opacity(0.14))
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .stroke(.white.opacity(0.05))
-                .blur(radius: 1)
-        }
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .strokeBorder(
+                LinearGradient(
+                    colors: [.white.opacity(0.18), .white.opacity(0.06)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
     }
 }
 
