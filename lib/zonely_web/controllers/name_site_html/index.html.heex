@@ -57,6 +57,16 @@
       @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       .entry{display:flex;align-items:center;gap:8px}
       .text{font-weight:600;color:var(--fg)}
+      /* Add-pronunciation button on cards */
+      .add-pron-card{appearance:none;border:1px dashed var(--ring);background:transparent;color:var(--muted);border-radius:999px;padding:4px 10px;cursor:pointer;font-size:12px;white-space:nowrap;line-height:1.4}
+      .add-pron-card:hover{border-color:#4f46e5;color:#4f46e5}
+      .add-pron-card:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+      /* Inline add-pron form on cards */
+      .add-pron-inline{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%;grid-column:2;grid-row:3}
+      .add-pron-inline input{padding:6px 10px;border-radius:8px;font-size:13px;flex:1;min-width:100px}
+      .add-pron-inline select{padding:6px 10px;border-radius:8px;font-size:13px;min-width:100px}
+      .add-pron-inline button{padding:4px 12px;border-radius:8px;font-size:13px}
+      .add-pron-inline .cancel-inline{color:var(--muted);border-color:var(--ring)}
       @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
       .empty{color:var(--muted);text-align:center;padding:28px}
       .footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--ring)}
@@ -211,9 +221,12 @@
                       <span class="label"></span>
                       <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
                     </button>
-                    <span class="text"><%= e.text %></span>
+                    <%= if String.downcase(String.trim(e.text)) != String.downcase(String.trim(item.name)) do %>
+                      <span class="text"><%= e.text %></span>
+                    <% end %>
                   </div>
                 <% end %>
+                <button type="button" class="add-pron-card" title="Add pronunciation" aria-label={"Add pronunciation for #{item.name}"}>+</button>
               </div>
               <button class="remove" title="Remove" aria-label={"Remove #{item.name} from list"}>✕</button>
             </div>
@@ -832,6 +845,32 @@
         return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=48`;
       }
 
+      function appendPronEntry(langsEl, name, p){
+        if(!p.text) return;
+        const entry = document.createElement('div');
+        entry.className = 'entry';
+        const pill = document.createElement('button');
+        pill.className = 'pill';
+        pill.dataset.lang = p.lang || 'en-US';
+        pill.dataset.text = p.text;
+        pill.setAttribute('aria-label', `Play ${p.text} pronunciation`);
+        pill.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
+        entry.appendChild(pill);
+        // Only show pronunciation text if it differs from the display name
+        if(p.text.trim().toLowerCase() !== name.trim().toLowerCase()){
+          const textSpan = document.createElement('span');
+          textSpan.className = 'text';
+          textSpan.textContent = p.text;
+          entry.appendChild(textSpan);
+        }
+        // Insert before the "+" button if it exists, otherwise append
+        const addBtn = langsEl.querySelector('.add-pron-card');
+        if(addBtn) langsEl.insertBefore(entry, addBtn);
+        else langsEl.appendChild(entry);
+        setNativeLabelEl(pill.querySelector('.label'), pill.dataset.lang);
+        return entry;
+      }
+
       function addItem(displayName, pronunciations){
         if(!displayName && (!pronunciations || pronunciations.length === 0)) return;
         const name = displayName || (pronunciations[0] && pronunciations[0].text) || '';
@@ -847,24 +886,16 @@
         el.querySelector('.name').textContent = name;
 
         const langsEl = el.querySelector('.langs');
-        (pronunciations || []).forEach(p => {
-          if(!p.text) return;
-          const entry = document.createElement('div');
-          entry.className = 'entry';
-          const pill = document.createElement('button');
-          pill.className = 'pill';
-          pill.dataset.lang = p.lang || 'en-US';
-          pill.dataset.text = p.text;
-          pill.setAttribute('aria-label', `Play ${p.text} pronunciation`);
-          pill.innerHTML = `<span class="label"></span> <svg class="icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
-          entry.appendChild(pill);
-          const textSpan = document.createElement('span');
-          textSpan.className = 'text';
-          textSpan.textContent = p.text;
-          entry.appendChild(textSpan);
-          langsEl.appendChild(entry);
-          setNativeLabelEl(pill.querySelector('.label'), pill.dataset.lang);
-        });
+        (pronunciations || []).forEach(p => appendPronEntry(langsEl, name, p));
+
+        // "+" button to add another pronunciation on this card
+        const addPronCardBtn = document.createElement('button');
+        addPronCardBtn.type = 'button';
+        addPronCardBtn.className = 'add-pron-card';
+        addPronCardBtn.textContent = '+';
+        addPronCardBtn.title = 'Add pronunciation';
+        addPronCardBtn.setAttribute('aria-label', `Add pronunciation for ${name}`);
+        langsEl.appendChild(addPronCardBtn);
 
         listEl.appendChild(el);
         attachItemEvents(el);
@@ -976,8 +1007,7 @@
         refreshURL();
       }
 
-      function attachItemEvents(item){
-        item.querySelectorAll('.pill').forEach(pill => {
+      function bindPillEvents(item, pill){
           const labelEl = pill.querySelector('.label');
           if(labelEl){ setNativeLabelEl(labelEl, pill.dataset.lang); }
           // Inline edit: double-click or right-click to edit the text for this language
@@ -1087,8 +1117,72 @@
               currentPill = pill;
             }
           });
-        });
+      }
+
+      function attachItemEvents(item){
+        item.querySelectorAll('.pill').forEach(pill => bindPillEvents(item, pill));
         item.querySelector('.remove').addEventListener('click', () => { removeWithUndo(item); });
+
+        // "+" add pronunciation on card
+        const addPronBtn = item.querySelector('.add-pron-card');
+        if(addPronBtn){
+          addPronBtn.addEventListener('click', () => {
+            // Don't open if inline form already showing
+            if(item.querySelector('.add-pron-inline')) return;
+            addPronBtn.style.display = 'none';
+            const form = document.createElement('div');
+            form.className = 'add-pron-inline';
+            const textInp = document.createElement('input');
+            textInp.placeholder = 'Pronunciation text';
+            textInp.setAttribute('aria-label', 'New pronunciation text');
+            textInp.autocomplete = 'off';
+            form.appendChild(textInp);
+            const sel = document.createElement('select');
+            sel.setAttribute('aria-label', 'New pronunciation language');
+            // Pick a default lang not yet used on this card
+            const usedLangs = [...item.querySelectorAll('.pill')].map(p => p.dataset.lang);
+            const defLang = defaultLangOrder.find(l => !usedLangs.includes(l)) || 'en-US';
+            sel.innerHTML = langOptionsHtml(defLang);
+            form.appendChild(sel);
+            const okBtn = document.createElement('button');
+            okBtn.type = 'button';
+            okBtn.className = 'primary';
+            okBtn.textContent = 'Add';
+            okBtn.setAttribute('aria-label', 'Confirm add pronunciation');
+            form.appendChild(okBtn);
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'cancel-inline';
+            cancelBtn.textContent = '✕';
+            cancelBtn.setAttribute('aria-label', 'Cancel');
+            form.appendChild(cancelBtn);
+            item.appendChild(form);
+            textInp.focus();
+
+            function closeForm(){ form.remove(); addPronBtn.style.display = ''; }
+            function confirmAdd(){
+              const text = textInp.value.trim();
+              const lang = sel.value;
+              if(!text){ textInp.focus(); return; }
+              const langsEl = item.querySelector('.langs');
+              const name = item.dataset.name;
+              const entry = appendPronEntry(langsEl, name, { text, lang });
+              if(entry){
+                // Bind play/edit events to new pill
+                const newPill = entry.querySelector('.pill');
+                if(newPill) bindPillEvents(item, newPill);
+              }
+              closeForm();
+              refreshURL();
+            }
+            okBtn.addEventListener('click', confirmAdd);
+            cancelBtn.addEventListener('click', closeForm);
+            textInp.addEventListener('keydown', (e) => {
+              if(e.key === 'Enter') confirmAdd();
+              if(e.key === 'Escape') closeForm();
+            });
+          });
+        }
       }
 
       addEl.addEventListener('click', () => {
