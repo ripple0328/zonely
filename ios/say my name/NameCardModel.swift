@@ -40,13 +40,11 @@ struct LanguageVariant: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     var language: String      // BCP-47 code matching web's "language" key
     var name: String          // Name in native script
-    var pronunciation: String // Pronunciation guide (optional)
 
-    init(id: UUID = UUID(), language: String, name: String, pronunciation: String = "") {
+    init(id: UUID = UUID(), language: String, name: String) {
         self.id = id
         self.language = language
         self.name = name
-        self.pronunciation = pronunciation
     }
 }
 

@@ -4,26 +4,26 @@
   _ -> nil
 end %>
 <% active_tab = cond do
-  current_view in [ZonelyWeb.ExploreLive] -> :explore
+  current_view in [ZonelyWeb.ExploreLive] -> :analytics
   current_view in [ZonelyWeb.MeLive, ZonelyWeb.MyNameCardLive] -> :me
   true -> :lists
 end %>
 
 <%!-- Desktop top nav (hidden on mobile) --%>
-<header class="hidden sm:block border-b border-gray-200 bg-white" data-testid="main-header">
+<header class="hidden sm:block border-b border-[var(--ring)] bg-[var(--card)]" data-testid="main-header">
   <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-    <a href={~p"/"} class="flex items-center gap-2 text-lg font-bold text-gray-900" aria-label="SayMyName home">
+    <a href={~p"/name"} class="flex items-center gap-2 text-lg font-bold text-[var(--fg)]" aria-label="SayMyName home">
       <span class="text-xl">🗣️</span>
       <span>SayMyName</span>
     </a>
     <nav class="flex items-center gap-1" role="tablist" aria-label="Main navigation" data-testid="main-navigation">
       <a
-        href={~p"/"}
+        href={~p"/name"}
         role="tab"
         aria-selected={if(active_tab == :lists, do: "true", else: "false")}
         class={[
           "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
-          if(active_tab == :lists, do: "bg-blue-50 text-blue-700", else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900")
+          if(active_tab == :lists, do: "bg-blue-50 text-blue-700", else: "text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]")
         ]}
         data-testid="nav-lists"
       >
@@ -31,25 +31,25 @@ end %>
         Lists
       </a>
       <a
-        href={~p"/explore"}
+        href={~p"/name/explore"}
         role="tab"
-        aria-selected={if(active_tab == :explore, do: "true", else: "false")}
+        aria-selected={if(active_tab == :analytics, do: "true", else: "false")}
         class={[
           "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
-          if(active_tab == :explore, do: "bg-blue-50 text-blue-700", else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900")
+          if(active_tab == :analytics, do: "bg-blue-50 text-blue-700", else: "text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]")
         ]}
-        data-testid="nav-explore"
+        data-testid="nav-analytics"
       >
-        <.icon name="hero-magnifying-glass" class="h-5 w-5" />
-        Explore
+        <.icon name="hero-chart-bar" class="h-5 w-5" />
+        Analytics
       </a>
       <a
-        href={~p"/me"}
+        href={~p"/name/me"}
         role="tab"
         aria-selected={if(active_tab == :me, do: "true", else: "false")}
         class={[
           "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
-          if(active_tab == :me, do: "bg-blue-50 text-blue-700", else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900")
+          if(active_tab == :me, do: "bg-blue-50 text-blue-700", else: "text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]")
         ]}
         data-testid="nav-me"
       >
@@ -61,7 +61,7 @@ end %>
 </header>
 
 <%!-- Main content area --%>
-<main class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
+<main class="min-h-screen bg-[var(--bg)] pb-20 sm:pb-0">
   <div class="mx-auto max-w-5xl px-4 py-6 sm:px-6">
     <.flash_group flash={@flash} />
     <%= @inner_content %>
@@ -70,19 +70,19 @@ end %>
 
 <%!-- Mobile bottom tab bar (hidden on desktop) --%>
 <nav
-  class="fixed bottom-0 inset-x-0 z-50 border-t border-gray-200 bg-white sm:hidden"
+  class="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--ring)] bg-[var(--card)] sm:hidden"
   role="tablist"
   aria-label="Main navigation"
   data-testid="mobile-tab-bar"
 >
   <div class="flex items-center justify-around py-2">
     <a
-      href={~p"/"}
+      href={~p"/name"}
       role="tab"
       aria-selected={if(active_tab == :lists, do: "true", else: "false")}
       class={[
         "flex flex-col items-center gap-1 rounded-lg px-4 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
-        if(active_tab == :lists, do: "text-blue-600", else: "text-gray-500")
+        if(active_tab == :lists, do: "text-blue-600", else: "text-[var(--muted)]")
       ]}
       data-testid="mobile-nav-lists"
     >
@@ -90,25 +90,25 @@ end %>
       <span>Lists</span>
     </a>
     <a
-      href={~p"/explore"}
+      href={~p"/name/explore"}
       role="tab"
-      aria-selected={if(active_tab == :explore, do: "true", else: "false")}
+      aria-selected={if(active_tab == :analytics, do: "true", else: "false")}
       class={[
         "flex flex-col items-center gap-1 rounded-lg px-4 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
-        if(active_tab == :explore, do: "text-blue-600", else: "text-gray-500")
+        if(active_tab == :analytics, do: "text-blue-600", else: "text-[var(--muted)]")
       ]}
-      data-testid="mobile-nav-explore"
+      data-testid="mobile-nav-analytics"
     >
-      <.icon name="hero-magnifying-glass" class="h-6 w-6" />
-      <span>Explore</span>
+      <.icon name="hero-chart-bar" class="h-6 w-6" />
+      <span>Analytics</span>
     </a>
     <a
-      href={~p"/me"}
+      href={~p"/name/me"}
       role="tab"
       aria-selected={if(active_tab == :me, do: "true", else: "false")}
       class={[
         "flex flex-col items-center gap-1 rounded-lg px-4 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
-        if(active_tab == :me, do: "text-blue-600", else: "text-gray-500")
+        if(active_tab == :me, do: "text-blue-600", else: "text-[var(--muted)]")
       ]}
       data-testid="mobile-nav-me"
     >

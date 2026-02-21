@@ -1,13 +1,9 @@
 "common_spelling_placeholder" = "Common spelling";
 "original_spelling_placeholder" = "Original spelling";
 "name_placeholder" = "Name (e.g., Zhang Wei)";
-"pronunciation_text_label" = "Pronunciation text";
-"pronunciation_text_placeholder" = "How it should be spoken";
-"customize_pronunciation" = "Customize pronunciation text";
 "text_may_not_match_lang" = "Text may not match %@";
 "language" = "Language";
 "add" = "Add";
-"add_pronunciation" = "Add pronunciation";
 "empty_list_message" = "No names yet. Add a name and language to begin.";
 "share_your_list" = "Share your list";
 "share" = "Share";
@@ -29,7 +25,7 @@
 
 /* Tab bar */
 "tab_lists" = "Lists";
-"tab_explore" = "Explore";
+"tab_explore" = "Analytics";
 "tab_me" = "Me";
 
 /* Me tab */
@@ -57,8 +53,7 @@
 "name_in_language" = "Your Name in This Language";
 "name_native_placeholder" = "Enter your name in native script";
 "name_native_hint" = "Write in native script (e.g. 陈莎拉 for Chinese)";
-"pronunciation_guide" = "Pronunciation Guide (optional)";
-"pronunciation_guide_placeholder" = "e.g. Chén Shā Lā";
+
 "save_name_card" = "Save Name Card";
 "share_name_card" = "Share Name Card";
 "delete_card_title" = "Delete Name Card";

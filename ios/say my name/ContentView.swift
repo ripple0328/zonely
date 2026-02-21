@@ -11,8 +11,6 @@ final class AppViewModel: ObservableObject {
     // Simplified input: single name + language picker
     @Published var nameText: String = ""
     @Published var selectedLang: String = "en-US"
-    @Published var pronOverrideText: String = ""
-    @Published var showPronOverride: Bool = false
     @Published var scriptMismatch: Bool = false
     @Published var loadingPill: UUID?
     @Published var playingPill: UUID?
@@ -75,18 +73,7 @@ final class AppViewModel: ObservableObject {
         guard !name.isEmpty else { return }
         recomputeMismatches()
         guard !scriptMismatch else { return }
-        // Use override text if provided, otherwise use the name
-        let pronText = showPronOverride && !pronOverrideText.trimmingCharacters(in: .whitespaces).isEmpty
-            ? pronOverrideText.trimmingCharacters(in: .whitespaces)
-            : name
-        // Check override text also matches the language
-        if showPronOverride && !pronOverrideText.trimmingCharacters(in: .whitespaces).isEmpty {
-            guard LanguageHeuristics.matches(text: pronText, bcp47: selectedLang) else {
-                scriptMismatch = true
-                return
-            }
-        }
-        let item = LangItem(bcp47: selectedLang, text: pronText)
+        let item = LangItem(bcp47: selectedLang, text: name)
         entries.append(NameEntry(displayName: name, items: [item]))
         resetInputForm()
         save()
@@ -94,8 +81,6 @@ final class AppViewModel: ObservableObject {
 
     func resetInputForm() {
         nameText = ""
-        pronOverrideText = ""
-        showPronOverride = false
         scriptMismatch = false
         selectedLang = "en-US"
     }
@@ -135,12 +120,7 @@ final class AppViewModel: ObservableObject {
         showUndoToast = false
     }
 
-    func addPronunciation(to entryId: UUID, lang: String, text: String) {
-        guard let idx = entries.firstIndex(where: { $0.id == entryId }) else { return }
-        let item = LangItem(bcp47: lang, text: text)
-        entries[idx].items.append(item)
-        save()
-    }
+
 
     func play(_ item: LangItem, displayName: String) {
         loadingPill = item.id
@@ -280,18 +260,7 @@ final class AppViewModel: ObservableObject {
             return
         }
         let nameMatches = LanguageHeuristics.matches(text: name, bcp47: selectedLang)
-        if !nameMatches {
-            scriptMismatch = true
-            // Auto-show the pronunciation override field when there's a script mismatch
-            showPronOverride = true
-            return
-        }
-        // If override is shown and has text, check that too
-        if showPronOverride && !pronOverrideText.trimmingCharacters(in: .whitespaces).isEmpty {
-            scriptMismatch = !LanguageHeuristics.matches(text: pronOverrideText, bcp47: selectedLang)
-        } else {
-            scriptMismatch = false
-        }
+        scriptMismatch = !nameMatches
     }
     
     func loadFromDeepLink(url: URL) {
@@ -584,50 +553,6 @@ struct ListsTab: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // Pronunciation override field (shown on mismatch or by toggle)
-            if vm.showPronOverride {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(NSLocalizedString("pronunciation_text_label", comment: "Pronunciation text label"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField(NSLocalizedString("pronunciation_text_placeholder", comment: "Pronunciation text placeholder"), text: $vm.pronOverrideText)
-                        .textInputAutocapitalization(.words)
-                        .disableAutocorrection(true)
-                        .submitLabel(.done)
-                        .focused($focusedField, equals: .pronOverride)
-                        .onSubmit {
-                            focusedField = nil
-                            if canAdd { vm.addEntry(); Haptics.shared.impact(.medium) }
-                        }
-                        .onChange(of: vm.pronOverrideText) { _ in vm.recomputeMismatches() }
-                        .padding(12)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.22)))
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            // Toggle for pronunciation override
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    vm.showPronOverride.toggle()
-                    if !vm.showPronOverride {
-                        vm.pronOverrideText = ""
-                        vm.recomputeMismatches()
-                    }
-                }
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "pencil")
-                        .imageScale(.small)
-                    Text(NSLocalizedString("customize_pronunciation", comment: "Customize pronunciation toggle"))
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityLabel(NSLocalizedString("customize_pronunciation", comment: ""))
-            .accessibilityAddTraits(vm.showPronOverride ? .isSelected : [])
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -640,17 +565,12 @@ struct ListsTab: View {
                     .blur(radius: 1)
             }
         )
-        .animation(.easeInOut(duration: 0.2), value: vm.showPronOverride)
         .animation(.easeInOut(duration: 0.2), value: vm.scriptMismatch)
     }
 
     private var canAdd: Bool {
         !vm.nameText.trimmingCharacters(in: .whitespaces).isEmpty && !vm.scriptMismatch
     }
-
-    @State private var addPronEntryId: UUID?
-    @State private var addPronLang: String = "en-US"
-    @State private var addPronText: String = ""
 
     private var list: some View {
         VStack(spacing: 10) {
@@ -665,26 +585,6 @@ struct ListsTab: View {
                         AvatarView(seed: entry.displayName)
                         Text(entry.displayName).font(.headline)
                         Spacer()
-                        // Add pronunciation button
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                if addPronEntryId == entry.id {
-                                    addPronEntryId = nil
-                                } else {
-                                    addPronEntryId = entry.id
-                                    // Default to a language not already on the card
-                                    let usedLangs = Set(entry.items.map(\.bcp47))
-                                    addPronLang = LangCatalog.allCodes.first(where: { !usedLangs.contains($0) }) ?? "en-US"
-                                    addPronText = ""
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "plus.circle")
-                                .foregroundStyle(.blue)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(NSLocalizedString("add_pronunciation", comment: "Add pronunciation"))
-
                         Button(role: .destructive) { vm.removeEntry(entry) } label: { Image(systemName: "xmark") }
                             .buttonStyle(.bordered)
                     }
@@ -709,55 +609,6 @@ struct ListsTab: View {
                                 }
                             }
                         }
-                    }
-
-                    // Inline add-pronunciation form
-                    if addPronEntryId == entry.id {
-                        VStack(spacing: 8) {
-                            HStack(spacing: 8) {
-                                TextField(NSLocalizedString("pronunciation_text_placeholder", comment: ""), text: $addPronText)
-                                    .textInputAutocapitalization(.words)
-                                    .disableAutocorrection(true)
-                                    .padding(10)
-                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(0.22)))
-
-                                Menu {
-                                    ForEach(LangCatalog.allCodes, id: \.self) { code in
-                                        Button(LangCatalog.displayName(code)) { addPronLang = code }
-                                    }
-                                } label: {
-                                    Text(LangCatalog.displayName(addPronLang))
-                                        .font(.caption.weight(.medium))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 8)
-                                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.white.opacity(0.22)))
-                                }
-                            }
-                            HStack(spacing: 8) {
-                                Button(NSLocalizedString("add", comment: "")) {
-                                    let text = addPronText.trimmingCharacters(in: .whitespaces).isEmpty
-                                        ? entry.displayName
-                                        : addPronText.trimmingCharacters(in: .whitespaces)
-                                    vm.addPronunciation(to: entry.id, lang: addPronLang, text: text)
-                                    Haptics.shared.impact(.medium)
-                                    withAnimation { addPronEntryId = nil }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
-
-                                Button(NSLocalizedString("cancel", comment: "")) {
-                                    withAnimation { addPronEntryId = nil }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-
-                                Spacer()
-                            }
-                        }
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 .padding(12)
@@ -805,7 +656,7 @@ struct ListsTab: View {
 
 }
 
-private enum Field: Hashable { case name, pronOverride }
+private enum Field: Hashable { case name }
 
 // MARK: - Root TabView (3-tab navigation matching web)
 
@@ -814,7 +665,7 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .lists
 
     enum Tab: String {
-        case lists, explore, me
+        case lists, analytics, me
     }
 
     var body: some View {
@@ -830,10 +681,10 @@ struct ContentView: View {
                 PublicAnalyticsView()
             }
             .tabItem {
-                Label(NSLocalizedString("tab_explore", comment: "Explore tab"),
-                      systemImage: "magnifyingglass")
+                Label(NSLocalizedString("tab_explore", comment: "Analytics tab"),
+                      systemImage: "chart.bar")
             }
-            .tag(Tab.explore)
+            .tag(Tab.analytics)
 
             MeTab()
                 .tabItem {

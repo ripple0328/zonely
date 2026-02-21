@@ -82,7 +82,7 @@ defmodule ZonelyWeb.Router do
     live("/", HomeLive)
     live("/collections", CollectionsLive)
 
-    # Tab 2: Explore
+    # Tab 2: Analytics
     live("/explore", ExploreLive)
 
     # Tab 3: Me

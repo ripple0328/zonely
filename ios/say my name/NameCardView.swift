@@ -189,11 +189,6 @@ struct NameCardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(variant.name)
                     .font(.body.weight(.medium))
-                if !variant.pronunciation.isEmpty {
-                    Text("(\(variant.pronunciation))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
                 Text(NameCardLanguages.label(for: variant.language))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -283,7 +278,6 @@ extension NameCardView {
             for v in languageVariants {
                 let flag = NameCardLanguages.flag(for: v.language)
                 var line = "\(flag) \(v.name)"
-                if !v.pronunciation.isEmpty { line += " (\(v.pronunciation))" }
                 lines.append(line)
             }
         }
@@ -302,7 +296,7 @@ struct AddLanguageSheet: View {
 
     @State private var selectedCode: String = "zh-CN"
     @State private var name: String = ""
-    @State private var pronunciation: String = ""
+
 
     private var availableLanguages: [SupportedLanguage] {
         NameCardLanguages.all.filter { !existingCodes.contains($0.code) }
@@ -344,14 +338,6 @@ struct AddLanguageSheet: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        // Pronunciation guide
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(NSLocalizedString("pronunciation_guide", comment: ""))
-                                .font(.subheadline.weight(.semibold))
-                            TextField(NSLocalizedString("pronunciation_guide_placeholder", comment: ""), text: $pronunciation)
-                                .textFieldStyle(.roundedBorder)
-                                .autocorrectionDisabled()
-                        }
                     }
                     .padding(16)
                 }
@@ -366,8 +352,7 @@ struct AddLanguageSheet: View {
                     Button(NSLocalizedString("add", comment: "")) {
                         let variant = LanguageVariant(
                             language: selectedCode,
-                            name: name.trimmingCharacters(in: .whitespaces),
-                            pronunciation: pronunciation.trimmingCharacters(in: .whitespaces)
+                            name: name.trimmingCharacters(in: .whitespaces)
                         )
                         onAdd(variant)
                         dismiss()

@@ -212,7 +212,6 @@ struct MeTab: View {
             for v in card.languageVariants {
                 let flag = NameCardLanguages.flag(for: v.language)
                 var line = "\(flag) \(v.name)"
-                if !v.pronunciation.isEmpty { line += " (\(v.pronunciation))" }
                 lines.append(line)
             }
         }
