@@ -164,10 +164,12 @@ struct GeoHeatmapMapView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let mapWidth = geometry.size.width
+            let mapHeight = mapWidth / 2.0  // World map ~2:1 aspect ratio
             ZStack {
-                // Subtle gradient background matching app aesthetic
+                // Light background matching app aesthetic
                 LinearGradient(
-                    colors: [Color(white: 0.10), Color(white: 0.06).opacity(0.95)],
+                    colors: [Color.blue.opacity(0.06), Color.purple.opacity(0.04)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -180,7 +182,7 @@ struct GeoHeatmapMapView: View {
                         let fillColor = heatmapColor(for: count)
 
                         context.fill(path, with: .color(fillColor))
-                        context.stroke(path, with: .color(Color.white.opacity(0.2)), lineWidth: 0.5)
+                        context.stroke(path, with: .color(Color.primary.opacity(0.18)), lineWidth: 0.5)
                     }
                 }
 
@@ -188,9 +190,9 @@ struct GeoHeatmapMapView: View {
                 ForEach(countries) { country in
                     let count = countryPlays[country.iso3] ?? 0
                     if count > 0 {
-                        country.path(in: geometry.size)
+                        country.path(in: CGSize(width: mapWidth, height: mapHeight))
                             .fill(Color.clear)
-                            .contentShape(country.path(in: geometry.size))
+                            .contentShape(country.path(in: CGSize(width: mapWidth, height: mapHeight)))
                             .onTapGesture {
                                 if selectedCountry?.name == country.name {
                                     selectedCountry = nil
@@ -201,10 +203,12 @@ struct GeoHeatmapMapView: View {
                     }
                 }
             }
+            .frame(width: mapWidth, height: mapHeight)
             .onAppear {
                 loadCountries()
             }
         }
+        .aspectRatio(2.0, contentMode: .fit)
     }
 
     // MARK: - Load GeoJSON from bundle
@@ -233,21 +237,21 @@ struct GeoHeatmapMapView: View {
         }
     }
 
-    // MARK: - Heatmap color by threshold
+    // MARK: - Heatmap color by threshold (light-background friendly)
     private func heatmapColor(for count: Int) -> Color {
         switch count {
         case 0:
-            return Color(white: 0.18).opacity(0.45)
+            return Color.gray.opacity(0.12)
         case 1...10:
-            return Color(red: 0.58, green: 0.77, blue: 0.99).opacity(0.9)
+            return Color(red: 0.40, green: 0.62, blue: 0.95).opacity(0.55)
         case 11...50:
-            return Color(red: 0.20, green: 0.83, blue: 0.60).opacity(0.9)
+            return Color(red: 0.15, green: 0.72, blue: 0.50).opacity(0.60)
         case 51...100:
-            return Color(red: 0.98, green: 0.75, blue: 0.14).opacity(0.9)
+            return Color(red: 0.90, green: 0.68, blue: 0.10).opacity(0.65)
         case 101...500:
-            return Color(red: 0.98, green: 0.45, blue: 0.09).opacity(0.9)
+            return Color(red: 0.92, green: 0.40, blue: 0.08).opacity(0.70)
         default:
-            return Color(red: 0.94, green: 0.27, blue: 0.27).opacity(0.95)
+            return Color(red: 0.88, green: 0.22, blue: 0.22).opacity(0.75)
         }
     }
 }
@@ -280,7 +284,6 @@ struct GeoHeatmapView: View {
             }
             .padding(8)
         }
-        .frame(height: 300)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(glassOverlay(radius: 18))
         .accessibilityElement(children: .contain)
@@ -302,7 +305,13 @@ struct GeoHeatmapView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.white.opacity(0.2))
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.18), .white.opacity(0.06)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 )
             }
             Spacer()
@@ -316,17 +325,23 @@ struct GeoHeatmapView: View {
     
     private var legendView: some View {
         VStack(alignment: .leading, spacing: 4) {
-            legendItem(color: Color(red: 0.94, green: 0.27, blue: 0.27), label: "500+")
-            legendItem(color: Color(red: 0.98, green: 0.45, blue: 0.09), label: "101-500")
-            legendItem(color: Color(red: 0.98, green: 0.75, blue: 0.14), label: "51-100")
-            legendItem(color: Color(red: 0.20, green: 0.83, blue: 0.60), label: "11-50")
-            legendItem(color: Color(red: 0.58, green: 0.77, blue: 0.99), label: "1-10")
+            legendItem(color: Color(red: 0.88, green: 0.22, blue: 0.22), label: "500+")
+            legendItem(color: Color(red: 0.92, green: 0.40, blue: 0.08), label: "101-500")
+            legendItem(color: Color(red: 0.90, green: 0.68, blue: 0.10), label: "51-100")
+            legendItem(color: Color(red: 0.15, green: 0.72, blue: 0.50), label: "11-50")
+            legendItem(color: Color(red: 0.40, green: 0.62, blue: 0.95), label: "1-10")
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(.white.opacity(0.15))
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.18), .white.opacity(0.06)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
     }
     
@@ -342,13 +357,14 @@ struct GeoHeatmapView: View {
     }
     
     private func glassOverlay(radius: CGFloat) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .strokeBorder(.white.opacity(0.14))
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .stroke(.white.opacity(0.05))
-                .blur(radius: 1)
-        }
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .strokeBorder(
+                LinearGradient(
+                    colors: [.white.opacity(0.18), .white.opacity(0.06)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
     }
 }
 
@@ -365,5 +381,4 @@ struct GeoHeatmapView: View {
         GeoDistribution(country: "AU", count: 8)
     ])
     .padding()
-    .preferredColorScheme(.dark)
 }

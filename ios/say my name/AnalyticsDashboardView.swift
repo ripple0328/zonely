@@ -95,7 +95,7 @@ struct AnalyticsDashboardView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color.black.opacity(0.22), Color.indigo.opacity(0.22)],
+            LinearGradient(colors: [Color.black.opacity(0.22), Color.blue.opacity(0.22)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
             
@@ -533,5 +533,4 @@ struct TimeAgoView: View {
 
 #Preview {
     AnalyticsDashboardView()
-        .preferredColorScheme(.dark)
 }
