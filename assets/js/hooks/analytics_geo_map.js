@@ -188,51 +188,48 @@ export default {
     this.map = map
   },
 
-  // Build dynamic color stops using logarithmic scale
-  // This ensures countries with any plays are visible even when one country dominates
+  // Build dynamic color stops using relative linear interpolation
+  // Colors are evenly distributed across the actual data range [0, maxCount]
   // Returns flat array: [value1, color1, value2, color2, ...]
   buildColorStops(maxCount) {
-    // Indigo color palette (light to dark)
-    const colors = [
-      "#f1f5f9", // 0: slate-100 (no data)
-      "#c7d2fe", // 1+: indigo-200 - clearly visible for any plays
+    const noDataColor = "#f1f5f9" // slate-100 (no data)
+
+    // Active indigo color palette (light to dark) for countries with plays
+    const activeColors = [
+      "#c7d2fe", // indigo-200 - lightest active
       "#a5b4fc", // indigo-300
       "#818cf8", // indigo-400
       "#6366f1", // indigo-500
       "#4f46e5", // indigo-600
-      "#4338ca", // max: indigo-700
+      "#4338ca", // indigo-700 - darkest
     ]
 
-    // Use logarithmic scale to handle high contrast data
-    // This makes even low-count countries visible
+    // Edge case: maxCount <= 1 — only two stops needed
     if (maxCount <= 1) {
-      return [0, colors[0], 1, colors[6]]
+      return [0, noDataColor, 1, activeColors[activeColors.length - 1]]
     }
 
-    const logMax = Math.log10(maxCount)
+    // Edge case: maxCount == 2
+    if (maxCount === 2) {
+      return [0, noDataColor, 1, activeColors[0], 2, activeColors[activeColors.length - 1]]
+    }
 
-    // Calculate logarithmic breakpoints
-    // 0 = no data, 1+ = visible coloring
-    // Cap each breakpoint to be strictly less than maxCount, then deduplicate
-    let breakpoints = [
-      0,
-      1,
-      Math.min(Math.max(2, Math.floor(Math.pow(10, logMax * 0.2))), maxCount - 1),
-      Math.min(Math.max(3, Math.floor(Math.pow(10, logMax * 0.4))), maxCount - 1),
-      Math.min(Math.max(5, Math.floor(Math.pow(10, logMax * 0.6))), maxCount - 1),
-      Math.min(Math.max(10, Math.floor(Math.pow(10, logMax * 0.8))), maxCount - 1),
-      maxCount,
-    ]
+    // General case: distribute active colors evenly between 1 and maxCount
+    // First stop is always 0 → no-data color
+    // Second stop is always 1 → lightest active color
+    // Remaining active colors are evenly spaced up to maxCount
+    const stops = [0, noDataColor]
+    const numActiveColors = activeColors.length
+    let lastValue = -1
 
-    // Remove duplicates while preserving order
-    breakpoints = [...new Set(breakpoints)]
-
-    // Build the stops array pairing each breakpoint with a color
-    // Spread colors evenly across available breakpoints
-    const stops = []
-    for (let i = 0; i < breakpoints.length; i++) {
-      const colorIdx = Math.round((i / (breakpoints.length - 1)) * (colors.length - 1))
-      stops.push(breakpoints[i], colors[colorIdx])
+    for (let i = 0; i < numActiveColors; i++) {
+      // Evenly space from 1 to maxCount
+      const value = Math.round(1 + (i / (numActiveColors - 1)) * (maxCount - 1))
+      // MapLibre requires strictly ascending breakpoints — skip duplicates
+      if (value > lastValue) {
+        stops.push(value, activeColors[i])
+        lastValue = value
+      }
     }
 
     return stops
