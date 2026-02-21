@@ -90,7 +90,6 @@ final class AnalyticsDashboardViewModel: ObservableObject {
 
 struct AnalyticsDashboardView: View {
     @StateObject private var vm = AnalyticsDashboardViewModel()
-    @State private var isMapInteracting = false
 
     private let ranges = ["24h", "7d", "30d"]
 
@@ -118,7 +117,7 @@ struct AnalyticsDashboardView: View {
                 }
                 .padding(16)
             }
-            .scrollDisabled(isMapInteracting)
+
             .refreshable { await vm.load() }
         }
         .task {
@@ -444,7 +443,7 @@ struct AnalyticsDashboardView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 40)
             } else {
-                GeoHeatmapView(geoDistribution: geoData, isInteracting: $isMapInteracting)
+                GeoHeatmapView(geoDistribution: geoData)
             }
         }
         .padding(16)
