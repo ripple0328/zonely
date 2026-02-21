@@ -2,7 +2,6 @@ defmodule ZonelyWeb.MeLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.NameCards
-  alias Zonely.NameCards.NameCard
 
   @impl true
   def mount(_params, _session, socket) do
@@ -25,44 +24,22 @@ defmodule ZonelyWeb.MeLive do
         </h2>
         <%= if @card do %>
           <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div class="flex items-start gap-4">
-              <%!-- Initials avatar --%>
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700">
-                {initials(@card.display_name)}
-              </div>
-              <div class="flex-1 min-w-0">
-                <h3 class="text-lg font-bold text-gray-900 truncate">{@card.display_name}</h3>
-                <%= if @card.pronouns && @card.pronouns != "" do %>
-                  <p class="text-sm text-gray-500">{@card.pronouns}</p>
-                <% end %>
-                <%!-- Language flags --%>
-                <%= if @card.language_variants && @card.language_variants != [] do %>
-                  <div class="mt-2 flex flex-wrap gap-1">
-                    <%= for variant <- @card.language_variants do %>
-                      <span class="text-lg" title={variant["language"]}>
-                        {NameCard.language_flag(variant["language"])}
-                      </span>
-                    <% end %>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-            <div class="mt-4 flex gap-2">
-              <.link
-                navigate={~p"/name/me/card"}
-                class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                <.icon name="hero-pencil-square" class="h-4 w-4" />
-                Edit
-              </.link>
-              <.link
-                navigate={~p"/name/me/card"}
-                class="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                <.icon name="hero-share" class="h-4 w-4" />
-                Share
-              </.link>
-            </div>
+            <.name_card_preview card={@card}>
+              <:actions>
+                <.link
+                  navigate={~p"/name/me/card"}
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  <.icon name="hero-pencil-square" class="h-4 w-4" /> Edit
+                </.link>
+                <.link
+                  navigate={~p"/name/me/card"}
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                >
+                  <.icon name="hero-share" class="h-4 w-4" /> Share
+                </.link>
+              </:actions>
+            </.name_card_preview>
           </div>
         <% else %>
           <div class="rounded-xl border-2 border-dashed border-gray-300 bg-white p-6 text-center">
@@ -117,16 +94,5 @@ defmodule ZonelyWeb.MeLive do
       </p>
     </div>
     """
-  end
-
-  defp initials(nil), do: "?"
-
-  defp initials(name) when is_binary(name) do
-    name
-    |> String.split(~r/\s+/, trim: true)
-    |> Enum.take(2)
-    |> Enum.map(&String.first/1)
-    |> Enum.join()
-    |> String.upcase()
   end
 end

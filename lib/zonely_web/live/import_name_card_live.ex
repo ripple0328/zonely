@@ -2,7 +2,6 @@ defmodule ZonelyWeb.ImportNameCardLive do
   use ZonelyWeb, :live_view
 
   alias Zonely.NameCards
-  alias Zonely.NameCards.NameCard
   alias Zonely.Collections
 
   @impl true
@@ -145,38 +144,7 @@ defmodule ZonelyWeb.ImportNameCardLive do
 
               <%!-- Card preview --%>
               <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <div class="flex items-center gap-4">
-                  <div class="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700">
-                    {String.first(@card.display_name)}
-                  </div>
-                  <div>
-                    <h2 class="text-xl font-bold text-gray-900">{@card.display_name}</h2>
-                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                      <%= if @card.pronouns do %>
-                        <span>{@card.pronouns}</span>
-                      <% end %>
-                      <%= if @card.pronouns && @card.role do %>
-                        <span>•</span>
-                      <% end %>
-                      <%= if @card.role do %>
-                        <span>{@card.role}</span>
-                      <% end %>
-                    </div>
-                  </div>
-                </div>
-
-                <%= if @card.language_variants != [] do %>
-                  <div class="mt-4 space-y-2 border-t border-gray-100 pt-4">
-                    <%= for variant <- @card.language_variants do %>
-                      <div class="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
-                        <span class="text-lg">{NameCard.language_flag(variant["language"])}</span>
-                        <div>
-                          <span class="font-medium text-gray-900">{variant["name"]}</span>
-                        </div>
-                      </div>
-                    <% end %>
-                  </div>
-                <% end %>
+                <.name_card_preview card={@card} />
               </div>
 
               <%!-- Import form --%>

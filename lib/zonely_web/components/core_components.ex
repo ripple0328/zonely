@@ -5,6 +5,7 @@ defmodule ZonelyWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
+  alias Zonely.NameCards.NameCard
 
   @doc """
   Renders the Zonely logo with consistent styling.
@@ -246,6 +247,116 @@ defmodule ZonelyWeb.CoreComponents do
     <span class={[@name, @class]} />
     """
   end
+
+  @doc """
+  Renders a name card preview with initials avatar, display name, pronouns, and language flags.
+
+  Supports both `%NameCard{}` structs (atom keys) and plain maps with string keys.
+
+  ## Sizes
+
+    * `:normal` — full card layout with avatar, name, pronouns, flags, and optional actions slot
+    * `:compact` — inline row with smaller avatar, name, and flags (for list items)
+
+  ## Examples
+
+      <.name_card_preview card={@card} />
+
+      <.name_card_preview card={@card} size={:compact} />
+
+      <.name_card_preview card={@card}>
+        <:actions>
+          <button>Edit</button>
+        </:actions>
+      </.name_card_preview>
+  """
+  attr(:card, :map,
+    required: true,
+    doc: "map or struct with display_name, pronouns, language_variants"
+  )
+
+  attr(:size, :atom, default: :normal, values: [:normal, :compact])
+  slot(:actions, doc: "optional slot for action buttons (Edit, Share, etc.)")
+
+  def name_card_preview(assigns) do
+    card = assigns.card
+    display_name = Map.get(card, :display_name) || Map.get(card, "display_name") || ""
+    pronouns = Map.get(card, :pronouns) || Map.get(card, "pronouns")
+
+    language_variants =
+      Map.get(card, :language_variants) || Map.get(card, "language_variants") || []
+
+    assigns =
+      assigns
+      |> assign(:display_name, display_name)
+      |> assign(:pronouns, pronouns)
+      |> assign(:language_variants, language_variants)
+
+    if assigns.size == :compact do
+      ~H"""
+      <div class="flex items-center gap-3 flex-1 min-w-0">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+          {card_initials(@display_name)}
+        </div>
+        <span class="text-base font-medium text-gray-900 flex-1 truncate">{@display_name}</span>
+        <%= if @language_variants != [] do %>
+          <div class="flex gap-0.5 shrink-0">
+            <%= for variant <- @language_variants do %>
+              <span class="text-base" title={variant["language"]}>
+                {NameCard.language_flag(variant["language"])}
+              </span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+      """
+    else
+      ~H"""
+      <div class="flex items-start gap-4">
+        <%!-- Initials avatar --%>
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700">
+          {card_initials(@display_name)}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-lg font-bold text-gray-900 truncate">{@display_name}</h3>
+          <%= if @pronouns && @pronouns != "" do %>
+            <p class="text-sm text-gray-500">{@pronouns}</p>
+          <% end %>
+          <%!-- Language flags --%>
+          <%= if @language_variants != [] do %>
+            <div class="mt-2 flex flex-wrap gap-1">
+              <%= for variant <- @language_variants do %>
+                <span class="text-lg" title={variant["language"]}>
+                  {NameCard.language_flag(variant["language"])}
+                </span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      <%= if @actions != [] do %>
+        <div class="mt-4 flex gap-2">
+          <%= for action <- @actions do %>
+            {render_slot(action)}
+          <% end %>
+        </div>
+      <% end %>
+      """
+    end
+  end
+
+  defp card_initials(nil), do: "?"
+
+  defp card_initials(name) when is_binary(name) do
+    name
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.take(2)
+    |> Enum.map(&String.first/1)
+    |> Enum.join()
+    |> String.upcase()
+  end
+
+  defp card_initials(_), do: "?"
 
   ## Helpers
 
@@ -1117,7 +1228,7 @@ defmodule ZonelyWeb.CoreComponents do
         >
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
         </svg>
-        
+
         <!-- Spinner icon (loading state) -->
         <svg
           :if={@english_state.icon == :spinner}
@@ -1128,7 +1239,7 @@ defmodule ZonelyWeb.CoreComponents do
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        
+
         <!-- User icon (real person playing) -->
         <svg
           :if={@english_state.icon == :user}
@@ -1138,7 +1249,7 @@ defmodule ZonelyWeb.CoreComponents do
         >
           <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
         </svg>
-        
+
         <!-- Robot icon (AI generated playing) -->
         <svg
           :if={@english_state.icon == :robot}
@@ -1148,7 +1259,7 @@ defmodule ZonelyWeb.CoreComponents do
         >
           <path d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2ZM12 4C11.4 4 11 4.4 11 5V6H13V5C13 4.4 12.6 4 12 4ZM9 10C8.4 10 8 10.4 8 11S8.4 12 9 12 10 11.6 10 11 9.6 10 9 10ZM15 10C14.4 10 14 10.4 14 11S14.4 12 15 12 16 11.6 16 11 15.6 10 15 10ZM8 14H16V16H8V14Z"/>
         </svg>
-        
+
         <!-- Sound waves icon (playing state) -->
         <svg
           :if={@english_state.icon == :sound_waves}
@@ -1159,7 +1270,7 @@ defmodule ZonelyWeb.CoreComponents do
           <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.792L5.232 14H2a1 1 0 01-1-1V7a1 1 0 011-1h3.232l3.151-2.792a1 1 0 011 0z"/>
           <path d="M12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"/>
         </svg>
-        
+
         <span :if={@show_labels} class={["font-medium", @size_classes.text]}>EN</span>
       </button>
 
@@ -1194,7 +1305,7 @@ defmodule ZonelyWeb.CoreComponents do
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        
+
         <!-- User icon (real person playing) -->
         <svg
           :if={@native_state.icon == :user}
@@ -1204,7 +1315,7 @@ defmodule ZonelyWeb.CoreComponents do
         >
           <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
         </svg>
-        
+
         <!-- Robot icon (AI generated playing) -->
         <svg
           :if={@native_state.icon == :robot}
@@ -1214,7 +1325,7 @@ defmodule ZonelyWeb.CoreComponents do
         >
           <path d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2ZM12 4C11.4 4 11 4.4 11 5V6H13V5C13 4.4 12.6 4 12 4ZM9 10C8.4 10 8 10.4 8 11S8.4 12 9 12 10 11.6 10 11 9.6 10 9 10ZM15 10C14.4 10 14 10.4 14 11S14.4 12 15 12 16 11.6 16 11 15.6 10 15 10ZM8 14H16V16H8V14Z"/>
         </svg>
-        
+
         <!-- Sound waves icon (playing state) -->
         <svg
           :if={@native_state.icon == :sound_waves}
@@ -1225,7 +1336,7 @@ defmodule ZonelyWeb.CoreComponents do
           <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.792L5.232 14H2a1 1 0 01-1-1V7a1 1 0 011-1h3.232l3.151-2.792a1 1 0 011 0z"/>
           <path d="M12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"/>
         </svg>
-        
+
         <span :if={@show_labels} class={["font-medium", @size_classes.text]}>
           <%= String.slice(Zonely.LanguageService.get_native_language_name(@user.country), 0, 2) |> String.upcase() %>
         </span>
