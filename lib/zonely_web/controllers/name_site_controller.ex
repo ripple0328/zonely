@@ -4,10 +4,25 @@ defmodule ZonelyWeb.NameSiteController do
   alias Zonely.PronunceName
   alias Zonely.AvatarService
   alias Zonely.Analytics
+  alias Zonely.Collections
+  alias Zonely.Collections.ShareUrl
 
   def index(conn, params) do
     # URL state encoded as base64 JSON in `s` query param for bookmarking
     state = decode_state(params["s"]) || []
+
+    # If shared data is present, create a collection automatically
+    if state != [] and params["s"] do
+      case ShareUrl.decode_entries(params["s"]) do
+        {:ok, entries} ->
+          if ShareUrl.validate_entries(entries) do
+            Collections.create_from_shared_data(entries)
+          end
+
+        _ ->
+          nil
+      end
+    end
 
     Analytics.track_async("page_view_landing", %{}, user_context: Analytics.user_context_from_headers(conn.req_headers))
     render(conn, :index, names: state)

@@ -89,6 +89,7 @@ defmodule ZonelyWeb.Router do
     live("/directory", DirectoryLive)
     live("/work-hours", WorkHoursLive)
     live("/holidays", HolidaysLive)
+    live("/collections", CollectionsLive)
   end
 
   # Public API fallback for local development (so native app can call /api/pronounce at root)
