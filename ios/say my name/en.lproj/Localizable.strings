@@ -27,3 +27,46 @@
 "collection_name_placeholder" = "Collection name";
 "create_new_collection" = "Create new collection";
 
+/* Tab bar */
+"tab_lists" = "Lists";
+"tab_explore" = "Explore";
+"tab_me" = "Me";
+
+/* Me tab */
+"me_subtitle" = "Your profile & settings";
+"about_how_it_works" = "How It Works";
+"privacy" = "Privacy";
+"send_feedback" = "Send Feedback";
+"use_on_web" = "Use on Web";
+
+/* My Name Card */
+"my_name_card" = "My Name Card";
+"create_name_card" = "Create Name Card";
+"edit_name_card" = "Edit Name Card";
+"name_card_subtitle" = "Share how you want to be known across languages";
+"your_name" = "Your Name";
+"name_card_name_placeholder" = "e.g. Sarah Chen";
+"pronouns_label" = "Pronouns (optional)";
+"pronouns_placeholder" = "e.g. she/her";
+"role_label" = "Role (optional)";
+"role_placeholder" = "e.g. Product Designer";
+"name_in_other_languages" = "Name in Other Languages";
+"add_language" = "Add Language";
+"no_language_variants" = "No language variants yet. Add your name in Chinese, Japanese, or other languages.";
+"add_language_variant" = "Add Language Variant";
+"name_in_language" = "Your Name in This Language";
+"name_native_placeholder" = "Enter your name in native script";
+"name_native_hint" = "Write in native script (e.g. 陈莎拉 for Chinese)";
+"pronunciation_guide" = "Pronunciation Guide (optional)";
+"pronunciation_guide_placeholder" = "e.g. Chén Shā Lā";
+"save_name_card" = "Save Name Card";
+"share_name_card" = "Share Name Card";
+"delete_card_title" = "Delete Name Card";
+"delete_card_message" = "Are you sure you want to delete your name card?";
+"delete_card_action" = "Delete card";
+"edit_card" = "Edit";
+"card_empty_title" = "You haven't set up your card yet.";
+"card_empty_subtitle" = "Let others learn how to say your name";
+"set_up_now" = "Set Up Now →";
+"remove" = "Remove";
+

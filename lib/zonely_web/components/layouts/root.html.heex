@@ -2,25 +2,21 @@
 <html lang="en" class="[scrollbar-gutter:stable]">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title suffix=" · Zonely">
-      <%= assigns[:page_title] || "Zonely" %>
+    <.live_title suffix=" · SayMyName">
+      <%= assigns[:page_title] || "SayMyName" %>
     </.live_title>
 
-    <!-- Favicon matching main logo design -->
-    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'&gt;&lt;circle cx='16' cy='16' r='14' fill='%23475569'/&gt;&lt;circle cx='16' cy='16' r='10' fill='white' fill-opacity='0.9'/&gt;&lt;line x1='16' y1='16' x2='20' y2='12' stroke='%23475569' stroke-width='2'/&gt;&lt;line x1='16' y1='16' x2='22' y2='16' stroke='%2364748b' stroke-width='1.5'/&gt;&lt;circle cx='16' cy='16' r='1' fill='%23334155'/&gt;&lt;/svg&gt;" />
+    <%!-- Favicon: speech bubble emoji --%>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗣️</text></svg>" />
 
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
-
-    <!-- MapLibre GL JS -->
-    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>
-  <body class="bg-white antialiased m-0 p-0">
+  <body class="bg-gray-50 antialiased m-0 p-0">
     <%= @inner_content %>
   </body>
 </html>

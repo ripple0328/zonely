@@ -316,7 +316,7 @@ final class AppViewModel: ObservableObject {
     }
 }
 
-struct ContentView: View {
+struct ListsTab: View {
     @EnvironmentObject private var vm: AppViewModel
     @FocusState private var focusedField: Field?
     // Rename collection alert state
@@ -340,8 +340,6 @@ struct ContentView: View {
                         inputCard
                         list
                         footer
-                        analyticsCard
-                        footerLinks
                     }
                     .padding(16)
                 }
@@ -805,65 +803,47 @@ struct ContentView: View {
         )
     }
 
-    private var analyticsCard: some View {
-        NavigationLink {
-            PublicAnalyticsView()
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.title2)
-                    .foregroundStyle(.indigo)
-                    .symbolRenderingMode(.hierarchical)
-                    .frame(width: 32, height: 32)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Community Stats")
-                        .font(.headline)
-                    Text("See top names, languages & global usage")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(14)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [.white.opacity(0.18), .white.opacity(0.06)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var footerLinks: some View {
-        HStack(spacing: 12) {
-            NavigationLink("Privacy") {
-                PrivacyView()
-            }
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-            Text("·").font(.caption2).foregroundStyle(.tertiary)
-            NavigationLink("About") {
-                AboutView()
-            }
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.vertical, 6)
-    }
 }
 
 private enum Field: Hashable { case name, pronOverride }
+
+// MARK: - Root TabView (3-tab navigation matching web)
+
+struct ContentView: View {
+    @EnvironmentObject private var vm: AppViewModel
+    @State private var selectedTab: Tab = .lists
+
+    enum Tab: String {
+        case lists, explore, me
+    }
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            ListsTab()
+                .tabItem {
+                    Label(NSLocalizedString("tab_lists", comment: "Lists tab"),
+                          systemImage: "list.bullet")
+                }
+                .tag(Tab.lists)
+
+            NavigationStack {
+                PublicAnalyticsView()
+            }
+            .tabItem {
+                Label(NSLocalizedString("tab_explore", comment: "Explore tab"),
+                      systemImage: "magnifyingglass")
+            }
+            .tag(Tab.explore)
+
+            MeTab()
+                .tabItem {
+                    Label(NSLocalizedString("tab_me", comment: "Me tab"),
+                          systemImage: "person.circle")
+                }
+                .tag(Tab.me)
+        }
+    }
+}
 
 
 

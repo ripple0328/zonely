@@ -1,192 +1,204 @@
-# Zonely - Design System & UI Guidelines
+# SayMyName — Design System & UI Guidelines
 
 ## Overview
-Zonely is a timezone-aware collaboration tool that helps teams understand "where" and "when" their colleagues are. The interface uses two distinct popup types to provide contextual information efficiently.
+SayMyName is a name pronunciation web app with an iOS companion. Users create a name card with their name in multiple languages/scripts, share it with others, and organize names into lists for daily practice. The app also features public stats for exploring trending names across languages.
 
 ---
 
-## 🎯 Design Philosophy
+## 🎯 Design Principles
 
-### Rule of Thumb
-- **Timezone Popup** = "Where + When" (Place-centric)
-- **Profile Popup** = "Who + How" (Person-centric)
-
-### Interaction Model
-- **Map Click** → Quick time awareness (fast)
-- **Avatar Click** → Human details & contact info (deep)
+1. **The core action is playing a name. It must be 1 tap from launch.**
+2. My Card is setup-once. It does not deserve a primary tab.
+3. Share is an action, not a destination.
+4. Map/Directory/Work Hours/Holidays belong to the old Zonely app — removed from SayMyName.
 
 ---
 
-## 📍 Timezone Click Popup (Place-centric)
+## 📱 Navigation: 3 Tabs
 
-### Purpose
-Quick time awareness for collaboration. Keep it lightweight and glanceable.
-
-### Content Structure
 ```
-📍 🇺🇸 Los Angeles
-🕒 2025/08/21-15:34
-⏳ +3 hours ahead of you
-🟢 Working hours
+┌────────────────────────────────────────────────┐
+│                                                │
+│              (page content)                    │
+│                                                │
+├────────────┬───────────────┬───────────────────┤
+│  📋 Lists  │  🔍 Explore   │      👤 Me        │
+│  (home)    │               │                   │
+└────────────┴───────────────┴───────────────────┘
 ```
 
-### Information Hierarchy
-1. **Location** (Primary): City name with flag for geographic context
-2. **Time & Date** (Essential): Current local time in compact format
-3. **Relative Time** (Contextual): Difference from user's timezone
-4. **Working Status** (Visual): Color-coded dot + status text
+| Tab | What | Frequency |
+|-----|------|-----------|
+| **📋 Lists** (home) | Active list with playable names. List switcher in header. | **Daily** |
+| **🔍 Explore** | Trending names, popular languages, countries. Fun stats. | Occasional |
+| **👤 Me** | My Card, About, Privacy, Feedback, cross-promo | Rare |
 
-### Visual Design
-- **Day regions**: Light theme with sun icon (☀️)
-- **Night regions**: Dark theme with moon icon (🌙)
-- **Compact layout**: Minimal padding, efficient use of space
-- **Smooth animations**: Fade-in with subtle slide effect
+- **Mobile**: Bottom tab bar (standard iOS pattern)
+- **Desktop**: Top navigation bar (same 3 items)
 
-### Working Hours Indicators
-- 🟢 **Green**: Working hours (9 AM - 5 PM)
-- 🟠 **Orange**: Evening hours (5 PM - 10 PM)
-- 🟣 **Purple**: Night hours (10 PM - 6 AM)
-- 🟡 **Yellow**: Morning hours (6 AM - 9 AM)
-- 🔵 **Blue**: Weekend
+### URL Structure
+
+```
+/                     → Lists (home) — shows most recent list
+/lists/:id            → Specific list detail
+/explore              → Public stats, trending
+/me                   → Profile: My Card, About, etc.
+/me/card              → My Card edit view (legacy: /my-name-card still works)
+/card/:token          → Import card (inbound share, transient)
+/list/:token          → Import list (inbound share, transient)
+```
 
 ---
 
-## 👤 Profile Popup (Person-centric)
+## 📄 Page Designs
 
-### Purpose
-Who they are + how to reach them. Richer content for human connection.
+### Lists — HOME (`/`)
 
-### Content Structure *(Future Implementation)*
-```
-👤 Sarah Chen (she/her)
-🏢 Design Team • Senior Designer
-📍 🇺🇸 Los Angeles
-🕒 2025/08/21-15:34 (Working hours)
-⏳ Available until 5pm
-💬 [Chat] [Email] [Calendar]
-🟢 Available
-```
+The app opens here. Active list with names immediately playable.
 
-### Information Hierarchy
-1. **Identity**: Name, pronouns, role, team
-2. **Location**: City with flag (pulled from timezone data)
-3. **Time Context**: Current local time + availability
-4. **Contact Methods**: Quick action buttons
-5. **Status**: Current availability/presence
+**Core action: 1 tap.** Open app → ▶ on any name.
 
-### Interaction Patterns
-- **Primary**: Click avatar to open
-- **Secondary**: Hover for quick status preview
-- **Actions**: Direct communication shortcuts
+- **List switcher** in header (tap list name ▾ to switch)
+- **Each name row**: ▶ plays default language; tap row expands language variants
+- **Share button** at bottom of list
+- **New user**: Onboarding welcome → "Set Up My Name Card" primary CTA
+- **Returning user with lists**: Most recently accessed list, names visible
+
+### Explore (`/explore`)
+
+Fun, public-facing stats. Everything here is playable and shareable to social.
+
+- Hero stat: total pronunciations + languages
+- Trending names with ▶ play buttons
+- Names around the world (country flags + counts)
+- Popular languages (horizontal bars)
+- Each section has 📤 share-to-social button (generates branded image card)
+
+### Me (`/me`)
+
+Profile hub: My Card preview + app meta + social/cross-promo.
+
+- **My Name Card**: Preview with Edit + Share buttons (or empty state CTA)
+- **App section**: How It Works, Privacy, Send Feedback
+- **Spread the Word**: Get iOS App (web) / Use on Web (iOS) / Share SayMyName
 
 ---
 
-## 🎨 Visual Design System
+## 🔗 Social & Cross-Promotion
 
-### Color Palette
-- **Day theme**: Light grays, white background
-- **Night theme**: Dark blues/purples with golden accents
-- **Status colors**: Semantic green/orange/purple/yellow/blue
-- **Flags**: Unicode country flags for instant recognition
+| Location | What's shared | Generated image? |
+|----------|--------------|-----------------|
+| My Card → Share | Personal name card link + visual | ✅ Visual card with name in all languages |
+| List → Share this list | List link | ❌ Just a link |
+| Explore → 📤 on section | Stat highlight | ✅ Visual card with trending/stats |
+| Me → Share SayMyName | App promo | ✅ Feature-highlight card |
+
+### Cross-promotion
+- **Web → iOS**: Smart App Banner on all pages, "Get the App" in Me tab
+- **iOS → Web**: Share actions generate web URLs, "Use on the Web" in Me tab
+- Social card format: 1200×628px, dark bg, bold native-script typography
+
+---
+
+## 🔄 User Flows
+
+### Flow A: New User (Cold Start)
+```
+Open app → Home (onboarding) → "Set Up My Name Card" → Edit card → Save → Me tab → Share
+```
+
+### Flow B: Receiving a Name Card
+```
+Tap shared link → Card preview → Play ▶ → "Add to list" → Pick/create list → Import → Home
+```
+
+### Flow C: Daily Use (MOST FREQUENT)
+```
+Open app → Home = active list → ▶ (1 tap total)
+```
+
+### Flow D: Switch Teams
+```
+Home → tap list name ▾ → List switcher → tap new list → Home shows that list
+```
+
+### Flow E: Archive Old List
+```
+Home → ▾ → list switcher → swipe/long-press → Archive → Collapsed section
+```
+
+### Landing Logic
+
+| User state | Home shows | Why |
+|------------|-----------|-----|
+| Brand new | Onboarding welcome | Guide to setup |
+| Has card, no lists | Welcome + "Share your card to start building lists" | Bridge to core loop |
+| Has 1+ lists | Most recently accessed list | **1 tap to play** |
+| Deep link | Import flow → then redirect to Home | Seamless |
+
+---
+
+## ♿ Accessibility
+
+- Bottom tabs: `role="tablist"` with `role="tab"` and `aria-selected`
+- All tabs show icon + text label (never icon-only)
+- Play buttons: `aria-label="Play pronunciation of [name] in [language]"`
+- List switcher dropdown: `aria-haspopup="listbox"`, `aria-expanded`
+- Share modals: focus trap, close on Escape, `aria-modal="true"`
+- All interactive elements: visible focus ring (min 2px, 3:1 contrast against adjacent)
+- All text: min 4.5:1 contrast ratio
+- Tap targets: min 44×44px (iOS HIG) / 48×48dp (Material)
+- Spacing: 8px grid throughout
+
+---
+
+## 🎨 Visual Design
+
+### Spacing
+- 8px grid: all spacing is multiples of 8px (8, 16, 24, 32, 40, 48)
+- `p-2` = 8px, `p-4` = 16px, `p-6` = 24px, `p-8` = 32px
 
 ### Typography
-- **Headers**: Font weight 700, larger size for hierarchy
-- **Body**: 0.75rem with proper line-height for readability
-- **Compact dates**: YYYY/MM/DD-HH:MM format for efficiency
+- **Page titles**: text-2xl (24px) font-bold, gray-900
+- **Section headers**: text-lg (18px) font-semibold, gray-900
+- **Body**: text-sm (14px), gray-600
+- **Names in lists**: text-base (16px) font-medium, gray-900
 
-### Animation Principles
-- **Duration**: 0.25s for snappy, responsive feel
-- **Easing**: ease-out for natural motion
-- **Effects**: Fade-in + subtle scale/slide
-- **Performance**: CSS transforms for smooth rendering
-
-### Spacing System
-- **Tight**: 0.25rem gaps for related elements
-- **Normal**: 0.5rem between sections
-- **Relaxed**: 0.75rem for visual separation
-
----
-
-## 🔧 Technical Implementation
-
-### Component Architecture
-```javascript
-// Single template function with theme variants
-createTimezonePopup(e, map, isDayTime)
-// Future: createProfilePopup(user, isDayTime)
-```
-
-### Data Processing
-- **Timezone conversion**: Handles DST automatically
-- **Location mapping**: Technical names → Human-readable cities
-- **Status calculation**: Real-time working hours detection
-- **Relative time**: Dynamic calculation from user's timezone
-
-### Responsive Behavior
-- **Popup positioning**: Smart placement to avoid screen edges
-- **Content adaptation**: Graceful handling of unknown timezones
-- **Performance**: Efficient re-rendering with cached calculations
-
----
-
-## 📊 Accessibility Guidelines
-
-### Visual Accessibility
-- **Color contrast**: High contrast ratios for readability
-- **Icon redundancy**: Text labels accompany all color indicators
-- **Font sizing**: Readable at standard zoom levels
-
-### Interaction Accessibility
-- **Keyboard navigation**: All popups accessible via keyboard
-- **Screen readers**: Semantic HTML with proper ARIA labels
-- **Focus management**: Clear focus indicators and logical tab order
-
----
-
-## 🚀 Future Enhancements
-
-### Timezone Popup Evolution
-- **Clock arc visualization**: Circular progress for day/night cycle
-- **Weather integration**: Basic weather icons for context
-- **Holiday awareness**: Special indicators for local holidays
-
-### Profile Popup Features
-- **Calendar integration**: Show next available meeting slot
-- **Presence sync**: Real-time status from communication tools
-- **Time preferences**: Personal working hour overrides
-- **Contact preferences**: Preferred communication methods
-
-### System Improvements
-- **Multi-timezone comparison**: Side-by-side time views
-- **Meeting scheduler**: Find optimal meeting times
-- **Notification system**: Smart alerts for timezone changes
-- **Personalization**: Star/pin frequent collaborators
+### Colors
+- **Primary action**: blue-600 (hover: blue-700, focus ring: blue-500)
+- **Play button**: emerald-600 (hover: emerald-700)
+- **Share action**: green-600
+- **Destructive**: red-600
+- **Backgrounds**: white (cards), gray-50 (page bg), gray-100 (subtle sections)
+- **Active tab**: blue-600 text + indicator
+- **Inactive tab**: gray-500 text
 
 ---
 
 ## 📝 Implementation Status
 
 ### ✅ Completed
-- [x] Timezone popup redesign (place-centric)
-- [x] Location mapping (cities vs technical names)
-- [x] Working hours visualization
-- [x] Day/night theme variants
-- [x] Smooth animations
-- [x] Compact date/time format
-- [x] Relative time calculation
+- [x] Name card create/edit/share
+- [x] Collections/lists CRUD
+- [x] Import name card via share link
+- [x] Analytics dashboard (admin)
+- [x] Multi-source pronunciation (Forvo → NameShouts → AWS Polly)
 
 ### 🔄 In Progress
-- [ ] Profile popup design
-- [ ] Clock arc visualization
-- [ ] Enhanced accessibility features
+- [ ] 3-tab navigation (Lists, Explore, Me)
+- [ ] Lists as home page with 1-tap-to-play
+- [ ] Explore page (public stats)
+- [ ] Me page (My Card + About + cross-promo)
+- [ ] Remove old Zonely routes (Map, Directory, Work Hours, Holidays)
 
 ### 📋 Planned
-- [ ] Calendar integration
-- [ ] Multi-timezone comparison
-- [ ] Meeting scheduler
-- [ ] Personalization features
+- [ ] Social share card image generation
+- [ ] Smart App Banner for iOS cross-promo
+- [ ] List switcher dropdown in header
+- [ ] Archive/unarchive lists
+- [ ] Onboarding flow for new users
 
 ---
 
-*Last updated: 2025-08-21*
-*Version: 1.0*
+*Last updated: 2026-02-21*
+*Version: 2.0*
