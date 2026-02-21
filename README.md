@@ -1,96 +1,46 @@
-# Zonely
+# SayMyName
 
-**A distributed team collaboration app that helps teams connect better through name pronunciation, timezone awareness, and cultural understanding.**
+**Enter any name, hear it pronounced correctly — in multiple languages, from real native speakers.**
 
-## Screenshots
+## About
 
-*Screenshots coming soon - the app is currently in active development*
+SayMyName is a name pronunciation tool that helps you learn how to say any name correctly. It aggregates pronunciations from native speaker recordings and AI-generated audio, supporting names across dozens of languages. A companion iOS app provides on-the-go access with real-time analytics.
 
-## What is Zonely?
+**Live at [saymyname.qingbo.us](https://saymyname.qingbo.us)**
 
-Zonely is designed for distributed teams who want to build stronger connections across time zones and cultures. Whether you're struggling to pronounce a teammate's name correctly, trying to find the best meeting time across multiple time zones, or want to be mindful of holidays in your colleagues' countries, Zonely has you covered.
+## Features
 
-## Key Features
+- **Multi-source pronunciation** — Real recordings from [Forvo](https://forvo.com/) and [NameShouts](https://www.nameshouts.com/), with AWS Polly as an AI fallback
+- **Multi-language support** — Hear names pronounced in their native language and others
+- **iOS companion app** — Native SwiftUI app with pronunciation playback, deep link sharing, and live analytics
+- **Public analytics dashboard** — Play counts, geographic distribution heatmap, top names, top languages, and time-series charts
+- **Real-time streaming** — WebSocket channels push live analytics updates to the iOS app
 
-### 🎯 **Name Pronunciation**
-- **Real Audio Pronunciation**: Get actual pronunciations from native speakers via Forvo and NameShouts APIs
-- **AI Fallback**: When real recordings aren't available, AWS Polly provides high-quality AI-generated pronunciation
-- **Multi-language Support**: Supports names in their native languages and English pronunciations
-- **Instant Playback**: Click to hear how to pronounce any team member's name correctly
+## Tech Stack
 
-### 🌍 **Smart Timezone Management** 
-- **Visual Working Hours**: Interactive map showing who's working when
-- **Overlap Detection**: Find optimal meeting times that work for everyone
-- **Real-time Updates**: See availability status as time zones change throughout the day
-- **Golden Hours**: Automatically suggest the best meeting windows for your team
-
-### 🏖️ **Holiday Awareness**
-- **Global Holiday Tracking**: Know when teammates are celebrating holidays in their countries
-- **Team Impact View**: See how upcoming holidays affect your team's availability
-- **Automatic Updates**: Fresh holiday data from reliable APIs
-- **Cultural Sensitivity**: Be respectful of different cultural celebrations and observances
-
-## How to Use Zonely
-
-### For Team Members
-1. **Browse the Team Directory** - See all your colleagues with their roles, timezones, and pronunciation guides
-2. **Learn Name Pronunciation** - Click the play button to hear correct pronunciations
-3. **Check Availability** - Use the map view to see who's currently working
-4. **Plan Meetings** - Find overlap times that work across time zones
-5. **Stay Informed** - Check upcoming holidays that might affect your teammates
-
-### For Team Leads
-1. **Onboard New Members** - Add team members with their preferred name pronunciations
-2. **Schedule Effectively** - Use overlap detection to plan inclusive meetings
-3. **Cultural Awareness** - Stay informed about holidays affecting your team
-4. **Build Inclusion** - Encourage proper name pronunciation across the team
-
-## Why Zonely?
-
-**"Getting someone's name right is one of the most important things you can do to show respect and build connection."**
-
-In distributed teams, small details matter enormously. Zonely helps teams:
-
-- **Show Respect**: Pronounce names correctly from the start
-- **Save Time**: Quickly find meeting times that work for everyone  
-- **Build Culture**: Stay aware of cultural events and holidays
-- **Improve Communication**: Reduce timezone confusion and scheduling conflicts
-- **Foster Inclusion**: Make everyone feel heard and respected
-
-## Live Demo
-
-Try out Zonely's pronunciation feature at: **[Live Demo Coming Soon]**
-
-## Technology
-
-Built with modern, reliable technology:
-- **Elixir & Phoenix LiveView** for real-time, interactive experiences
-- **PostgreSQL** for reliable data storage
-- **Multiple APIs** for pronunciation and holiday data
-- **Responsive Design** that works on desktop and mobile
+| Layer | Technology |
+|---|---|
+| **Backend** | Elixir, Phoenix 1.8, LiveView, PostgreSQL |
+| **iOS** | SwiftUI, AVFoundation, WebSocket (iOS 16+) |
+| **Infrastructure** | macOS server (Mac Mini), launchctl, Cloudflare tunnel, Docker (PostgreSQL) |
 
 ## Getting Started
 
-Ready to improve your team's collaboration? Check out our [Developer Documentation](DEVELOPERS.md) for setup instructions.
+For local development setup, see:
 
-## Roadmap
+- [DEVELOPERS.md](DEVELOPERS.md) — Dev environment, running the server, tests
+- [PRONUNCIATION_SETUP.md](PRONUNCIATION_SETUP.md) — API keys for Forvo, NameShouts, and AWS Polly
 
-🚧 **Current Focus**: Core pronunciation and timezone features  
-🔮 **Coming Soon**: 
-- Calendar integration
-- Slack/Teams notifications  
-- Mobile app
-- Advanced analytics
-- Custom holiday tracking
+## iOS App
 
-## Contributing
+A native SwiftUI companion app lives in the `ios/` directory. See [ios/README.md](ios/README.md) for build instructions and details.
 
-We welcome contributions! See [DEVELOPERS.md](DEVELOPERS.md) for technical details and setup instructions.
+## Deployment
 
-## Support
+Deploy to production with:
 
-Having issues or suggestions? Please [open an issue](https://github.com/ripple0328/zonely/issues) on GitHub.
+```sh
+./deploy.sh
+```
 
----
-
-**Made with ❤️ for distributed teams everywhere**
+The app is live at [saymyname.qingbo.us](https://saymyname.qingbo.us).
