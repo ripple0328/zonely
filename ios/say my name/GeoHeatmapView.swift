@@ -152,6 +152,7 @@ struct ISOCodeConverter {
 struct GeoHeatmapMapView: View {
     let geoDistribution: [GeoDistribution]
     @Binding var selectedCountry: (name: String, count: Int)?
+    @Binding var isInteracting: Bool
 
     @State private var countries: [CountryShape] = []
 
@@ -231,13 +232,16 @@ struct GeoHeatmapMapView: View {
                 SimultaneousGesture(
                     MagnificationGesture()
                         .onChanged { value in
+                            isInteracting = true
                             currentScale = min(max(lastScale * value, 1.0), 8.0)
                         }
                         .onEnded { _ in
                             lastScale = currentScale
+                            isInteracting = false
                         },
                     DragGesture(minimumDistance: 5)
                         .onChanged { value in
+                            isInteracting = true
                             currentOffset = CGSize(
                                 width: lastOffset.width + value.translation.width / currentScale,
                                 height: lastOffset.height + value.translation.height / currentScale
@@ -245,6 +249,7 @@ struct GeoHeatmapMapView: View {
                         }
                         .onEnded { _ in
                             lastOffset = currentOffset
+                            isInteracting = false
                         }
                 )
             )
@@ -340,6 +345,7 @@ struct GeoHeatmapMapView: View {
 // MARK: - Main GeoHeatmapView
 struct GeoHeatmapView: View {
     let geoDistribution: [GeoDistribution]
+    @Binding var isInteracting: Bool
 
     @State private var selectedCountry: (name: String, count: Int)?
 
@@ -347,7 +353,8 @@ struct GeoHeatmapView: View {
         ZStack {
             GeoHeatmapMapView(
                 geoDistribution: geoDistribution,
-                selectedCountry: $selectedCountry
+                selectedCountry: $selectedCountry,
+                isInteracting: $isInteracting
             )
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
@@ -507,6 +514,6 @@ struct GeoHeatmapView: View {
         GeoDistribution(country: "BR", count: 23),
         GeoDistribution(country: "IN", count: 12),
         GeoDistribution(country: "AU", count: 8)
-    ])
+    ], isInteracting: .constant(false))
     .padding()
 }
