@@ -71,7 +71,6 @@ defmodule ZonelyWeb.Router do
     get("/api/pronounce", NameSiteController, :pronounce)
     get("/about", NameSiteController, :about)
     live("/native", NativePronounceLive)
-    live("/analytics", PublicAnalyticsLive)
   end
 
   scope "/", ZonelyWeb do

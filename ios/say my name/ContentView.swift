@@ -416,16 +416,20 @@ struct ContentView: View {
 
     private var aboutLink: some View {
         HStack(spacing: 12) {
-            Link("Privacy", destination: URL(string: "https://saymyname.qingbo.us/privacy")!)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            NavigationLink("Privacy") {
+                PrivacyView()
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
             Text("·").font(.caption2).foregroundStyle(.tertiary)
-            Link("About", destination: URL(string: "https://saymyname.qingbo.us/about")!)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            NavigationLink("About") {
+                AboutView()
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
             Text("·").font(.caption2).foregroundStyle(.tertiary)
             NavigationLink("Analytics") {
-                AnalyticsDashboardView()
+                PublicAnalyticsView()
             }
             .font(.caption2)
             .foregroundStyle(.tertiary)

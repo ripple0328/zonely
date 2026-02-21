@@ -162,7 +162,7 @@ defmodule Zonely.Analytics do
   def top_requested_names(start_date, end_date, limit \\ 10) do
     rows =
       from(e in Event,
-        where: e.event_name == "pronunciation_generated",
+        where: e.event_name == "interaction_play_audio",
         where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
         where: fragment("properties->>'name_text' IS NOT NULL"),
         select: %{
@@ -223,7 +223,7 @@ defmodule Zonely.Analytics do
   """
   def top_languages(start_date, end_date, limit \\ 5) do
     from(e in Event,
-      where: e.event_name == "pronunciation_generated",
+      where: e.event_name == "interaction_play_audio",
       where: e.timestamp >= ^start_date and e.timestamp < ^end_date,
       select: {fragment("properties->>'lang'"), count(e.id)},
       group_by: fragment("properties->>'lang'"),
