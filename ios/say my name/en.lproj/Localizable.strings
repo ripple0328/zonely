@@ -1,8 +1,13 @@
 "common_spelling_placeholder" = "Common spelling";
 "original_spelling_placeholder" = "Original spelling";
+"name_placeholder" = "Name (e.g., Zhang Wei)";
+"pronunciation_text_label" = "Pronunciation text";
+"pronunciation_text_placeholder" = "How it should be spoken";
+"customize_pronunciation" = "Customize pronunciation text";
 "text_may_not_match_lang" = "Text may not match %@";
 "language" = "Language";
 "add" = "Add";
+"add_pronunciation" = "Add pronunciation";
 "empty_list_message" = "No names yet. Add a name and language to begin.";
 "share_your_list" = "Share your list";
 "share" = "Share";
@@ -11,4 +16,14 @@
 "clear_audio_cache_title" = "Clear Audio Cache";
 "clear_audio_cache_message" = "This will remove all cached audio files. They will be downloaded again when needed.";
 "cancel" = "Cancel";
+"save" = "Save";
+"undo_remove" = "Name removed";
+"undo" = "Undo";
+"rename" = "Rename";
+"duplicate" = "Duplicate";
+"delete" = "Delete";
+"new" = "New";
+"rename_collection" = "Rename Collection";
+"collection_name_placeholder" = "Collection name";
+"create_new_collection" = "Create new collection";
 

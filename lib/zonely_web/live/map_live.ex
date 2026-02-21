@@ -117,10 +117,11 @@ defmodule ZonelyWeb.MapLive do
     # Track first avatar click and show pronunciation hint (if not yet played)
     socket =
       if !socket.assigns.onboarding.first_pronunciation_played do
-        onboarding = socket.assigns.onboarding
-        |> Map.put(:first_avatar_clicked, true)
-        |> Map.put(:active_hint, :pronunciation_hint)
-        |> Map.put(:inactivity_timer, nil)
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:first_avatar_clicked, true)
+          |> Map.put(:active_hint, :pronunciation_hint)
+          |> Map.put(:inactivity_timer, nil)
 
         socket
         |> assign(:onboarding, onboarding)
@@ -147,9 +148,10 @@ defmodule ZonelyWeb.MapLive do
     # Track first pronunciation play and dismiss hint
     socket =
       if !socket.assigns.onboarding.first_pronunciation_played do
-        onboarding = socket.assigns.onboarding
-        |> Map.put(:first_pronunciation_played, true)
-        |> Map.put(:active_hint, nil)
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:first_pronunciation_played, true)
+          |> Map.put(:active_hint, nil)
 
         socket
         |> assign(:onboarding, onboarding)
@@ -174,9 +176,10 @@ defmodule ZonelyWeb.MapLive do
     # Track first pronunciation play and dismiss hint
     socket =
       if !socket.assigns.onboarding.first_pronunciation_played do
-        onboarding = socket.assigns.onboarding
-        |> Map.put(:first_pronunciation_played, true)
-        |> Map.put(:active_hint, nil)
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:first_pronunciation_played, true)
+          |> Map.put(:active_hint, nil)
 
         socket
         |> assign(:onboarding, onboarding)
@@ -408,7 +411,7 @@ defmodule ZonelyWeb.MapLive do
         |> assign(:demo_ui, Map.take(step, [:title, :desc]))
         |> push_event("demo_highlight", %{selector: step.highlight})
         |> push_event("time_selection_set", %{a_frac: a, b_frac: b})
-        |> schedule_drag_sequence([{11/24, 13/24}, {15/24, 18/24}], 1800)
+        |> schedule_drag_sequence([{11 / 24, 13 / 24}, {15 / 24, 18 / 24}], 1800)
         |> next_demo_step(delay)
 
       %{action: :open_avatar2, delay_ms: delay} = step ->
@@ -444,7 +447,7 @@ defmodule ZonelyWeb.MapLive do
     honolulu = {21.3069, -157.8583}
 
     users
-    |> Enum.filter(& &1.latitude && &1.longitude)
+    |> Enum.filter(&(&1.latitude && &1.longitude))
     |> Enum.map(fn u ->
       lat = to_float(u.latitude)
       lng = to_float(u.longitude)
@@ -556,9 +559,10 @@ defmodule ZonelyWeb.MapLive do
     # Track first timeline interaction and dismiss hint
     socket =
       if !socket.assigns.onboarding.first_timeline_interaction do
-        onboarding = socket.assigns.onboarding
-        |> Map.put(:first_timeline_interaction, true)
-        |> Map.put(:active_hint, nil)
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:first_timeline_interaction, true)
+          |> Map.put(:active_hint, nil)
 
         socket
         |> assign(:onboarding, onboarding)
@@ -667,9 +671,10 @@ defmodule ZonelyWeb.MapLive do
     socket =
       if !socket.assigns.onboarding.inactivity_hint_shown &&
            !socket.assigns.onboarding.first_avatar_clicked do
-        onboarding = socket.assigns.onboarding
-        |> Map.put(:inactivity_hint_shown, true)
-        |> Map.put(:active_hint, :inactivity_hint)
+        onboarding =
+          socket.assigns.onboarding
+          |> Map.put(:inactivity_hint_shown, true)
+          |> Map.put(:active_hint, :inactivity_hint)
 
         assign(socket, :onboarding, onboarding)
       else
@@ -900,7 +905,8 @@ defmodule ZonelyWeb.MapLive do
             position: "profile-card",
             icon: "🗣️",
             title: "Hear How to Say Names",
-            message: "Click the speaker icons to hear name pronunciation—show respect from day one!",
+            message:
+              "Click the speaker icons to hear name pronunciation—show respect from day one!",
             pointer_class: "top-24 right-1/2"
           }
 
@@ -918,7 +924,8 @@ defmodule ZonelyWeb.MapLive do
             position: "center",
             icon: "👋",
             title: "Try Clicking an Avatar",
-            message: "Click any team member's avatar on the map to view their profile and timezone info.",
+            message:
+              "Click any team member's avatar on the map to view their profile and timezone info.",
             pointer_class: "top-1/2 left-1/2"
           }
 

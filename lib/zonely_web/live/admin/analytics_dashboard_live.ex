@@ -6,7 +6,11 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   import ZonelyWeb.CoreComponents
   use Gettext, backend: ZonelyWeb.Gettext
   alias ZonelyWeb.Layouts
-  use Phoenix.VerifiedRoutes, endpoint: ZonelyWeb.Endpoint, router: ZonelyWeb.Router, statics: ZonelyWeb.static_paths()
+
+  use Phoenix.VerifiedRoutes,
+    endpoint: ZonelyWeb.Endpoint,
+    router: ZonelyWeb.Router,
+    statics: ZonelyWeb.static_paths()
 
   alias Zonely.Analytics
 
@@ -81,9 +85,11 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     top_names = Analytics.top_requested_names(start_date, end_date, 5)
     geo_distribution = Analytics.geographic_distribution(start_date, end_date, 100)
     top_languages = Analytics.top_languages(start_date, end_date, 5)
+
     provider_performance =
       Analytics.provider_usage(start_date, end_date)
       |> with_all_providers()
+
     error_stats = Analytics.error_rate(start_date, end_date)
     errors_by_type = Analytics.errors_by_type(start_date, end_date)
     conversion = Analytics.conversion_funnel(start_date, end_date)
@@ -256,10 +262,10 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   end
 
   # Section card component for consistent styling
-  attr :title, :string, required: true
-  attr :subtitle, :string, default: nil
-  attr :class, :string, default: ""
-  slot :inner_block, required: true
+  attr(:title, :string, required: true)
+  attr(:subtitle, :string, default: nil)
+  attr(:class, :string, default: "")
+  slot(:inner_block, required: true)
 
   defp section_card(assigns) do
     ~H"""
@@ -284,12 +290,12 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
   # Components
 
-  attr :title, :string, required: true
-  attr :value, :any, required: true
-  attr :subtitle, :string, default: nil
-  attr :icon, :string, required: true
-  attr :gradient, :string, default: "from-indigo-500 to-blue-500"
-  attr :tooltip, :string, default: nil
+  attr(:title, :string, required: true)
+  attr(:value, :any, required: true)
+  attr(:subtitle, :string, default: nil)
+  attr(:icon, :string, required: true)
+  attr(:gradient, :string, default: "from-indigo-500 to-blue-500")
+  attr(:tooltip, :string, default: nil)
 
   defp metric_card(assigns) do
     ~H"""
@@ -319,7 +325,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  attr :data, :list, required: true
+  attr(:data, :list, required: true)
 
   defp simple_time_chart(assigns) do
     ~H"""
@@ -399,14 +405,26 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
   # Unified rank card styles (used by all ranking components)
   # Uses indigo gradient theme - top 3 get progressively lighter indigo backgrounds
-  defp rank_card_styles(1), do: "bg-gradient-to-r from-indigo-100 to-indigo-50 border border-indigo-200/60"
-  defp rank_card_styles(2), do: "bg-gradient-to-r from-indigo-50 to-slate-50 border border-indigo-100/50"
-  defp rank_card_styles(3), do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
+  defp rank_card_styles(1),
+    do: "bg-gradient-to-r from-indigo-100 to-indigo-50 border border-indigo-200/60"
+
+  defp rank_card_styles(2),
+    do: "bg-gradient-to-r from-indigo-50 to-slate-50 border border-indigo-100/50"
+
+  defp rank_card_styles(3),
+    do: "bg-gradient-to-r from-slate-50 to-white border border-slate-200/50"
+
   defp rank_card_styles(_), do: "bg-white border border-slate-100 hover:border-slate-200"
 
-  defp rank_badge_styles(1), do: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm"
-  defp rank_badge_styles(2), do: "bg-gradient-to-br from-indigo-400 to-indigo-500 text-white shadow-sm"
-  defp rank_badge_styles(3), do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
+  defp rank_badge_styles(1),
+    do: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm"
+
+  defp rank_badge_styles(2),
+    do: "bg-gradient-to-br from-indigo-400 to-indigo-500 text-white shadow-sm"
+
+  defp rank_badge_styles(3),
+    do: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm"
+
   defp rank_badge_styles(_), do: "bg-slate-100 text-slate-500"
 
   defp rank_bar_styles(1), do: "bg-gradient-to-r from-indigo-500 to-indigo-400"
@@ -414,7 +432,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   defp rank_bar_styles(3), do: "bg-gradient-to-r from-slate-400 to-slate-300"
   defp rank_bar_styles(_), do: "bg-slate-300"
 
-  attr :providers, :list, required: true
+  attr(:providers, :list, required: true)
 
   defp provider_performance_table(assigns) do
     providers = if assigns.providers == [], do: with_all_providers([]), else: assigns.providers
@@ -462,7 +480,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  attr :names, :list, required: true
+  attr(:names, :list, required: true)
 
   defp top_names_table(assigns) do
     max_count = assigns.names |> Enum.map(& &1.count) |> Enum.max(fn -> 1 end)
@@ -514,9 +532,9 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  attr :countries, :list, required: true
-  attr :map_data, :map, required: true
-  attr :api_key, :string, required: true
+  attr(:countries, :list, required: true)
+  attr(:map_data, :map, required: true)
+  attr(:api_key, :string, required: true)
 
   defp geo_distribution_map(assigns) do
     counts = assigns.countries |> Enum.map(&elem(&1, 1))
@@ -616,7 +634,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
   defp format_number(num) when num >= 1_000, do: "#{Float.round(num / 1_000, 1)}K"
   defp format_number(num), do: "#{num}"
 
-  attr :languages, :list, required: true
+  attr(:languages, :list, required: true)
 
   defp top_languages_chart(assigns) do
     max_count = assigns.languages |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 1 end)
@@ -660,7 +678,7 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
     """
   end
 
-  attr :errors, :list, required: true
+  attr(:errors, :list, required: true)
 
   defp errors_by_type_table(assigns) do
     errors_sorted = Enum.sort_by(assigns.errors, fn {_type, count} -> count end, :desc)
@@ -716,7 +734,9 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
       binary when is_binary(binary) ->
         case DateTime.from_iso8601(binary) do
-          {:ok, dt, _} -> Calendar.strftime(dt, "%b %d %H:%M")
+          {:ok, dt, _} ->
+            Calendar.strftime(dt, "%b %d %H:%M")
+
           _ ->
             case NaiveDateTime.from_iso8601(binary) do
               {:ok, naive} ->
@@ -824,13 +844,27 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
   defp provider_label(provider) do
     case provider do
-      "polly" -> "Polly (AI)"
-      "forvo" -> "Forvo (Human)"
-      "name_shouts" -> "NameShouts (Human)"
-      "cache_local" -> "Cache (Server Local)"
-      "cache_remote" -> "Cache (Remote)"
-      "cache_client" -> "Cache (Client)"
-      nil -> "Unknown"
+      "polly" ->
+        "Polly (AI)"
+
+      "forvo" ->
+        "Forvo (Human)"
+
+      "name_shouts" ->
+        "NameShouts (Human)"
+
+      "cache_local" ->
+        "Cache (Server Local)"
+
+      "cache_remote" ->
+        "Cache (Remote)"
+
+      "cache_client" ->
+        "Cache (Client)"
+
+      nil ->
+        "Unknown"
+
       other ->
         other
         |> to_string()
@@ -843,12 +877,42 @@ defmodule ZonelyWeb.Admin.AnalyticsDashboardLive do
 
   defp with_all_providers(providers) do
     defaults = [
-      %{provider: "polly", avg_generation_time_ms: nil, p95_generation_time_ms: nil, total_requests: 0},
-      %{provider: "forvo", avg_generation_time_ms: nil, p95_generation_time_ms: nil, total_requests: 0},
-      %{provider: "name_shouts", avg_generation_time_ms: nil, p95_generation_time_ms: nil, total_requests: 0},
-      %{provider: "cache_client", avg_generation_time_ms: nil, p95_generation_time_ms: nil, total_requests: 0},
-      %{provider: "cache_local", avg_generation_time_ms: nil, p95_generation_time_ms: nil, total_requests: 0},
-      %{provider: "cache_remote", avg_generation_time_ms: nil, p95_generation_time_ms: nil, total_requests: 0}
+      %{
+        provider: "polly",
+        avg_generation_time_ms: nil,
+        p95_generation_time_ms: nil,
+        total_requests: 0
+      },
+      %{
+        provider: "forvo",
+        avg_generation_time_ms: nil,
+        p95_generation_time_ms: nil,
+        total_requests: 0
+      },
+      %{
+        provider: "name_shouts",
+        avg_generation_time_ms: nil,
+        p95_generation_time_ms: nil,
+        total_requests: 0
+      },
+      %{
+        provider: "cache_client",
+        avg_generation_time_ms: nil,
+        p95_generation_time_ms: nil,
+        total_requests: 0
+      },
+      %{
+        provider: "cache_local",
+        avg_generation_time_ms: nil,
+        p95_generation_time_ms: nil,
+        total_requests: 0
+      },
+      %{
+        provider: "cache_remote",
+        avg_generation_time_ms: nil,
+        p95_generation_time_ms: nil,
+        total_requests: 0
+      }
     ]
 
     map =

@@ -1,7 +1,7 @@
 defmodule ZonelyWeb.UserSocket do
   use Phoenix.Socket
 
-  channel "analytics:*", ZonelyWeb.AnalyticsChannel
+  channel("analytics:*", ZonelyWeb.AnalyticsChannel)
 
   @impl true
   def connect(_params, socket, _connect_info) do
@@ -11,4 +11,3 @@ defmodule ZonelyWeb.UserSocket do
   @impl true
   def id(_socket), do: nil
 end
-

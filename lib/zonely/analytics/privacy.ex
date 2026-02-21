@@ -1,7 +1,7 @@
 defmodule Zonely.Analytics.Privacy do
   @moduledoc """
   Privacy utilities for analytics.
-  
+
   Ensures all tracking is privacy-first:
   - No PII collection
   - Name hashing (irreversible)
@@ -11,9 +11,9 @@ defmodule Zonely.Analytics.Privacy do
 
   @doc """
   Hash user agent to prevent fingerprinting while allowing bot detection.
-  
+
   ## Examples
-  
+
       iex> hash_user_agent("Mozilla/5.0...")
       "a3f8b9c2e1d4f5a6"
   """
@@ -27,9 +27,9 @@ defmodule Zonely.Analytics.Privacy do
 
   @doc """
   Extract domain from referrer URL, discard path/query.
-  
+
   ## Examples
-  
+
       iex> extract_referrer_domain("https://example.com/path?query=1")
       "example.com"
   """
@@ -44,9 +44,9 @@ defmodule Zonely.Analytics.Privacy do
 
   @doc """
   Hash name for analytics, irreversible.
-  
+
   ## Examples
-  
+
       iex> hash_name("John Doe")
       "7a3f8c4e1b9d2a5f"
   """

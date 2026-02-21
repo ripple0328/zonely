@@ -160,7 +160,7 @@ struct GeoHeatmapMapView: View {
     @State private var lastScale: CGFloat = 1.0
     @State private var currentOffset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
-    @GestureState private var isDragging: Bool = false
+
 
     /// ISO-3 code -> play count lookup built from geoDistribution (which uses ISO-2)
     private var countryPlays: [String: Int] {
@@ -179,12 +179,8 @@ struct GeoHeatmapMapView: View {
             let mapWidth = geometry.size.width
             let mapHeight = mapWidth / 2.0  // World map ~2:1 aspect ratio
             ZStack {
-                // Light background matching app aesthetic
-                LinearGradient(
-                    colors: [Color.blue.opacity(0.06), Color.purple.opacity(0.04)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                // Ocean background — light sea blue
+                Color(red: 0.85, green: 0.92, blue: 0.98)
 
                 // Render all country polygons via Canvas for performance
                 Canvas { context, size in
@@ -194,9 +190,17 @@ struct GeoHeatmapMapView: View {
                         let fillColor = heatmapColor(for: count, maxCount: maxPlayCount)
 
                         context.fill(path, with: .color(fillColor))
-                        context.stroke(path, with: .color(Color.primary.opacity(0.18)), lineWidth: 0.5)
+                        context.stroke(path, with: .color(Color(white: 0.75)), lineWidth: 0.6)
                     }
                 }
+
+                // Subtle vignette for depth
+                RadialGradient(
+                    colors: [Color.clear, Color.black.opacity(0.08)],
+                    center: .center,
+                    startRadius: mapWidth * 0.3,
+                    endRadius: mapWidth * 0.75
+                )
 
                 // Invisible tap targets for countries with data
                 ForEach(countries) { country in
@@ -216,9 +220,15 @@ struct GeoHeatmapMapView: View {
                 }
             }
             .contentShape(Rectangle())
-            .scaleEffect(currentScale)
-            .offset(currentOffset)
-            .gesture(
+            .onTapGesture(count: 2) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentScale = 1.0
+                    lastScale = 1.0
+                    currentOffset = .zero
+                    lastOffset = .zero
+                }
+            }
+            .highPriorityGesture(
                 SimultaneousGesture(
                     MagnificationGesture()
                         .onChanged { value in
@@ -227,10 +237,7 @@ struct GeoHeatmapMapView: View {
                         .onEnded { _ in
                             lastScale = currentScale
                         },
-                    DragGesture(minimumDistance: 0)
-                        .updating($isDragging) { _, state, _ in
-                            state = true
-                        }
+                    DragGesture(minimumDistance: 5)
                         .onChanged { value in
                             currentOffset = CGSize(
                                 width: lastOffset.width + value.translation.width / currentScale,
@@ -242,14 +249,8 @@ struct GeoHeatmapMapView: View {
                         }
                 )
             )
-            .onTapGesture(count: 2) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentScale = 1.0
-                    lastScale = 1.0
-                    currentOffset = .zero
-                    lastOffset = .zero
-                }
-            }
+            .scaleEffect(currentScale)
+            .offset(currentOffset)
             .frame(width: mapWidth, height: mapHeight)
             .clipped()
             .onAppear {

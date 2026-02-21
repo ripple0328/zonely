@@ -5,9 +5,9 @@ defmodule Zonely.Collections.NameCollection do
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "name_collections" do
-    field :name, :string
-    field :description, :string
-    field :entries, :map, default: %{}
+    field(:name, :string)
+    field(:description, :string)
+    field(:entries, :map, default: %{})
 
     timestamps(type: :utc_datetime)
   end
@@ -31,9 +31,8 @@ defmodule Zonely.Collections.NameCollection do
     # Handle case where entries might be stored as map
     entries
     |> Map.values()
-    |> Enum.sort_by(& &1["inserted_at"] || "")
+    |> Enum.sort_by(&(&1["inserted_at"] || ""))
   end
 
   def to_shareable_format(_), do: []
 end
-

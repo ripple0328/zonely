@@ -129,4 +129,3 @@ defmodule Zonely.Collections.ShareUrlTest do
     end
   end
 end
-

@@ -18,4 +18,3 @@ defmodule ZonelyWeb.AnalyticsChannel do
     {:noreply, socket}
   end
 end
-

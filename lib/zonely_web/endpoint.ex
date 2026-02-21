@@ -8,9 +8,10 @@ defmodule ZonelyWeb.Endpoint do
     same_site: "Lax"
   ]
 
-  socket "/socket", ZonelyWeb.UserSocket,
+  socket("/socket", ZonelyWeb.UserSocket,
     websocket: true,
     longpoll: false
+  )
 
   socket("/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],

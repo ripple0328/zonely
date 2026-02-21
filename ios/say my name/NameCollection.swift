@@ -29,17 +29,27 @@ struct NameCollection: Identifiable, Codable, Hashable {
 
 // MARK: - Collection Persistence
 final class CollectionPersistence {
-    private let key = "collections_v1"
+    private let collectionsKey = "collections_v1"
+    private let activeIdKey = "active_collection_id"
 
     func restore() -> [NameCollection]? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        guard let data = UserDefaults.standard.data(forKey: collectionsKey) else { return nil }
         return try? JSONDecoder().decode([NameCollection].self, from: data)
     }
 
     func store(_ collections: [NameCollection]) {
         if let data = try? JSONEncoder().encode(collections) {
-            UserDefaults.standard.set(data, forKey: key)
+            UserDefaults.standard.set(data, forKey: collectionsKey)
         }
+    }
+
+    func restoreActiveId() -> UUID? {
+        guard let str = UserDefaults.standard.string(forKey: activeIdKey) else { return nil }
+        return UUID(uuidString: str)
+    }
+
+    func storeActiveId(_ id: UUID) {
+        UserDefaults.standard.set(id.uuidString, forKey: activeIdKey)
     }
 
     func add(_ collection: NameCollection, to collections: inout [NameCollection]) {
@@ -85,10 +95,14 @@ enum CollectionShareUrl {
         return base64
     }
 
-    static func generateUrl(for entries: [NameEntry], baseUrl: String = "https://saymyname.qingbo.us") -> URL? {
+    static func generateUrl(for entries: [NameEntry], collectionName: String? = nil, baseUrl: String = "https://saymyname.qingbo.us") -> URL? {
         guard let encoded = encode(entries) else { return nil }
         var components = URLComponents(string: baseUrl)
-        components?.queryItems = [URLQueryItem(name: "s", value: encoded)]
+        var queryItems = [URLQueryItem(name: "s", value: encoded)]
+        if let cn = collectionName, !cn.isEmpty {
+            queryItems.append(URLQueryItem(name: "cn", value: cn))
+        }
+        components?.queryItems = queryItems
         return components?.url
     }
 
