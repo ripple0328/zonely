@@ -431,6 +431,7 @@ defmodule ZonelyWeb.HomeLive do
         <div class="profile-panel-position">
           <.profile_card
             user={@selected_user}
+            comparison_candidates={comparison_candidates(@users, @selected_user_ids)}
             effective_at={@effective_at}
             loading_pronunciation={@loading_pronunciation}
             playing_pronunciation={@playing_pronunciation}
@@ -639,6 +640,10 @@ defmodule ZonelyWeb.HomeLive do
     selected_user_ids
     |> Enum.map(fn id -> Enum.find(users, &(&1.id == id)) end)
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp comparison_candidates(users, selected_user_ids) when is_list(selected_user_ids) do
+    Enum.reject(users, &(&1.id in selected_user_ids))
   end
 
   defp selected_user?(selected_user_ids, user_id), do: user_id in selected_user_ids

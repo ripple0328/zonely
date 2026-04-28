@@ -589,6 +589,77 @@ defmodule ZonelyWeb.HomeLiveTest do
            )
   end
 
+  test "single decision sheet offers visible compare-with controls that preserve first selection",
+       %{conn: conn} do
+    {:ok, alice} =
+      Accounts.create_user(%{
+        name: "Alice Remote",
+        role: "Frontend Developer",
+        timezone: "America/New_York",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("40.7128"),
+        longitude: Decimal.new("-74.0060")
+      })
+
+    {:ok, mara} =
+      Accounts.create_user(%{
+        name: "Mara Okafor",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, yuki} =
+      Accounts.create_user(%{
+        name: "Yuki Tanaka",
+        role: "Engineering Manager",
+        timezone: "Asia/Tokyo",
+        country: "JP",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("35.6762"),
+        longitude: Decimal.new("139.6503")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view |> element("#team-orbit-user-#{alice.id}") |> render_click()
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-sheet']",
+             "Alice Remote"
+           )
+
+    assert has_element?(view, "#profile-compare-actions")
+    refute has_element?(view, "#profile-compare-add-#{alice.id}")
+    assert has_element?(view, "#profile-compare-add-#{mara.id}", "Compare with Mara Okafor")
+    assert has_element?(view, "#profile-compare-add-#{yuki.id}", "Compare with Yuki Tanaka")
+
+    view |> element("#profile-compare-add-#{mara.id}") |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      selected_user_ids: [alice_id, mara_id],
+      selected_user_id: nil,
+      markers: markers
+    })
+
+    assert alice_id == alice.id
+    assert mara_id == mara.id
+    assert Enum.filter(markers, & &1.selected) |> Enum.map(& &1.id) == [alice.id, mara.id]
+
+    refute has_element?(view, "#profile-panel [data-testid='selected-decision-sheet']")
+    assert has_element?(view, "#selected-group-panel", "2 teammate reachability")
+    assert has_element?(view, "#selected-group-row-#{alice.id}", "Alice Remote")
+    assert has_element?(view, "#selected-group-row-#{mara.id}", "Mara Okafor")
+  end
+
   test "boundary/off teammate preview journey synchronizes rail map orbit strip sheet and reset",
        %{
          conn: conn

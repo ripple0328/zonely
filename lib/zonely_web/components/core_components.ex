@@ -1487,6 +1487,12 @@ defmodule ZonelyWeb.CoreComponents do
   """
   attr(:user, :map, required: true, doc: "User struct with all user data")
   attr(:effective_at, :any, default: nil, doc: "Effective DateTime for decision context")
+
+  attr(:comparison_candidates, :list,
+    default: [],
+    doc: "Other teammates that can be added to the current comparison"
+  )
+
   attr(:show_actions, :boolean, default: false, doc: "Whether to show action buttons")
   attr(:show_local_time, :boolean, default: false, doc: "Whether to show calculated local time")
   attr(:class, :string, default: "", doc: "Additional CSS classes")
@@ -1580,6 +1586,37 @@ defmodule ZonelyWeb.CoreComponents do
           <%= @decision_sentence %>
         </p>
       </div>
+
+      <section
+        :if={@comparison_candidates != []}
+        id="profile-compare-actions"
+        class="profile-compare-actions"
+        aria-label="Add teammate to comparison"
+      >
+        <div>
+          <p class="context-eyebrow">Compare with teammate</p>
+          <p class="profile-compare-help">
+            Keep <%= @user.name %> selected and add one more teammate.
+          </p>
+        </div>
+
+        <div class="profile-compare-list">
+          <button
+            :for={candidate <- @comparison_candidates}
+            type="button"
+            id={"profile-compare-add-#{candidate.id}"}
+            class="profile-compare-button"
+            phx-click="toggle_compare_user"
+            phx-value-user_id={candidate.id}
+            aria-label={"Compare #{candidate.name} with #{@user.name}"}
+          >
+            <span>Compare with <%= candidate.name %></span>
+            <span class="profile-compare-meta">
+              <%= Reachability.local_time_label(candidate.timezone, @effective_at) %> · <%= Reachability.status_label(candidate, @effective_at) %>
+            </span>
+          </button>
+        </div>
+      </section>
 
       <dl class="decision-facts">
         <div data-testid="selected-location">
