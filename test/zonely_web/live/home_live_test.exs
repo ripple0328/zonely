@@ -285,6 +285,103 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert html =~ "Teammate context"
   end
 
+  test "selected teammate decision sheet follows preview effective time and reset", %{conn: conn} do
+    {:ok, user} =
+      Accounts.create_user(%{
+        name: "Mara Okafor",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#team-orbit-user-#{user.id}")
+    |> render_click()
+
+    assert has_element?(view, "#profile-panel [data-testid='selected-decision-sheet']")
+    assert has_element?(view, "#profile-panel [data-testid='selected-location']", "Portugal")
+    assert has_element?(view, "#profile-panel [data-testid='selected-role']", "Product Lead")
+    assert has_element?(view, "#profile-panel [data-testid='selected-local-time']", "14:30")
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-work-window']",
+             "09:00 AM - 05:00 PM"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-timezone-offset']",
+             "UTC+00:00"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-reachability']",
+             "Reachable now"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-copy']",
+             "good moment"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-next-transition']",
+             "Workday ends at 17:00"
+           )
+
+    assert has_element?(view, "#profile-panel [data-testid='selected-daylight']", "daylight")
+    assert has_element?(view, "#profile-panel [data-testid='selected-pronunciation-actions']")
+
+    view
+    |> element("#map-time-rail-form")
+    |> render_change(%{"offset_minutes" => "480"})
+
+    assert has_element?(view, "#profile-panel [data-testid='selected-local-time']", "22:30")
+    assert has_element?(view, "#profile-panel [data-testid='selected-reachability']", "Wait")
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-copy']",
+             "Wait for a better moment"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-next-transition']",
+             "Back tomorrow at 09:00"
+           )
+
+    assert has_element?(view, "#profile-panel [data-testid='selected-daylight']", "night")
+
+    view
+    |> element("#map-time-rail-reset")
+    |> render_click()
+
+    assert has_element?(view, "#profile-panel [data-testid='selected-local-time']", "14:30")
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-reachability']",
+             "Reachable now"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-copy']",
+             "good moment"
+           )
+  end
+
   test "selected teammate profile can create a SayMyName name-card share", %{conn: conn} do
     System.put_env("PRONUNCIATION_API_KEY", "test-share-key")
 

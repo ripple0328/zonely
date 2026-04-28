@@ -298,6 +298,33 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "data-testid=\"pronunciation-native\""
     end
 
+    test "renders decision sheet fields from explicit effective time" do
+      user = %User{
+        id: 11,
+        name: "Mara Okafor",
+        role: "Product Lead",
+        country: "PT",
+        timezone: "Europe/Lisbon",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00]
+      }
+
+      html =
+        render_component_test(&profile_card/1, %{
+          user: user,
+          effective_at: ~U[2026-01-15 22:30:00Z]
+        })
+
+      assert html =~ ~s(data-testid="selected-decision-sheet")
+      assert html =~ ~s(data-testid="selected-local-time")
+      assert html =~ "22:30"
+      assert html =~ "Wait"
+      assert html =~ "Wait for a better moment"
+      assert html =~ "Back tomorrow at 09:00"
+      assert html =~ "night"
+      assert html =~ "UTC+00:00"
+    end
+
     test "renders reusable name-card share result" do
       user = %User{
         id: 10,

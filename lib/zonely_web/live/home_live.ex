@@ -321,6 +321,7 @@ defmodule ZonelyWeb.HomeLive do
         <div class="profile-panel-position">
           <.profile_card
             user={@selected_user}
+            effective_at={@effective_at}
             loading_pronunciation={@loading_pronunciation}
             playing_pronunciation={@playing_pronunciation}
             name_share_url={Map.get(@name_card_share_urls, "#{@selected_user.id}")}

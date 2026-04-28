@@ -1486,6 +1486,7 @@ defmodule ZonelyWeb.CoreComponents do
   This is a composite component that uses other components for consistency.
   """
   attr(:user, :map, required: true, doc: "User struct with all user data")
+  attr(:effective_at, :any, default: nil, doc: "Effective DateTime for decision context")
   attr(:show_actions, :boolean, default: false, doc: "Whether to show action buttons")
   attr(:show_local_time, :boolean, default: false, doc: "Whether to show calculated local time")
   attr(:class, :string, default: "", doc: "Additional CSS classes")
@@ -1510,15 +1511,25 @@ defmodule ZonelyWeb.CoreComponents do
   )
 
   def profile_card(assigns) do
+    effective_at = assigns.effective_at || DateTime.utc_now()
+
     assigns =
       assigns
+      |> assign(:effective_at, effective_at)
       |> assign(:name_rows, name_profile_rows(assigns))
+      |> assign(:status_label, Reachability.status_label(assigns.user, effective_at))
+      |> assign(:decision_sentence, Reachability.decision_sentence(assigns.user, effective_at))
+      |> assign(:next_transition, Reachability.next_transition(assigns.user, effective_at))
+      |> assign(
+        :daylight_context,
+        Reachability.daylight_context_label(assigns.user, effective_at)
+      )
 
     ~H"""
     <div class={[
       "overflow-hidden rounded-[20px] p-5 text-[var(--charcoal-ink)]",
       @class
-    ]}>
+    ]} data-testid="selected-decision-sheet">
       <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[color:var(--hairline)] sm:hidden"></div>
       <!-- Header with avatar and name -->
       <div class="flex items-start gap-4">
@@ -1534,9 +1545,12 @@ defmodule ZonelyWeb.CoreComponents do
               <%= @user.name %>
               </h3>
             </div>
+            <button type="button" class="decision-close-button" phx-click="hide_profile" aria-label="Close teammate context">
+              <.icon name="hero-x-mark" class="h-4 w-4" />
+            </button>
           </div>
 
-          <p class="mt-1 text-sm text-[var(--slate-signal)]">
+          <p class="mt-1 text-sm text-[var(--slate-signal)]" data-testid="selected-role">
             <%= @user.role || "Team Member" %>
           </p>
 
@@ -1550,13 +1564,56 @@ defmodule ZonelyWeb.CoreComponents do
         </div>
       </div>
 
-      <div class="rounded-2xl bg-white/70 p-4">
-        <p class="text-sm leading-6 text-[var(--charcoal-ink)]">
-          <%= Reachability.context_sentence(@user) %>
+      <div class="decision-primary">
+        <div class="decision-state-row">
+          <span class={["decision-state-dot", decision_state_class(@user, @effective_at)]}></span>
+          <p class="decision-state-label" data-testid="selected-reachability">
+            <%= @status_label %>
+          </p>
+        </div>
+        <p class="decision-copy" data-testid="selected-decision-copy">
+          <%= @decision_sentence %>
         </p>
       </div>
 
-      <div class="name-profile-card" data-testid="name-profile-card">
+      <dl class="decision-facts">
+        <div data-testid="selected-location">
+          <dt>Location</dt>
+          <dd>
+            <%= Geography.country_name(@user.country) %>
+            <span class="font-instrument-mono"><%= @user.country %></span>
+          </dd>
+        </div>
+        <div>
+          <dt>Local time</dt>
+          <dd class="font-instrument-mono" data-testid="selected-local-time">
+            <%= Reachability.local_time_label(@user.timezone, @effective_at) %>
+          </dd>
+        </div>
+        <div>
+          <dt>Work window</dt>
+          <dd class="font-instrument-mono" data-testid="selected-work-window">
+            <%= time_range_label(@user) %>
+          </dd>
+        </div>
+        <div>
+          <dt>Offset</dt>
+          <dd class="font-instrument-mono" data-testid="selected-timezone-offset">
+            <%= Reachability.offset_label(@user.timezone, @effective_at) %>
+            <span><%= @user.timezone %></span>
+          </dd>
+        </div>
+        <div>
+          <dt>Next transition</dt>
+          <dd data-testid="selected-next-transition"><%= @next_transition.text %></dd>
+        </div>
+        <div>
+          <dt>Daylight</dt>
+          <dd data-testid="selected-daylight"><%= @daylight_context %></dd>
+        </div>
+      </dl>
+
+      <div class="name-profile-card decision-pronunciation" data-testid="name-profile-card">
         <div class="name-profile-card-header">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--slate-signal)]">
@@ -1584,7 +1641,7 @@ defmodule ZonelyWeb.CoreComponents do
           </button>
         </div>
 
-        <div id={"name-profile-rows-#{@user.id}"} class="name-profile-rows">
+        <div id={"name-profile-rows-#{@user.id}"} class="name-profile-rows" data-testid="selected-pronunciation-actions">
           <button
             :for={row <- @name_rows}
             type="button"
@@ -1629,31 +1686,6 @@ defmodule ZonelyWeb.CoreComponents do
 
         <p :if={@name_share_error} class="name-share-error"><%= @name_share_error %></p>
       </div>
-
-      <dl class="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Location</dt>
-          <dd class="mt-1 font-medium">
-            <%= Geography.country_name(@user.country) %>
-            <span class="font-instrument-mono text-xs text-[var(--slate-signal)]"><%= @user.country %></span>
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Local time</dt>
-          <dd class="font-instrument-mono mt-1 font-medium"><%= Reachability.local_time_label(@user.timezone) %></dd>
-          <dd class="font-instrument-mono mt-1 text-xs text-[var(--slate-signal)]">
-            <%= @user.timezone %>
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Work window</dt>
-          <dd class="font-instrument-mono mt-1 font-medium"><%= time_range_label(@user) %></dd>
-        </div>
-        <div>
-          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">State</dt>
-          <dd class="mt-1 font-medium"><%= Reachability.status_label(@user) %></dd>
-        </div>
-      </dl>
 
       <!-- Actions -->
       <div :if={@show_actions} class="pt-4 border-t border-gray-100">
@@ -1776,6 +1808,14 @@ defmodule ZonelyWeb.CoreComponents do
 
   defp time_range_label(user) do
     WorkingHours.format_hours(user)
+  end
+
+  defp decision_state_class(user, effective_at) do
+    case Reachability.status(user, effective_at) do
+      :working -> "is-working"
+      :edge -> "is-edge"
+      :off -> "is-off"
+    end
   end
 
   defp name_profile_rows(assigns) do
