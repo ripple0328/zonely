@@ -2,7 +2,7 @@
 
 Zonely helps distributed teams understand where teammates are, when work hours overlap, and which local context matters before reaching out.
 
-The canonical mission, product boundaries, and roadmap live in [docs/mission.md](docs/mission.md). The current stack recommendation lives in [docs/tech-stack-review.md](docs/tech-stack-review.md). In short: Zonely is a team coordination app, not a pronunciation product. Pronunciation is profile context only and always calls the production pronunciation API at `https://saymyname.qingbo.us`.
+The canonical mission, product boundaries, and roadmap live in [docs/mission.md](docs/mission.md). The Stitch-ready product design direction lives in [design.md](design.md). The current stack recommendation lives in [docs/tech-stack-review.md](docs/tech-stack-review.md). In short: Zonely is a team coordination app, not a pronunciation product. Pronunciation is profile context only and always calls the production pronunciation API at `https://saymyname.qingbo.us`.
 
 Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 
