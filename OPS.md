@@ -28,3 +28,15 @@ Runtime env file on Mini:
 ```
 
 Expected production values include `DATABASE_URL=postgresql://zonely:...@127.0.0.1:5432/zonely_prod`, `SECRET_KEY_BASE`, `PHX_HOST=zonely.qingbo.us`, `PORT=4020`, and optionally `PRONUNCIATION_API_KEY` for production pronunciation API access.
+
+Optional observability values:
+
+```sh
+SCOUT_MONITOR=true
+SCOUT_NAME=zonely-prod
+SCOUT_KEY=<agent-key>
+SCOUT_CORE_AGENT_TRIPLE=aarch64-apple-darwin
+POSTHOG_ENABLED=true
+POSTHOG_API_KEY=<project-api-key>
+POSTHOG_HOST=https://us.i.posthog.com
+```

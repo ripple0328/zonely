@@ -59,6 +59,7 @@ defmodule Zonely.MixProject do
        app: false,
        compile: false,
        depth: 1},
+      {:scout_apm, "~> 2.0"},
       {:telemetry_metrics, "~> 1.1"},
       {:telemetry_poller, "~> 1.3"},
       {:gettext, "~> 1.0"},

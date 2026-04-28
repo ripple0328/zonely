@@ -40,6 +40,28 @@ config :logger, :console,
 
 config :phoenix, :json_library, Jason
 
+config :scout_apm,
+  name: {:system, "SCOUT_NAME"},
+  key: {:system, "SCOUT_KEY"},
+  monitor: {:system, "SCOUT_MONITOR"},
+  ignore: ["/healthz", "/readyz"],
+  errors_filter_parameters: [
+    "password",
+    "secret",
+    "token",
+    "authorization",
+    "api_key",
+    "access_key_id",
+    "secret_access_key"
+  ]
+
+config :zonely, :posthog_browser,
+  enabled: false,
+  api_key: nil,
+  api_host: "https://us.i.posthog.com",
+  app: "zonely",
+  env: "dev"
+
 # Use tzdata for timezone conversions
 config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 

@@ -44,6 +44,10 @@ config :phoenix_live_view,
 
 config :logger, :console, format: "[$level] $message\n"
 
+config :scout_apm, monitor: false
+
+config :zonely, :posthog_browser, enabled: false
+
 config :phoenix, :stacktrace_depth, 20
 
 config :phoenix, :plug_init_mode, :runtime

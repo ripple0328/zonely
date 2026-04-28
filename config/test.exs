@@ -18,4 +18,8 @@ config :zonely, :sql_sandbox, true
 
 config :logger, level: :warning
 
+config :scout_apm, monitor: false
+
+config :zonely, :posthog_browser, enabled: false
+
 config :phoenix, :plug_init_mode, :runtime

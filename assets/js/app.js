@@ -20,6 +20,7 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {initLiveSocket} from "./boot/live_socket"
 import {initTopbar} from "./boot/topbar"
+import {initPostHog} from "./posthog"
 // Import minimal audio functionality
 import {setupSimpleAudio} from "./simple-audio"
 // Extracted hooks
@@ -29,6 +30,8 @@ import PreviewRail from "./hooks/preview_rail"
 import LiveClock from "./hooks/live_clock"
 import LocalTime from "./hooks/local_time"
 import Clipboard from "./hooks/clipboard"
+
+initPostHog()
 
 // Setup simple audio functionality first to create AudioHook
 setupSimpleAudio()

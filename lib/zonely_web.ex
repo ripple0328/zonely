@@ -43,6 +43,8 @@ defmodule ZonelyWeb do
         formats: [:html, :json],
         layouts: [html: ZonelyWeb.Layouts]
 
+      use ScoutApm.Instrumentation
+
       import Plug.Conn
       import ZonelyWeb.Gettext
 

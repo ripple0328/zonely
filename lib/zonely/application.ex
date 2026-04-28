@@ -5,6 +5,8 @@ defmodule Zonely.Application do
 
   @impl true
   def start(_type, _args) do
+    attach_scout_telemetry()
+
     children = [
       ZonelyWeb.Telemetry,
       Zonely.Repo,
@@ -21,5 +23,12 @@ defmodule Zonely.Application do
   def config_change(changed, _new, removed) do
     ZonelyWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp attach_scout_telemetry do
+    :ok = ScoutApm.Instruments.EctoTelemetry.attach(Zonely.Repo)
+    :ok = ScoutApm.Instruments.LiveViewTelemetry.attach()
+    :ok = ScoutApm.Instruments.FinchTelemetry.attach()
+    :ok = ScoutApm.Instruments.PhoenixErrorTelemetry.attach()
   end
 end
