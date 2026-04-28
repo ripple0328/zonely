@@ -11,14 +11,16 @@ defmodule ZonelyWeb.HomeLive do
   @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_users()
+    live_now = live_now()
 
     {:ok,
      socket
      |> assign(:page_title, "Map")
      |> assign(:active_tab, :map)
      |> assign(:users, users)
-     |> assign(:map_users_json, users_to_json(users))
-     |> assign(:reachability, Reachability.summary(users))
+     |> assign(:live_now, live_now)
+     |> assign(:preview_at, nil)
+     |> assign_effective_time()
      |> assign(:selected_user, nil)
      |> assign(:loading_pronunciation, nil)
      |> assign(:playing_pronunciation, %{})
@@ -49,6 +51,26 @@ defmodule ZonelyWeb.HomeLive do
 
   def handle_event("hide_profile", _params, socket) do
     {:noreply, assign(socket, :selected_user, nil)}
+  end
+
+  def handle_event("preview_time", params, socket) do
+    case parse_preview_at(params, socket.assigns.live_now) do
+      {:ok, preview_at} ->
+        {:noreply,
+         socket
+         |> assign(:preview_at, preview_at)
+         |> assign_effective_time()}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("reset_preview_time", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:preview_at, nil)
+     |> assign_effective_time()}
   end
 
   def handle_event("play_english_pronunciation", %{"user_id" => id}, socket) do
@@ -139,14 +161,15 @@ defmodule ZonelyWeb.HomeLive do
           </a>
         </nav>
 
-        <aside id="now-context-strip" class="now-context-strip" aria-label="Current team context">
+        <aside id="now-context-strip" class="now-context-strip" aria-label={strip_aria_label(@preview_at)}>
           <div>
-            <p class="context-eyebrow">Now</p>
-            <p class="context-title">{Reachability.reachable_label(@reachability.working)}</p>
+            <p class="context-eyebrow">{strip_mode_label(@preview_at)}</p>
+            <p class="context-title">{strip_reachable_label(@reachability.working, @preview_at)}</p>
           </div>
           <div class="context-meta">
             <span>{map_size(@reachability.timezones)} zones</span>
             <span>{Reachability.format_count(@reachability.edge, "near transition")}</span>
+            <span>{strip_time_label(@effective_at, @preview_at)}</span>
           </div>
         </aside>
 
@@ -157,7 +180,7 @@ defmodule ZonelyWeb.HomeLive do
               <h2>{length(@users)} teammates</h2>
             </div>
             <div class="orbit-actions">
-              <span class="orbit-live-pill">{Reachability.format_count(@reachability.working, "reachable")}</span>
+              <span class="orbit-live-pill">{Reachability.format_count(@reachability.working, orbit_pill_label(@preview_at))}</span>
               <button
                 type="button"
                 id="share-team-names"
@@ -205,14 +228,14 @@ defmodule ZonelyWeb.HomeLive do
               phx-value-user_id={user.id}
               data-testid="team-orbit-row"
             >
-              <span class={["orbit-status-dot", Reachability.orbit_status_class(user)]}></span>
+              <span class={["orbit-status-dot", Reachability.orbit_status_class(user, @effective_at)]}></span>
               <span class="orbit-copy">
                 <span class="orbit-name">{user.name}</span>
                 <span class="orbit-context">
-                  {Reachability.local_time_label(user.timezone)} · {Geography.country_name(user.country)} · {Reachability.status_label(user)}
+                  {Reachability.local_time_label(user.timezone, @effective_at)} · {Geography.country_name(user.country)} · {Reachability.status_label(user, @effective_at)}
                 </span>
               </span>
-              <span class="orbit-offset">{Reachability.offset_label(user.timezone)}</span>
+              <span class="orbit-offset">{Reachability.offset_label(user.timezone, @effective_at)}</span>
             </button>
           </div>
         </aside>
@@ -231,22 +254,53 @@ defmodule ZonelyWeb.HomeLive do
           </div>
         </div>
 
-        <div id="map-time-rail" class="map-time-rail" aria-label="Time context rail">
+        <div id="map-time-rail" class="map-time-rail" aria-label="Time preview rail">
           <div class="rail-header">
-            <span>Local day</span>
-            <span>Overlap window</span>
+            <span>Preview range</span>
+            <span>{@rail.window_label}</span>
           </div>
-          <div class="rail-track">
-            <span class="rail-night"></span>
-            <span class="rail-daylight"></span>
-            <span class="rail-overlap"></span>
-            <span class="rail-thumb" aria-hidden="true"></span>
+          <form
+            id="map-time-rail-form"
+            phx-change="preview_time"
+            phx-throttle="250"
+            aria-describedby="map-time-rail-status map-time-rail-ticks"
+          >
+            <div class="rail-track">
+              <span class="rail-night"></span>
+              <span class="rail-daylight"></span>
+              <span class="rail-overlap"></span>
+              <input
+                id="map-time-rail-control"
+                class="rail-control"
+                type="range"
+                name="offset_minutes"
+                min="0"
+                max="1440"
+                step="15"
+                value={@rail.offset_minutes}
+                phx-debounce="250"
+                aria-label="Preview teammate reachability time"
+                aria-valuetext={@rail.value_text}
+              />
+            </div>
+          </form>
+          <div id="map-time-rail-status" class="rail-status" aria-live="polite">
+            {@rail.status_text}
           </div>
-          <div class="rail-labels">
-            <span>06:12</span>
-            <span>Now</span>
-            <span>18:47</span>
+          <div id="map-time-rail-ticks" class="rail-labels" aria-label={@rail.tick_description}>
+            <span :for={tick <- @rail.ticks} data-offset-minutes={tick.offset_minutes}>
+              {tick.label}
+            </span>
           </div>
+          <button
+            :if={@preview_at}
+            type="button"
+            id="map-time-rail-reset"
+            class="rail-reset-button"
+            phx-click="reset_preview_time"
+          >
+            Reset to now
+          </button>
         </div>
       </section>
 
@@ -282,6 +336,157 @@ defmodule ZonelyWeb.HomeLive do
     |> assign(:page_title, "Map")
     |> assign(:active_tab, :map)
   end
+
+  defp assign_effective_time(socket) do
+    effective_at = Reachability.effective_at(socket.assigns.preview_at, socket.assigns.live_now)
+
+    socket
+    |> assign(:effective_at, effective_at)
+    |> assign(:map_users_json, users_to_json(socket.assigns.users, effective_at))
+    |> assign(:reachability, Reachability.summary(socket.assigns.users, effective_at))
+    |> assign(:rail, rail_state(socket.assigns.live_now, socket.assigns.preview_at, effective_at))
+  end
+
+  defp live_now do
+    case Application.get_env(:zonely, :home_live_now) do
+      %DateTime{} = now -> DateTime.truncate(now, :second)
+      _other -> DateTime.utc_now() |> DateTime.truncate(:second)
+    end
+  end
+
+  defp parse_preview_at(%{"offset_minutes" => value}, %DateTime{} = live_now) do
+    case Integer.parse(to_string(value)) do
+      {minutes, ""} ->
+        preview_at =
+          live_now
+          |> DateTime.add(clamp(minutes, 0, 1440) * 60, :second)
+          |> DateTime.truncate(:second)
+
+        {:ok, preview_or_nil(preview_at, live_now)}
+
+      _other ->
+        :error
+    end
+  end
+
+  defp parse_preview_at(%{"preview_at" => value}, %DateTime{} = live_now) when is_binary(value) do
+    with {:ok, datetime, _offset} <- DateTime.from_iso8601(value) do
+      normalized =
+        datetime
+        |> DateTime.shift_zone!("Etc/UTC")
+        |> DateTime.truncate(:second)
+
+      preview_at =
+        clamp_datetime(normalized, live_now, DateTime.add(live_now, 24 * 60 * 60, :second))
+
+      {:ok, preview_or_nil(preview_at, live_now)}
+    else
+      _error -> :error
+    end
+  end
+
+  defp parse_preview_at(_params, _live_now), do: :error
+
+  defp clamp_datetime(%DateTime{} = datetime, %DateTime{} = min, %DateTime{} = max) do
+    cond do
+      DateTime.compare(datetime, min) == :lt -> min
+      DateTime.compare(datetime, max) == :gt -> max
+      true -> datetime
+    end
+  end
+
+  defp preview_or_nil(%DateTime{} = preview_at, %DateTime{} = live_now) do
+    if DateTime.compare(preview_at, live_now) == :eq, do: nil, else: preview_at
+  end
+
+  defp clamp(value, min, _max) when value < min, do: min
+  defp clamp(value, _min, max) when value > max, do: max
+  defp clamp(value, _min, _max), do: value
+
+  defp rail_state(%DateTime{} = live_now, preview_at, %DateTime{} = effective_at) do
+    offset_minutes =
+      effective_at
+      |> DateTime.diff(live_now, :second)
+      |> div(60)
+      |> clamp(0, 1440)
+
+    %{
+      offset_minutes: offset_minutes,
+      window_label:
+        "#{format_rail_time(live_now)} to #{format_rail_time(DateTime.add(live_now, 24 * 60 * 60, :second))} tomorrow",
+      value_text: rail_value_text(effective_at, preview_at),
+      status_text: rail_status_text(effective_at, preview_at),
+      ticks: rail_ticks(live_now),
+      tick_description: rail_tick_description(live_now)
+    }
+  end
+
+  defp rail_ticks(%DateTime{} = live_now) do
+    [0, 360, 720, 1080, 1440]
+    |> Enum.map(fn offset ->
+      tick_at = DateTime.add(live_now, offset * 60, :second)
+
+      label =
+        if offset == 0,
+          do: format_rail_time(tick_at),
+          else: relative_tick_label(tick_at, live_now)
+
+      %{offset_minutes: offset, label: label}
+    end)
+  end
+
+  defp rail_tick_description(%DateTime{} = live_now) do
+    end_at = DateTime.add(live_now, 24 * 60 * 60, :second)
+
+    "Bounded from live now at #{format_rail_time(live_now)} UTC through #{format_rail_time(end_at)} UTC tomorrow"
+  end
+
+  defp relative_tick_label(%DateTime{} = tick_at, %DateTime{} = live_now) do
+    suffix =
+      if Date.compare(DateTime.to_date(tick_at), DateTime.to_date(live_now)) == :gt,
+        do: " tomorrow",
+        else: ""
+
+    "#{format_rail_time(tick_at)}#{suffix}"
+  end
+
+  defp rail_status_text(%DateTime{} = effective_at, nil) do
+    "Live now at #{format_rail_time(effective_at)} UTC. Preview range runs through #{format_rail_time(DateTime.add(effective_at, 24 * 60 * 60, :second))} tomorrow."
+  end
+
+  defp rail_status_text(%DateTime{} = effective_at, %DateTime{}) do
+    "Simulated preview at #{format_utc_datetime(effective_at)}."
+  end
+
+  defp rail_value_text(%DateTime{} = effective_at, nil),
+    do: "Live now, #{format_rail_time(effective_at)} UTC"
+
+  defp rail_value_text(%DateTime{} = effective_at, %DateTime{}),
+    do: "Preview at #{format_utc_datetime(effective_at)}"
+
+  defp strip_aria_label(nil), do: "Current team context"
+  defp strip_aria_label(%DateTime{}), do: "Previewed team context"
+
+  defp strip_mode_label(nil), do: "Now"
+  defp strip_mode_label(%DateTime{}), do: "Preview"
+
+  defp strip_reachable_label(count, nil), do: Reachability.reachable_label(count)
+  defp strip_reachable_label(1, %DateTime{}), do: "1 teammate reachable in preview"
+  defp strip_reachable_label(count, %DateTime{}), do: "#{count} teammates reachable in preview"
+
+  defp orbit_pill_label(nil), do: "reachable"
+  defp orbit_pill_label(%DateTime{}), do: "preview reachable"
+
+  defp strip_time_label(%DateTime{} = effective_at, nil),
+    do: "Live #{format_rail_time(effective_at)} UTC"
+
+  defp strip_time_label(%DateTime{} = effective_at, %DateTime{}),
+    do: "Simulated #{format_rail_time(effective_at)} UTC"
+
+  defp format_rail_time(%DateTime{} = datetime), do: Calendar.strftime(datetime, "%H:%M")
+
+  defp format_utc_datetime(%DateTime{} = datetime),
+    do: Calendar.strftime(datetime, "%Y-%m-%d %H:%M UTC")
 
   defp play_pronunciation(socket, id, type) do
     case Enum.find(socket.assigns.users, &("#{&1.id}" == id)) do
@@ -319,7 +524,7 @@ defmodule ZonelyWeb.HomeLive do
 
   defp share_error_message(_reason), do: "Could not create SayMyName share right now."
 
-  defp users_to_json(users) do
+  defp users_to_json(users, %DateTime{} = effective_at) do
     users
     |> Enum.filter(&(&1.latitude && &1.longitude))
     |> Enum.map(fn user ->
@@ -334,7 +539,7 @@ defmodule ZonelyWeb.HomeLive do
         longitude: coordinate_to_float(user.longitude),
         work_start: format_time(user.work_start),
         work_end: format_time(user.work_end),
-        status: Reachability.marker_state(user),
+        status: Reachability.marker_state(user, effective_at),
         profile_picture: AvatarService.generate_avatar_url(user.name, 64)
       }
     end)

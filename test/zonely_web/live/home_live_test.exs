@@ -5,6 +5,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   setup do
     previous_request_fun = Application.get_env(:zonely, :say_my_name_share_request_fun)
+    previous_home_live_now = Application.get_env(:zonely, :home_live_now)
     previous_api_key = System.get_env("PRONUNCIATION_API_KEY")
 
     on_exit(fn ->
@@ -14,12 +15,20 @@ defmodule ZonelyWeb.HomeLiveTest do
         Application.delete_env(:zonely, :say_my_name_share_request_fun)
       end
 
+      if previous_home_live_now do
+        Application.put_env(:zonely, :home_live_now, previous_home_live_now)
+      else
+        Application.delete_env(:zonely, :home_live_now)
+      end
+
       if previous_api_key do
         System.put_env("PRONUNCIATION_API_KEY", previous_api_key)
       else
         System.delete_env("PRONUNCIATION_API_KEY")
       end
     end)
+
+    Application.put_env(:zonely, :home_live_now, ~U[2026-01-15 14:30:00Z])
 
     :ok
   end
@@ -64,6 +73,114 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert html =~ "&quot;latitude&quot;:40.7128"
     assert html =~ "&quot;longitude&quot;:-74.006"
     assert html =~ "&quot;status&quot;:&quot;"
+  end
+
+  test "preview rail exposes accessible bounded topology and live labels", %{conn: conn} do
+    {:ok, _user} =
+      Accounts.create_user(%{
+        name: "Alice Remote",
+        role: "Frontend Developer",
+        timezone: "America/New_York",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("40.7128"),
+        longitude: Decimal.new("-74.0060")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#map-time-rail")
+    assert has_element?(view, "#map-time-rail-status")
+
+    assert has_element?(
+             view,
+             "#map-time-rail-control[type='range'][min='0'][max='1440'][step='15']"
+           )
+
+    assert has_element?(view, "#map-time-rail-ticks")
+    refute has_element?(view, "#map-time-rail-reset")
+
+    html = render(view)
+    assert html =~ "Live now"
+    assert html =~ "Preview range"
+    assert html =~ "14:30"
+    assert html =~ "14:30 tomorrow"
+    refute html =~ "06:12"
+    refute html =~ "18:47"
+  end
+
+  test "preview rail stores server preview state, updates strip and orbit, and resets", %{
+    conn: conn
+  } do
+    {:ok, user} =
+      Accounts.create_user(%{
+        name: "Alice Remote",
+        role: "Frontend Developer",
+        timezone: "America/New_York",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("40.7128"),
+        longitude: Decimal.new("-74.0060")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "09:30")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "Reachable now")
+
+    view
+    |> element("#map-time-rail-form")
+    |> render_change(%{"offset_minutes" => "480"})
+
+    assert has_element?(view, "#map-time-rail-reset")
+    assert has_element?(view, "#now-context-strip", "Preview")
+    assert has_element?(view, "#map-time-rail-status", "Simulated")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "17:30")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "Ask carefully")
+
+    view
+    |> element("#map-time-rail-reset")
+    |> render_click()
+
+    refute has_element?(view, "#map-time-rail-reset")
+    assert has_element?(view, "#now-context-strip", "Now")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "09:30")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "Reachable now")
+  end
+
+  test "preview timestamps are parsed normalized clamped and malformed input is ignored", %{
+    conn: conn
+  } do
+    {:ok, _user} =
+      Accounts.create_user(%{
+        name: "Mara Okafor",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    render_change(view, "preview_time", %{"preview_at" => "2026-01-15T22:30:00-05:00"})
+
+    assert has_element?(view, "#map-time-rail-reset")
+    assert has_element?(view, "#map-time-rail-status", "2026-01-16 03:30 UTC")
+    assert has_element?(view, "#map-time-rail-control[value='780']")
+
+    render_change(view, "preview_time", %{"preview_at" => "not-a-timestamp"})
+
+    assert has_element?(view, "#map-time-rail-status", "2026-01-16 03:30 UTC")
+
+    render_change(view, "preview_time", %{"preview_at" => "2026-01-20T00:00:00Z"})
+
+    assert has_element?(view, "#map-time-rail-status", "2026-01-16 14:30 UTC")
+    assert has_element?(view, "#map-time-rail-control[value='1440']")
   end
 
   test "team orbit opens selected teammate context on the map", %{conn: conn} do
