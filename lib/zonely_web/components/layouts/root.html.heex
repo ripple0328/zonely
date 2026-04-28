@@ -5,15 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title suffix=" · SayMyName">
-      <%= assigns[:page_title] || "SayMyName" %>
+    <.live_title suffix=" · Zonely">
+      <%= assigns[:page_title] || "Zonely" %>
     </.live_title>
 
-    <%!-- Favicon: speech bubble emoji --%>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗣️</text></svg>" />
+    <meta name="theme-color" content="#0F172A" />
+    <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg"} />
+    <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32x32.png"} />
+    <link rel="apple-touch-icon" sizes="180x180" href={~p"/apple_touch_icon.png"} />
+    <link rel="manifest" href={~p"/site.webmanifest"} />
 
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+    <link href="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 
+    <script src="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.js">
+    </script>
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>

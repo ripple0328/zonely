@@ -417,14 +417,16 @@ defmodule ZonelyWeb.CoreComponentsTest do
   end
 
   describe "logo/1" do
-    test "renders Zonely logo with clock design" do
+    test "renders Zonely logo with availability mark" do
       html = render_component_test(&logo/1, %{})
 
       assert html =~ "Zonely"
-      # Clock face
-      assert html =~ "rounded-full"
-      assert html =~ "Hour hand"
-      assert html =~ "Minute hand"
+      assert html =~ ~s(data-testid="zonely-logo-mark")
+      assert html =~ ~s(role="img")
+      assert html =~ ~s(aria-label="Zonely")
+      assert html =~ ~s(fill="#07111F")
+      assert html =~ ~s(stroke="#7DD3FC")
+      assert html =~ ~s(fill="#F97316")
     end
 
     test "applies custom CSS classes" do

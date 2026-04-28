@@ -5,7 +5,6 @@ defmodule ZonelyWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  alias Zonely.NameCards.NameCard
 
   @doc """
   Renders the Zonely logo with consistent styling.
@@ -16,24 +15,41 @@ defmodule ZonelyWeb.CoreComponents do
   def logo(assigns) do
     ~H"""
     <div class={["flex items-center gap-3", @class]}>
-      <div class="relative h-8 w-8">
-        <!-- Outer ring for contrast on any background -->
-        <div class="absolute inset-0 rounded-full bg-slate-600 shadow-sm"></div>
-        <!-- Inner clock face with subtle transparency -->
-        <div class="absolute inset-1 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center">
-          <!-- Clock hands representing different timezones -->
-          <div class="absolute inset-0">
-            <!-- Hour hand -->
-            <div class="absolute top-1/2 left-1/2 w-1.5 h-px bg-slate-600 origin-left transform -translate-x-0.5 -translate-y-px rotate-45"></div>
-            <!-- Minute hand -->
-            <div class="absolute top-1/2 left-1/2 w-2 h-px bg-slate-500 origin-left transform -translate-x-0.5 -translate-y-px -rotate-12"></div>
-          </div>
-          <!-- Center dot -->
-          <div class="w-0.5 h-0.5 bg-slate-700 rounded-full z-10"></div>
-        </div>
-      </div>
+      <.logo_mark class="h-8 w-8" />
       <span class="text-xl font-medium text-slate-700 tracking-tight">Zonely</span>
     </div>
+    """
+  end
+
+  @doc """
+  Renders the Zonely availability mark.
+  """
+  attr(:class, :string, default: "h-8 w-8", doc: "additional CSS classes")
+
+  def logo_mark(assigns) do
+    ~H"""
+    <svg
+      viewBox="0 0 64 64"
+      class={@class}
+      role="img"
+      aria-label="Zonely"
+      data-testid="zonely-logo-mark"
+    >
+      <rect width="64" height="64" rx="14" fill="#07111F" />
+      <circle cx="32" cy="32" r="22" fill="#0B1220" stroke="#1E293B" stroke-width="3" />
+      <circle cx="32" cy="32" r="14" fill="none" stroke="#243044" stroke-width="2" />
+      <path
+        d="M18 20H46L22 44"
+        fill="none"
+        stroke="#7DD3FC"
+        stroke-width="7.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path d="M22 44H46" stroke="#FBBF24" stroke-width="7.5" stroke-linecap="round" />
+      <circle cx="18" cy="20" r="5" fill="#34D399" stroke="#07111F" stroke-width="2.5" />
+      <circle cx="46" cy="44" r="5" fill="#F97316" stroke="#07111F" stroke-width="2.5" />
+    </svg>
     """
   end
 
@@ -44,7 +60,7 @@ defmodule ZonelyWeb.CoreComponents do
 
   def logo_link(assigns) do
     ~H"""
-    <a href="/" class={@class}>
+    <a href="/" class={@class} aria-label="Zonely home">
       <.logo />
     </a>
     """
@@ -247,116 +263,6 @@ defmodule ZonelyWeb.CoreComponents do
     <span class={[@name, @class]} />
     """
   end
-
-  @doc """
-  Renders a name card preview with initials avatar, display name, pronouns, and language flags.
-
-  Supports both `%NameCard{}` structs (atom keys) and plain maps with string keys.
-
-  ## Sizes
-
-    * `:normal` — full card layout with avatar, name, pronouns, flags, and optional actions slot
-    * `:compact` — inline row with smaller avatar, name, and flags (for list items)
-
-  ## Examples
-
-      <.name_card_preview card={@card} />
-
-      <.name_card_preview card={@card} size={:compact} />
-
-      <.name_card_preview card={@card}>
-        <:actions>
-          <button>Edit</button>
-        </:actions>
-      </.name_card_preview>
-  """
-  attr(:card, :map,
-    required: true,
-    doc: "map or struct with display_name, pronouns, language_variants"
-  )
-
-  attr(:size, :atom, default: :normal, values: [:normal, :compact])
-  slot(:actions, doc: "optional slot for action buttons (Edit, Share, etc.)")
-
-  def name_card_preview(assigns) do
-    card = assigns.card
-    display_name = Map.get(card, :display_name) || Map.get(card, "display_name") || ""
-    pronouns = Map.get(card, :pronouns) || Map.get(card, "pronouns")
-
-    language_variants =
-      Map.get(card, :language_variants) || Map.get(card, "language_variants") || []
-
-    assigns =
-      assigns
-      |> assign(:display_name, display_name)
-      |> assign(:pronouns, pronouns)
-      |> assign(:language_variants, language_variants)
-
-    if assigns.size == :compact do
-      ~H"""
-      <div class="flex items-center gap-3 flex-1 min-w-0">
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
-          {card_initials(@display_name)}
-        </div>
-        <span class="text-base font-medium text-[var(--fg)] flex-1 truncate">{@display_name}</span>
-        <%= if @language_variants != [] do %>
-          <div class="flex gap-0.5 shrink-0">
-            <%= for variant <- @language_variants do %>
-              <span class="text-base" title={variant["language"]}>
-                {NameCard.language_flag(variant["language"])}
-              </span>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
-      """
-    else
-      ~H"""
-      <div class="flex items-start gap-4">
-        <%!-- Initials avatar --%>
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700">
-          {card_initials(@display_name)}
-        </div>
-        <div class="flex-1 min-w-0">
-          <h3 class="text-lg font-bold text-[var(--fg)] truncate">{@display_name}</h3>
-          <%= if @pronouns && @pronouns != "" do %>
-            <p class="text-sm text-[var(--muted)]">{@pronouns}</p>
-          <% end %>
-          <%!-- Language flags --%>
-          <%= if @language_variants != [] do %>
-            <div class="mt-2 flex flex-wrap gap-1">
-              <%= for variant <- @language_variants do %>
-                <span class="text-lg" title={variant["language"]}>
-                  {NameCard.language_flag(variant["language"])}
-                </span>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-      </div>
-      <%= if @actions != [] do %>
-        <div class="mt-4 flex gap-2">
-          <%= for action <- @actions do %>
-            {render_slot(action)}
-          <% end %>
-        </div>
-      <% end %>
-      """
-    end
-  end
-
-  defp card_initials(nil), do: "?"
-
-  defp card_initials(name) when is_binary(name) do
-    name
-    |> String.split(~r/\s+/, trim: true)
-    |> Enum.take(2)
-    |> Enum.map(&String.first/1)
-    |> Enum.join()
-    |> String.upcase()
-  end
-
-  defp card_initials(_), do: "?"
 
   ## Helpers
 

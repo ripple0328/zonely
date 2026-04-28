@@ -1,43 +1,25 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Neutral, modern background -->
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0F172A"/>
-      <stop offset="100%" stop-color="#111827"/>
+    <linearGradient id="bg" x1="180" y1="80" x2="850" y2="940" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1830"/>
+      <stop offset="1" stop-color="#050A14"/>
     </linearGradient>
-    <!-- Softer single hue for ring -->
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#93C5FD"/>
-      <stop offset="100%" stop-color="#60A5FA"/>
+    <linearGradient id="cyan" x1="240" y1="284" x2="700" y2="670" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A5F3FC"/>
+      <stop offset="1" stop-color="#38BDF8"/>
     </linearGradient>
-    <!-- Inner highlight and inner shadow masks -->
-    <radialGradient id="innerHighlight" cx="50%" cy="40%" r="60%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="innerShadow" cx="50%" cy="60%" r="65%">
-      <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.12"/>
-    </radialGradient>
+    <linearGradient id="amber" x1="332" y1="704" x2="784" y2="704" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDE68A"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
   </defs>
 
-  <rect width="1024" height="1024" fill="url(#bg)"/>
-
-  <!-- Inner faint glow -->
-  <circle cx="512" cy="512" r="312" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="120"/>
-
-  <!-- Monoline pronounce loop (circular stroke with a subtle gap) -->
-  <path d="M512 232 a280 280 0 1 1 -0.01 0" fill="none" stroke="url(#ring)" stroke-width="64" stroke-linecap="round" stroke-opacity="0.9"/>
-
-  <!-- Spark glyph (replaces diacritics) -->
-  <path d="M706 330 l10 18 l20 6 l-20 6 l-10 18 l-10 -18 l-20 -6 l20 -6 z" fill="#FFFFFF" opacity="0.95"/>
-
-  <!-- Clean wave line inside loop -->
-  <path d="M200 540 C280 450, 360 630, 440 540 S600 450, 680 540 S840 630, 900 540" fill="none" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" opacity="0.98"/>
-
-  <!-- Subtle highlight and inner shadow for glassiness -->
-  <circle cx="512" cy="512" r="300" fill="url(#innerHighlight)"/>
-  <circle cx="512" cy="512" r="300" fill="url(#innerShadow)"/>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="344" fill="#0B1220" stroke="#172033" stroke-width="56"/>
+  <circle cx="512" cy="512" r="226" fill="none" stroke="#243044" stroke-width="36"/>
+  <path d="M280 320H744L344 704" fill="none" stroke="url(#cyan)" stroke-width="116" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M344 704H744" fill="none" stroke="url(#amber)" stroke-width="116" stroke-linecap="round"/>
+  <circle cx="280" cy="320" r="76" fill="#34D399" stroke="#07111F" stroke-width="38"/>
+  <circle cx="744" cy="704" r="76" fill="#F97316" stroke="#07111F" stroke-width="38"/>
+  <path d="M198 186c86-60 186-91 300-91" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="28" stroke-linecap="round"/>
 </svg>
-
-
