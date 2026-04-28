@@ -36,6 +36,7 @@ social_circle-*.tar
 /priv/static/*-*.png
 /priv/static/*-*.svg
 /priv/static/*-*.txt
+/priv/static/*-*.webmanifest
 /priv/static/*.gz
 
 # In case you use Node.js/npm, you want to ignore these.
