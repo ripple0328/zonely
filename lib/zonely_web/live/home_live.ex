@@ -5,7 +5,7 @@ defmodule ZonelyWeb.HomeLive do
   alias Zonely.Audio
   alias Zonely.AvatarService
   alias Zonely.Geography
-  alias Zonely.WorkingHours
+  alias Zonely.Reachability
 
   @impl true
   def mount(_params, _session, socket) do
@@ -17,7 +17,7 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:active_tab, :map)
      |> assign(:users, users)
      |> assign(:map_users_json, users_to_json(users))
-     |> assign(:stats, WorkingHours.get_statistics(users))
+     |> assign(:reachability, Reachability.summary(users))
      |> assign(:selected_user, nil)
      |> assign(:loading_pronunciation, nil)
      |> assign(:playing_pronunciation, %{})}
@@ -72,11 +72,11 @@ defmodule ZonelyWeb.HomeLive do
         <aside id="now-context-strip" class="now-context-strip" aria-label="Current team context">
           <div>
             <p class="context-eyebrow">Now</p>
-            <p class="context-title">{reachable_label(@stats.working)}</p>
+            <p class="context-title">{Reachability.reachable_label(@reachability.working)}</p>
           </div>
           <div class="context-meta">
-            <span>{map_size(@stats.timezones)} zones</span>
-            <span>{format_count(@stats.edge, "near transition")}</span>
+            <span>{map_size(@reachability.timezones)} zones</span>
+            <span>{Reachability.format_count(@reachability.edge, "near transition")}</span>
           </div>
         </aside>
 
@@ -86,7 +86,7 @@ defmodule ZonelyWeb.HomeLive do
               <p class="context-eyebrow">Team orbit</p>
               <h2>{length(@users)} teammates</h2>
             </div>
-            <span class="orbit-live-pill">{format_count(@stats.working, "available")}</span>
+            <span class="orbit-live-pill">{Reachability.format_count(@reachability.working, "reachable")}</span>
           </div>
 
           <div :if={@users == []} id="team-orbit-empty" class="orbit-empty">
@@ -103,14 +103,14 @@ defmodule ZonelyWeb.HomeLive do
               phx-value-user_id={user.id}
               data-testid="team-orbit-row"
             >
-              <span class={["orbit-status-dot", orbit_status_class(user)]}></span>
+              <span class={["orbit-status-dot", Reachability.orbit_status_class(user)]}></span>
               <span class="orbit-copy">
                 <span class="orbit-name">{user.name}</span>
                 <span class="orbit-context">
-                  {local_time_label(user.timezone)} · {Geography.country_name(user.country)} · {status_label(user)}
+                  {Reachability.local_time_label(user.timezone)} · {Geography.country_name(user.country)} · {Reachability.status_label(user)}
                 </span>
               </span>
-              <span class="orbit-offset">{offset_label(user.timezone)}</span>
+              <span class="orbit-offset">{Reachability.offset_label(user.timezone)}</span>
             </button>
           </div>
         </aside>
@@ -219,7 +219,7 @@ defmodule ZonelyWeb.HomeLive do
         longitude: coordinate_to_float(user.longitude),
         work_start: format_time(user.work_start),
         work_end: format_time(user.work_end),
-        status: user |> WorkingHours.classify_status() |> Atom.to_string(),
+        status: Reachability.marker_state(user),
         profile_picture: AvatarService.generate_avatar_url(user.name, 64)
       }
     end)
@@ -231,45 +231,4 @@ defmodule ZonelyWeb.HomeLive do
 
   defp format_time(%Time{} = time), do: Calendar.strftime(time, "%H:%M")
   defp format_time(_time), do: nil
-
-  defp format_count(1, label), do: "1 #{label}"
-  defp format_count(count, label), do: "#{count} #{label}"
-
-  defp reachable_label(1), do: "1 teammate reachable"
-  defp reachable_label(count), do: "#{count} teammates reachable"
-
-  defp status_label(user) do
-    case WorkingHours.classify_status(user) do
-      :working -> "Available"
-      :edge -> "Near boundary"
-      :off -> "Off hours"
-      _status -> "Pending"
-    end
-  end
-
-  defp orbit_status_class(user) do
-    case WorkingHours.classify_status(user) do
-      :working -> "is-working"
-      :edge -> "is-edge"
-      _status -> "is-off"
-    end
-  end
-
-  defp local_time_label(timezone) when is_binary(timezone) do
-    case DateTime.now(timezone) do
-      {:ok, datetime} -> Calendar.strftime(datetime, "%H:%M")
-      _error -> "--:--"
-    end
-  end
-
-  defp local_time_label(_timezone), do: "--:--"
-
-  defp offset_label(timezone) when is_binary(timezone) do
-    case DateTime.now(timezone) do
-      {:ok, datetime} -> Calendar.strftime(datetime, "%Z")
-      _error -> "UTC"
-    end
-  end
-
-  defp offset_label(_timezone), do: "UTC"
 end

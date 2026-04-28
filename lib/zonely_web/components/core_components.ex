@@ -5,7 +5,7 @@ defmodule ZonelyWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  alias Zonely.{Geography, WorkingHours}
+  alias Zonely.{Geography, Reachability, WorkingHours}
 
   @doc """
   Renders the Zonely logo with consistent styling.
@@ -1541,7 +1541,7 @@ defmodule ZonelyWeb.CoreComponents do
 
       <div class="rounded-2xl bg-white/70 p-4">
         <p class="text-sm leading-6 text-[var(--charcoal-ink)]">
-          <%= context_sentence(@user) %>
+          <%= Reachability.context_sentence(@user) %>
         </p>
       </div>
 
@@ -1555,7 +1555,7 @@ defmodule ZonelyWeb.CoreComponents do
         </div>
         <div>
           <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Local time</dt>
-          <dd class="font-instrument-mono mt-1 font-medium"><%= local_time_label(@user.timezone) %></dd>
+          <dd class="font-instrument-mono mt-1 font-medium"><%= Reachability.local_time_label(@user.timezone) %></dd>
           <dd class="font-instrument-mono mt-1 text-xs text-[var(--slate-signal)]">
             <%= @user.timezone %>
           </dd>
@@ -1566,7 +1566,7 @@ defmodule ZonelyWeb.CoreComponents do
         </div>
         <div>
           <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">State</dt>
-          <dd class="mt-1 font-medium"><%= status_label(@user) %></dd>
+          <dd class="mt-1 font-medium"><%= Reachability.status_label(@user) %></dd>
         </div>
       </dl>
 
@@ -1641,13 +1641,13 @@ defmodule ZonelyWeb.CoreComponents do
           </dl>
 
           <div class="mt-3 grid gap-2 text-xs text-[var(--slate-signal)] sm:grid-cols-4">
-            <span class="font-instrument-mono"><%= local_time_label(@user.timezone) %></span>
+            <span class="font-instrument-mono"><%= Reachability.local_time_label(@user.timezone) %></span>
             <span class="font-instrument-mono"><%= @user.timezone %></span>
             <span>
               <%= Geography.country_name(@user.country) %>
               <span class="font-instrument-mono"><%= @user.country %></span>
             </span>
-            <span><%= status_label(@user) %></span>
+            <span><%= Reachability.status_label(@user) %></span>
           </div>
 
           <div :if={@user.name_native && @user.name_native != @user.name} class="mt-2">
@@ -1689,41 +1689,8 @@ defmodule ZonelyWeb.CoreComponents do
     }
   end
 
-  defp local_time_label(timezone) when is_binary(timezone) do
-    case DateTime.now(timezone) do
-      {:ok, datetime} -> Calendar.strftime(datetime, "%H:%M")
-      _error -> "--:--"
-    end
-  end
-
-  defp local_time_label(_timezone), do: "--:--"
-
   defp time_range_label(user) do
-    "#{Calendar.strftime(user.work_start, "%I:%M %p")} - #{Calendar.strftime(user.work_end, "%I:%M %p")}"
-  end
-
-  defp status_label(user) do
-    case WorkingHours.classify_status(user) do
-      :working -> "Available now"
-      :edge -> "Near work boundary"
-      :off -> "Off hours"
-      _status -> "Context pending"
-    end
-  end
-
-  defp context_sentence(user) do
-    country = Geography.country_name(user.country)
-
-    case WorkingHours.classify_status(user) do
-      :working ->
-        "#{country} is inside the work window. Local time is #{local_time_label(user.timezone)}."
-
-      :edge ->
-        "#{country} is near a work-hour boundary. Check the local time before reaching out."
-
-      _status ->
-        "#{country} is outside normal work hours. Wait for the next overlap unless it is urgent."
-    end
+    WorkingHours.format_hours(user)
   end
 
   @doc """
