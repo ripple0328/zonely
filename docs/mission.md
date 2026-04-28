@@ -8,7 +8,7 @@ The product exists to make team availability easier to understand at a glance: w
 
 Zonely owns:
 
-- Team directory and teammate profile context
+- Map-native teammate discovery and profile context
 - Time zone, country, and local work-hour visibility
 - Availability and overlap signals for distributed teams
 - Holiday and regional context that affects coordination
@@ -26,14 +26,14 @@ Pronunciation is profile context only. Zonely calls the production pronunciation
 
 ## Current Surface
 
-- `/` and `/directory`: team directory with work-hour and profile context
+- `/`: fullscreen team map with teammate orbit, work-hour, daylight, timezone, and profile context
 - `/healthz` and `/readyz`: production health checks
 - `/dev/dashboard`: Phoenix LiveDashboard in development only
 
 ## Roadmap
 
-1. Stabilize the directory as the canonical product surface.
-2. Restore time-overlap views only when they directly improve coordination decisions.
+1. Stabilize the fullscreen map as the canonical product surface.
+2. Make teammate scanning, selection, and local context feel native to the map.
 3. Add holiday and regional context as teammate availability signals.
 4. Explore meeting-time suggestions after overlap and holiday signals are dependable.
 5. Keep integrations narrow: Slack, calendar, or presence work should support availability decisions rather than become separate product surfaces.

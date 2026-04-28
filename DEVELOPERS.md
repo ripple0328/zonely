@@ -68,9 +68,12 @@ mix precommit
 ## Stitch MCP
 
 This repo includes a project-scoped MCP server in `.mcp.json`.
+It authenticates with Google Application Default Credentials through `dev/stitch-mcp`.
+The current quota project is `gen-lang-client-0280380712`, exported as `STITCH_QUOTA_PROJECT` in `.mcp.json`.
 
 ```sh
 npx -y @modelcontextprotocol/inspector --cli --config .mcp.json --server stitch --method tools/list
+npx -y @modelcontextprotocol/inspector --cli --config .mcp.json --server stitch --method tools/call --tool-name list_projects
 ```
 
 Use [design.md](design.md) as the prompt source when generating Zonely screens in Stitch. The Stitch MCP points at the official remote endpoint through `mcp-remote`; do not add local npm asset setup for this Phoenix app.
@@ -82,7 +85,7 @@ Use [design.md](design.md) as the prompt source when generating Zonely screens i
 - `Zonely.Holidays` provides holiday context.
 - `Zonely.Audio` converts profile pronunciation clicks into playback events.
 - `Zonely.PronunciationClient` is the production API boundary for pronunciation.
-- `ZonelyWeb.HomeLive` renders the map-first home page and directory page.
+- `ZonelyWeb.HomeLive` renders the fullscreen map workspace, team orbit, and selected teammate sheet.
 
 ## Deployment
 

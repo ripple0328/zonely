@@ -8,8 +8,8 @@ Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 
 ## Current Surface
 
-- Team directory with local work-hour status
-- Time zone and location context for teammates
+- Fullscreen team map with local work-hour, daylight, timezone, and location context
+- Map-native team orbit for scanning teammates without leaving the geographic surface
 - Optional profile pronunciation playback through the production pronunciation API
 
 ## Architecture

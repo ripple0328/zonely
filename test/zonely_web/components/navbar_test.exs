@@ -13,9 +13,8 @@ defmodule ZonelyWeb.NavbarComponentTest do
       <.navbar />
       """)
 
-    assert html =~ "Global Team Map"
+    assert html =~ "Zonely Map"
     assert html =~ "Map"
-    assert html =~ "Directory"
     assert html =~ "Work Hours"
     assert html =~ "Holidays"
   end
@@ -36,14 +35,11 @@ defmodule ZonelyWeb.NavbarComponentTest do
 
     html =
       rendered_to_string(~H"""
-      <.navbar current_page="directory" />
+      <.navbar current_page="map" />
       """)
 
-    # Directory should be highlighted (has blue colors)
     assert html =~ "text-blue-700 bg-blue-50"
-    assert html =~ "Directory"
-    # Map should not be highlighted (has gray colors)
-    assert html =~ "text-gray-700 hover:bg-gray-100"
+    assert html =~ "Map"
   end
 
   test "renders mobile menu structure" do

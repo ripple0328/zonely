@@ -147,7 +147,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   """
   def apply_profile_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "Directory")
+    |> assign(:page_title, "Map")
     |> assign(:selected_user, nil)
   end
 

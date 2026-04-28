@@ -34,7 +34,6 @@ defmodule ZonelyWeb.Router do
     pipe_through(:browser)
 
     live("/", HomeLive, :map)
-    live("/directory", HomeLive, :directory)
   end
 
   if Application.compile_env(:zonely, :dev_routes) do

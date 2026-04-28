@@ -5,6 +5,7 @@ defmodule ZonelyWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
+  alias Zonely.{Geography, WorkingHours}
 
   @doc """
   Renders the Zonely logo with consistent styling.
@@ -900,7 +901,7 @@ defmodule ZonelyWeb.CoreComponents do
   Renders the main navigation bar with mobile support.
   """
   attr(:current_page, :string, default: "map", doc: "the currently active page")
-  attr(:page_title, :string, default: "Global Team Map", doc: "the page title to display")
+  attr(:page_title, :string, default: "Zonely Map", doc: "the page title to display")
 
   def navbar(assigns) do
     ~H"""
@@ -914,7 +915,6 @@ defmodule ZonelyWeb.CoreComponents do
         <!-- Desktop Navigation -->
         <nav class="hidden lg:flex items-center gap-1">
           <.nav_link navigate="/" current={@current_page == "map"}>Map</.nav_link>
-          <.nav_link navigate="/directory" current={@current_page == "directory"}>Directory</.nav_link>
           <.nav_link navigate="/work-hours" current={@current_page == "work-hours"}>Work Hours</.nav_link>
           <.nav_link navigate="/holidays" current={@current_page == "holidays"}>Holidays</.nav_link>
         </nav>
@@ -941,7 +941,6 @@ defmodule ZonelyWeb.CoreComponents do
       >
         <nav class="flex flex-col space-y-1 px-4 py-2">
           <.mobile_nav_link navigate="/" current={@current_page == "map"}>Map</.mobile_nav_link>
-          <.mobile_nav_link navigate="/directory" current={@current_page == "directory"}>Directory</.mobile_nav_link>
           <.mobile_nav_link navigate="/work-hours" current={@current_page == "work-hours"}>Work Hours</.mobile_nav_link>
           <.mobile_nav_link navigate="/holidays" current={@current_page == "holidays"}>Holidays</.mobile_nav_link>
         </nav>
@@ -1505,40 +1504,71 @@ defmodule ZonelyWeb.CoreComponents do
   def profile_card(assigns) do
     ~H"""
     <div class={[
-      "bg-white rounded-lg shadow-lg border border-gray-200 p-6 space-y-4",
+      "overflow-hidden rounded-[20px] p-5 text-[var(--charcoal-ink)]",
       @class
     ]}>
+      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[color:var(--hairline)] sm:hidden"></div>
       <!-- Header with avatar and name -->
       <div class="flex items-start gap-4">
-        <.user_avatar user={@user} size={64} />
+        <.user_avatar user={@user} size={56} class="border-[3px] border-white shadow-[0_12px_28px_rgba(22,26,29,0.16)]" />
 
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-2">
-            <h3 class="text-lg font-semibold text-gray-900 truncate">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--live-meridian)]">
+                Teammate context
+              </p>
+              <h3 class="mt-1 truncate text-xl font-semibold tracking-normal text-[var(--charcoal-ink)]">
               <%= @user.name %>
-            </h3>
-            <.pronunciation_buttons user={@user} size={:small} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
+              </h3>
+            </div>
+            <.pronunciation_buttons user={@user} size={:small} show_labels={false} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
           </div>
 
-          <p class="text-sm text-gray-600 mb-2">
+          <p class="mt-1 text-sm text-[var(--slate-signal)]">
             <%= @user.role || "Team Member" %>
           </p>
 
           <!-- Native name display -->
-          <div :if={@user.name_native && @user.name_native != @user.name} class="mb-3">
-            <label class="block text-xs font-medium text-gray-500 mb-1">
+          <div :if={@user.name_native && @user.name_native != @user.name} class="mt-3">
+            <label class="block text-xs font-medium text-[var(--slate-signal)] mb-1">
               Native Name (<%= Zonely.LanguageService.get_native_language_name(@user.country) %>)
             </label>
-            <p class="text-base font-medium text-gray-900"><%= @user.name_native %></p>
+            <p class="text-base font-medium text-[var(--charcoal-ink)]"><%= @user.name_native %></p>
           </div>
         </div>
       </div>
 
-      <!-- Location and timezone -->
-      <.timezone_display user={@user} show_local_time={@show_local_time} />
+      <div class="rounded-2xl bg-white/70 p-4">
+        <p class="text-sm leading-6 text-[var(--charcoal-ink)]">
+          <%= context_sentence(@user) %>
+        </p>
+      </div>
 
-      <!-- Working hours -->
-      <.working_hours user={@user} show_status={true} />
+      <dl class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Location</dt>
+          <dd class="mt-1 font-medium">
+            <%= Geography.country_name(@user.country) %>
+            <span class="font-instrument-mono text-xs text-[var(--slate-signal)]"><%= @user.country %></span>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Local time</dt>
+          <dd class="font-instrument-mono mt-1 font-medium"><%= local_time_label(@user.timezone) %></dd>
+          <dd class="font-instrument-mono mt-1 text-xs text-[var(--slate-signal)]">
+            <%= @user.timezone %>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">Work window</dt>
+          <dd class="font-instrument-mono mt-1 font-medium"><%= time_range_label(@user) %></dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-[var(--slate-signal)]">State</dt>
+          <dd class="mt-1 font-medium"><%= status_label(@user) %></dd>
+        </div>
+      </dl>
 
       <!-- Actions -->
       <div :if={@show_actions} class="pt-4 border-t border-gray-100">
@@ -1564,7 +1594,7 @@ defmodule ZonelyWeb.CoreComponents do
   end
 
   @doc """
-  Renders a compact user card suitable for directory listings.
+  Renders a compact user row suitable for map-native teammate lists.
 
   Optimized for grid layouts with essential information only.
   """
@@ -1587,40 +1617,46 @@ defmodule ZonelyWeb.CoreComponents do
     ~H"""
     <div
       class={[
-        "bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow p-5",
+        "group overflow-hidden rounded-2xl border border-[color:var(--hairline)] bg-white/86 p-4 shadow-[0_12px_36px_rgba(22,26,29,0.06)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[color:rgba(31,138,112,0.24)] hover:shadow-[0_18px_48px_rgba(22,26,29,0.09)]",
         @clickable && "cursor-pointer",
         @class
       ]}
       phx-click={@clickable && "show_profile"}
       phx-value-user_id={@clickable && @user.id}
     >
-      <div class="flex items-center">
+      <div class="flex items-center gap-4">
         <div class="flex-shrink-0">
-          <.user_avatar user={@user} size={48} />
+          <.user_avatar user={@user} size={48} class="border-[3px] border-white shadow-[0_8px_22px_rgba(22,26,29,0.12)]" />
         </div>
 
-        <div class="ml-5 w-0 flex-1">
-          <dl>
-            <dt class="text-sm font-medium text-gray-500 truncate flex items-center gap-2">
+        <div class="min-w-0 flex-1">
+          <dl class="grid gap-1 md:grid-cols-[1fr_auto] md:items-center">
+            <dt class="truncate text-sm font-semibold text-[var(--charcoal-ink)] flex items-center gap-2">
               <span><%= @user.name %></span>
-              <.pronunciation_buttons user={@user} size={:small} show_labels={true} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
+              <.pronunciation_buttons user={@user} size={:small} show_labels={false} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
             </dt>
-            <dd class="text-sm text-gray-900 mt-1">
+            <dd class="text-sm text-[var(--slate-signal)] md:text-right">
               <%= @user.role || "Team Member" %>
             </dd>
           </dl>
-        </div>
-      </div>
 
-      <div class="mt-4">
-        <.timezone_display user={@user} layout={:horizontal} />
+          <div class="mt-3 grid gap-2 text-xs text-[var(--slate-signal)] sm:grid-cols-4">
+            <span class="font-instrument-mono"><%= local_time_label(@user.timezone) %></span>
+            <span class="font-instrument-mono"><%= @user.timezone %></span>
+            <span>
+              <%= Geography.country_name(@user.country) %>
+              <span class="font-instrument-mono"><%= @user.country %></span>
+            </span>
+            <span><%= status_label(@user) %></span>
+          </div>
 
-        <div :if={@user.name_native && @user.name_native != @user.name} class="mt-2">
-          <div class="text-xs text-gray-500">
+          <div :if={@user.name_native && @user.name_native != @user.name} class="mt-2">
+          <div class="text-xs text-[var(--slate-signal)]">
             <%= Zonely.LanguageService.get_native_language_name(@user.country) %>
           </div>
-          <div class="text-sm font-medium text-gray-800">
+          <div class="text-sm font-medium text-[var(--charcoal-ink)]">
             <%= @user.name_native %>
+          </div>
           </div>
         </div>
       </div>
@@ -1651,6 +1687,43 @@ defmodule ZonelyWeb.CoreComponents do
       icon: "w-4 h-4",
       text: "text-sm"
     }
+  end
+
+  defp local_time_label(timezone) when is_binary(timezone) do
+    case DateTime.now(timezone) do
+      {:ok, datetime} -> Calendar.strftime(datetime, "%H:%M")
+      _error -> "--:--"
+    end
+  end
+
+  defp local_time_label(_timezone), do: "--:--"
+
+  defp time_range_label(user) do
+    "#{Calendar.strftime(user.work_start, "%I:%M %p")} - #{Calendar.strftime(user.work_end, "%I:%M %p")}"
+  end
+
+  defp status_label(user) do
+    case WorkingHours.classify_status(user) do
+      :working -> "Available now"
+      :edge -> "Near work boundary"
+      :off -> "Off hours"
+      _status -> "Context pending"
+    end
+  end
+
+  defp context_sentence(user) do
+    country = Geography.country_name(user.country)
+
+    case WorkingHours.classify_status(user) do
+      :working ->
+        "#{country} is inside the work window. Local time is #{local_time_label(user.timezone)}."
+
+      :edge ->
+        "#{country} is near a work-hour boundary. Check the local time before reaching out."
+
+      _status ->
+        "#{country} is outside normal work hours. Wait for the next overlap unless it is urgent."
+    end
   end
 
   @doc """

@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -eu
+
+quota_project="${STITCH_QUOTA_PROJECT:-gen-lang-client-0280380712}"
+access_token="$(gcloud auth application-default print-access-token)"
+
+STITCH_AUTH_HEADER="Bearer ${access_token}" \
+  exec npx -y mcp-remote https://stitch.googleapis.com/mcp \
+    --header 'Authorization:${STITCH_AUTH_HEADER}' \
+    --header "x-goog-user-project:${quota_project}"

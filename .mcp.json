@@ -2,13 +2,12 @@
   "mcpServers": {
     "stitch": {
       "type": "stdio",
-      "command": "npx",
+      "command": "./dev/stitch-mcp",
       "args": [
-        "-y",
-        "mcp-remote",
-        "https://stitch.googleapis.com/mcp"
       ],
-      "env": {}
+      "env": {
+        "STITCH_QUOTA_PROJECT": "gen-lang-client-0280380712"
+      }
     }
   }
 }

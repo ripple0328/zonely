@@ -287,7 +287,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
   end
 
   describe "user_card/1" do
-    test "renders compact user card for directory" do
+    test "renders compact user row for map-native teammate lists" do
       user = %User{
         id: 5,
         name: "Charlie Brown",
@@ -376,15 +376,13 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "Zonely"
       assert html =~ "Team Map"
       assert html =~ "Map"
-      assert html =~ "Directory"
       assert html =~ "Work Hours"
       assert html =~ "Holidays"
     end
 
     test "marks current page as active" do
-      html = render_component_test(&navbar/1, %{current_page: "directory"})
+      html = render_component_test(&navbar/1, %{current_page: "map"})
 
-      # Should contain active styling for directory link
       assert html =~ "text-blue-700 bg-blue-50"
     end
 

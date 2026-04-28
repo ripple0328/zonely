@@ -31,7 +31,13 @@ defmodule ZonelyWeb.HomeLive do
   @impl true
   def handle_event("show_profile", %{"user_id" => id}, socket) do
     user = Enum.find(socket.assigns.users, &("#{&1.id}" == id))
-    {:noreply, assign(socket, :selected_user, user)}
+
+    socket =
+      socket
+      |> assign(:selected_user, user)
+      |> push_event("focus_user", %{user_id: id})
+
+    {:noreply, socket}
   end
 
   def handle_event("hide_profile", _params, socket) do
@@ -51,76 +57,110 @@ defmodule ZonelyWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id={if(@live_action == :directory, do: "directory-page", else: "map-page")} class="space-y-6">
-      <%= if @live_action == :directory do %>
-        <section class="grid gap-3 sm:grid-cols-3" aria-label="Team availability summary">
-          <.stat_tile label="Working now" value={@stats.working} tone="emerald" />
-          <.stat_tile label="Near work hours" value={@stats.edge} tone="amber" />
-          <.stat_tile label="Off hours" value={@stats.off} tone="slate" />
-        </section>
+    <div id="map-page" class="min-h-[100dvh]">
+      <section id="global-team-map" class="zonely-map-workspace" aria-label="Global team map">
+        <nav class="map-nav-island" aria-label="Map workspace navigation">
+          <.link navigate={~p"/"} class="map-nav-brand" aria-current="page">
+            <.icon name="hero-globe-alt" class="h-4 w-4" />
+            <span>Zonely</span>
+          </.link>
+          <a href="#team-orbit-panel" class="map-nav-link">
+            People
+          </a>
+        </nav>
 
-        <section>
+        <aside id="now-context-strip" class="now-context-strip" aria-label="Current team context">
           <div>
-            <h1 class="text-2xl font-semibold tracking-normal text-gray-950">Team Directory</h1>
-            <p class="mt-1 text-sm text-gray-600">
-              {length(@users)} teammates across {map_size(@stats.timezones)} time zones.
-            </p>
+            <p class="context-eyebrow">Now</p>
+            <p class="context-title">{reachable_label(@stats.working)}</p>
           </div>
-        </section>
+          <div class="context-meta">
+            <span>{map_size(@stats.timezones)} zones</span>
+            <span>{format_count(@stats.edge, "near transition")}</span>
+          </div>
+        </aside>
 
-        <section
-          id="team-directory"
-          class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-          aria-label="Team members"
-        >
-          <div :if={@users == []} class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-600 md:col-span-2 xl:col-span-3">
-            No team members have been added yet.
-          </div>
-          <.user_card
-            :for={user <- @users}
-            user={user}
-            loading_pronunciation={@loading_pronunciation}
-            playing_pronunciation={@playing_pronunciation}
-          />
-        </section>
-      <% else %>
-        <section id="global-team-map" class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm" aria-label="Global team map">
-          <div class="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <aside id="team-orbit-panel" class="team-orbit-panel" aria-label="Team orbit">
+          <div class="orbit-header">
             <div>
-              <h1 class="text-2xl font-semibold tracking-normal text-gray-950">Global Team Map</h1>
-              <p class="mt-1 max-w-2xl text-sm text-gray-600">
-                {length(@users)} teammates across {map_size(@stats.timezones)} time zones, with live daylight context.
-              </p>
+              <p class="context-eyebrow">Team orbit</p>
+              <h2>{length(@users)} teammates</h2>
             </div>
-            <.link
-              navigate={~p"/directory"}
-              class="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-            >
-              Directory
-            </.link>
+            <span class="orbit-live-pill">{format_count(@stats.working, "available")}</span>
           </div>
 
-          <div
-            id="map-container"
-            class="h-[68vh] min-h-[460px] max-h-[720px] w-full bg-slate-100"
-            phx-hook="TeamMap"
-            phx-update="ignore"
-            data-users={@map_users_json}
-            data-testid="team-map"
-          >
-            <div class="flex h-full items-center justify-center text-sm text-gray-500">
-              Loading global team map...
-            </div>
+          <div :if={@users == []} id="team-orbit-empty" class="orbit-empty">
+            Add teammates with location and work hours to place them on the map.
           </div>
-        </section>
-      <% end %>
+
+          <div id="team-orbit-list" class="orbit-list">
+            <button
+              :for={user <- @users}
+              id={"team-orbit-user-#{user.id}"}
+              type="button"
+              class="orbit-row"
+              phx-click="show_profile"
+              phx-value-user_id={user.id}
+              data-testid="team-orbit-row"
+            >
+              <span class={["orbit-status-dot", orbit_status_class(user)]}></span>
+              <span class="orbit-copy">
+                <span class="orbit-name">{user.name}</span>
+                <span class="orbit-context">
+                  {local_time_label(user.timezone)} · {Geography.country_name(user.country)} · {status_label(user)}
+                </span>
+              </span>
+              <span class="orbit-offset">{offset_label(user.timezone)}</span>
+            </button>
+          </div>
+        </aside>
+
+        <div
+          id="map-container"
+          class="zonely-map-canvas"
+          phx-hook="TeamMap"
+          phx-update="ignore"
+          data-users={@map_users_json}
+          data-testid="team-map"
+        >
+          <div class="map-loading-state">
+            <div class="map-loading-grid"></div>
+            <p>Loading live team map</p>
+          </div>
+        </div>
+
+        <div id="map-time-rail" class="map-time-rail" aria-label="Time context rail">
+          <div class="rail-header">
+            <span>Local day</span>
+            <span>Overlap window</span>
+          </div>
+          <div class="rail-track">
+            <span class="rail-night"></span>
+            <span class="rail-daylight"></span>
+            <span class="rail-overlap"></span>
+            <span class="rail-thumb" aria-hidden="true"></span>
+          </div>
+          <div class="rail-labels">
+            <span>06:12</span>
+            <span>Now</span>
+            <span>18:47</span>
+          </div>
+        </div>
+      </section>
 
       <div
         :if={@selected_user}
         id="profile-panel"
-        class="fixed inset-0 z-50 bg-black/30 p-4 sm:flex sm:items-center sm:justify-center"
+        class="profile-panel-shell"
       >
-        <div class="mx-auto max-w-md" phx-click-away="hide_profile">
+        <button
+          type="button"
+          class="profile-panel-backdrop"
+          phx-click="hide_profile"
+          aria-label="Close teammate context"
+        >
+        </button>
+        <div class="profile-panel-position" phx-click-away="hide_profile">
           <.profile_card
             user={@selected_user}
             loading_pronunciation={@loading_pronunciation}
@@ -130,12 +170,6 @@ defmodule ZonelyWeb.HomeLive do
       </div>
     </div>
     """
-  end
-
-  defp apply_action(socket, :directory) do
-    socket
-    |> assign(:page_title, "Directory")
-    |> assign(:active_tab, :directory)
   end
 
   defp apply_action(socket, _action) do
@@ -198,21 +232,44 @@ defmodule ZonelyWeb.HomeLive do
   defp format_time(%Time{} = time), do: Calendar.strftime(time, "%H:%M")
   defp format_time(_time), do: nil
 
-  attr(:label, :string, required: true)
-  attr(:value, :integer, required: true)
-  attr(:tone, :string, required: true)
+  defp format_count(1, label), do: "1 #{label}"
+  defp format_count(count, label), do: "#{count} #{label}"
 
-  defp stat_tile(assigns) do
-    ~H"""
-    <div class={[
-      "rounded-lg border bg-white p-4 shadow-sm",
-      @tone == "emerald" && "border-emerald-200",
-      @tone == "amber" && "border-amber-200",
-      @tone == "slate" && "border-slate-200"
-    ]}>
-      <div class="text-2xl font-semibold text-gray-950">{@value}</div>
-      <div class="text-sm text-gray-600">{@label}</div>
-    </div>
-    """
+  defp reachable_label(1), do: "1 teammate reachable"
+  defp reachable_label(count), do: "#{count} teammates reachable"
+
+  defp status_label(user) do
+    case WorkingHours.classify_status(user) do
+      :working -> "Available"
+      :edge -> "Near boundary"
+      :off -> "Off hours"
+      _status -> "Pending"
+    end
   end
+
+  defp orbit_status_class(user) do
+    case WorkingHours.classify_status(user) do
+      :working -> "is-working"
+      :edge -> "is-edge"
+      _status -> "is-off"
+    end
+  end
+
+  defp local_time_label(timezone) when is_binary(timezone) do
+    case DateTime.now(timezone) do
+      {:ok, datetime} -> Calendar.strftime(datetime, "%H:%M")
+      _error -> "--:--"
+    end
+  end
+
+  defp local_time_label(_timezone), do: "--:--"
+
+  defp offset_label(timezone) when is_binary(timezone) do
+    case DateTime.now(timezone) do
+      {:ok, datetime} -> Calendar.strftime(datetime, "%Z")
+      _error -> "UTC"
+    end
+  end
+
+  defp offset_label(_timezone), do: "UTC"
 end

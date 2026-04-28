@@ -8,7 +8,7 @@ This review treats the current codebase as disposable. The question is not "what
 
 Zonely is a small, server-backed coordination app:
 
-- Directory and teammate profile context
+- Map-native teammate discovery and profile context
 - Time zone, work-hour, and location signals
 - Holiday and availability context
 - Possible future real-time scheduling or presence

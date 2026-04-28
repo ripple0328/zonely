@@ -15,6 +15,26 @@ const TeamMap = {
 
     const users = JSON.parse(this.el.dataset.users || '[]')
     window.teamUsers = users
+    this.markersById = {}
+    this.selectedMarkerEl = null
+
+    this.handleEvent('focus_user', ({ user_id }) => {
+      const marker = this.markersById && this.markersById[user_id]
+      if (!marker || !this.map) return
+
+      if (this.selectedMarkerEl) this.selectedMarkerEl.classList.remove('is-selected')
+      const markerEl = marker.getElement()
+      markerEl.classList.add('is-selected')
+      this.selectedMarkerEl = markerEl
+
+      this.map.flyTo({
+        center: marker.getLngLat(),
+        zoom: Math.max(this.map.getZoom(), 3.4),
+        speed: 0.85,
+        curve: 1.25,
+        essential: true
+      })
+    })
 
     if (!window.maplibregl) {
       this.el.dataset.mapState = 'missing-maplibre'
@@ -37,8 +57,8 @@ const TeamMap = {
             }
           },
           layers: [
-            { id: 'background', type: 'background', paint: { 'background-color': '#f8f9fa' } },
-            { id: 'simple-tiles-layer', type: 'raster', source: 'simple-tiles', paint: { 'raster-opacity': 0.9 } }
+            { id: 'background', type: 'background', paint: { 'background-color': '#eef2ef' } },
+            { id: 'simple-tiles-layer', type: 'raster', source: 'simple-tiles', paint: { 'raster-opacity': 0.78, 'raster-saturation': -0.45, 'raster-contrast': -0.08 } }
           ]
         },
         center: [0, 20],
@@ -77,14 +97,17 @@ const TeamMap = {
         markerEl.innerHTML = `
           <div class="relative flex flex-col items-center">
             <div class="relative">
+              <span class="marker-pulse" aria-hidden="true"></span>
               <img src="${picture}" alt="${name}" class="h-12 w-12 rounded-full border-[3px] border-white object-cover shadow-lg cursor-pointer" />
             </div>
           </div>
         `
 
-        new maplibregl.Marker({ element: markerEl, anchor: 'bottom' })
+        const marker = new maplibregl.Marker({ element: markerEl, anchor: 'bottom' })
           .setLngLat([user.longitude, user.latitude])
           .addTo(map)
+
+        this.markersById[user.id] = marker
 
         // Delegate UI to LiveView: open profile modal
         markerEl.addEventListener('click', (e) => {
@@ -130,7 +153,7 @@ const TeamMap = {
         id: 'tz-fill',
         type: 'fill',
         source: 'timezones',
-        paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.05 }
+        paint: { 'fill-color': '#1f8a70', 'fill-opacity': 0.045 }
       })
 
       // Hover layer (highlighted)
@@ -139,7 +162,7 @@ const TeamMap = {
         id: 'tz-hover',
         type: 'fill',
         source: 'timezones',
-        paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.3 },
+        paint: { 'fill-color': '#1f8a70', 'fill-opacity': 0.18 },
         layout: { visibility: 'none' }
       })
 
@@ -149,7 +172,7 @@ const TeamMap = {
         id: 'tz-border',
         type: 'line',
         source: 'timezones',
-        paint: { 'line-color': '#2563eb', 'line-width': 0.6, 'line-opacity': 0.35 }
+        paint: { 'line-color': '#1f8a70', 'line-width': 0.6, 'line-opacity': 0.24 }
       })
 
       // Interactions
@@ -179,7 +202,6 @@ const TeamMap = {
         const offsetHours = this.resolveOffsetHours(tzid, props)
         const baseName = props.NAME || props.name || tzid.split('/').slice(-1)[0].replace(/_/g, ' ')
         const displayName = baseName && baseName.length > 1 ? baseName : this.friendlyZoneName(tzid, offsetHours)
-        const flag = this.flagFromProps(props) || this.flagFromTzid(tzid)
         const { timeStr, dateStr } = this.formatTimeAndDate(tzid, offsetHours)
         const rel = this.relativeToViewer(offsetHours, tzid)
         const weekend = this.isWeekendInZone(tzid, offsetHours)
@@ -211,7 +233,7 @@ const TeamMap = {
           anchor: anchor
         })
           .setLngLat(e.lngLat)
-          .setHTML(this.renderPopup({ theme, flag, displayName, timeStr, dateStr, rel, weekend }))
+          .setHTML(this.renderPopup({ theme, displayName, timeStr, dateStr, rel, weekend }))
           .addTo(map)
 
         try {
@@ -248,7 +270,7 @@ const TeamMap = {
       id: 'night-overlay',
       type: 'fill',
       source: 'night-overlay',
-      paint: { 'fill-color': '#000000', 'fill-opacity': 0.35 }
+      paint: { 'fill-color': '#0f172a', 'fill-opacity': 0.38 }
     })
 
     // Update every minute
@@ -587,33 +609,15 @@ const TeamMap = {
     }
   },
 
-  flagFromProps(props) {
-    const cc = props.ISO_A2 || props.iso_a2 || props.ADMIN || props.admin || ''
-    if (typeof cc === 'string' && cc.length === 2) return this.flagEmoji(cc)
-    return ''
-  },
-
-  flagFromTzid(tzid) {
-    const cc = tzid && tzid.split('/')?.[0]
-    return ''
-  },
-
-  flagEmoji(countryCode) {
-    try {
-      const code = countryCode.trim().toUpperCase()
-      return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)))
-    } catch (_) { return '' }
-  },
-
   // --- Popup rendering & formatting ---
-  renderPopup({ theme, flag, displayName, timeStr, dateStr, rel, weekend }) {
+  renderPopup({ theme, displayName, timeStr, dateStr, rel, weekend }) {
     const weekendRow = `<div class="tzp-row tzp-weekend" aria-live="polite"><span class="tzp-dot"></span><span>${weekend ? 'Weekend' : 'Weekday'}</span></div>`
     return `
       <div class="tzp ${theme}" role="dialog" aria-label="Timezone information">
-        <button class="tzp-close" aria-label="Close">×</button>
-        <div class="tzp-row tzp-title"><span class="tzp-icon">📍</span><span class="tzp-title-text">${flag ? flag + ' ' : ''}${displayName}</span></div>
-        <div class="tzp-row tzp-datetime"><span class="tzp-icon">🕰️</span><span class="tzp-dt">${timeStr}</span><span class="tzp-date">${dateStr}</span></div>
-        <div class="tzp-row tzp-relative"><span class="tzp-icon">⏳</span><span>${rel}</span></div>
+        <button class="tzp-close" aria-label="Close">Close</button>
+        <div class="tzp-row tzp-title"><span class="tzp-kicker">Zone</span><span class="tzp-title-text">${displayName}</span></div>
+        <div class="tzp-row tzp-datetime"><span class="tzp-kicker">Local</span><span class="tzp-dt">${timeStr}</span><span class="tzp-date">${dateStr}</span></div>
+        <div class="tzp-row tzp-relative"><span class="tzp-kicker">Offset</span><span>${rel}</span></div>
         <div class="tzp-divider"></div>
         ${weekendRow}
       </div>
@@ -634,8 +638,8 @@ const TeamMap = {
       .maplibregl-popup.tz-popup { max-width: none !important; }
       .maplibregl-popup.tz-popup .maplibregl-popup-content { 
         padding: 0; 
-        border-radius: 16px; 
-        box-shadow: 0 18px 36px rgba(0,0,0,0.3); 
+        border-radius: 18px;
+        box-shadow: 0 22px 70px rgba(22,26,29,0.16), inset 0 1px 0 rgba(255,255,255,0.42);
         overflow: hidden; 
         border: none; 
         max-width: 320px;
@@ -643,27 +647,28 @@ const TeamMap = {
       }
       .maplibregl-popup.tz-popup .maplibregl-popup-tip { display: none; }
       .tzp { position: relative; padding: 18px 20px 16px 20px; min-width: 280px; max-width: 320px; }
-      .tzp-dark { background: linear-gradient(180deg,#0f172a 0%, #0b1222 100%); color: #eaeefb; border: 1px solid rgba(255,255,255,0.1); }
-      .tzp-light { background: #ffffff; color: #0f172a; border: 1px solid rgba(0,0,0,0.08); }
-      .tzp-row { display: flex; align-items: center; gap: 10px; }
-      .tzp-icon { width: 22px; display: inline-block; text-align: center; flex-shrink: 0; }
+      .tzp-dark { background: linear-gradient(180deg,#161a1d 0%, #25313a 100%); color: #f7f8f6; border: 1px solid rgba(255,255,255,0.12); }
+      .tzp-light { background: rgba(255,255,255,0.92); color: #161a1d; border: 1px solid rgba(22,26,29,0.1); }
+      .tzp-row { display: grid; grid-template-columns: 54px 1fr; align-items: center; gap: 10px; }
+      .tzp-kicker { color: #5f6b73; font-family: "JetBrains Mono", "Geist Mono", monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+      .tzp-dark .tzp-kicker { color: rgba(247,248,246,0.64); }
       .tzp-title { margin-bottom: 8px; }
       .tzp-title-text { font-size: 18px; font-weight: 700; word-break: break-word; }
-      .tzp-dark .tzp-title-text { color: #f8e08e; }
+      .tzp-dark .tzp-title-text { color: #ffffff; }
       .tzp-datetime { margin-bottom: 6px; }
-      .tzp-dt { font-size: 26px; font-weight: 800; letter-spacing: .2px; margin-right: 10px; white-space: nowrap; }
+      .tzp-dt { font-family: "JetBrains Mono", "Geist Mono", monospace; font-size: 24px; font-weight: 800; letter-spacing: 0; margin-right: 10px; white-space: nowrap; }
       .tzp-date { font-size: 14px; opacity: .85; white-space: nowrap; }
-      .tzp-relative { font-size: 16px; margin-bottom: 8px; }
+      .tzp-relative { font-size: 14px; margin-bottom: 8px; }
       .tzp-dark .tzp-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
-      .tzp-light .tzp-divider { height: 1px; background: rgba(0,0,0,0.08); margin: 10px 0; }
-      .tzp-weekend { font-size: 16px; }
-      .tzp-dark .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; flex-shrink: 0; }
-      .tzp-light .tzp-dot { width: 12px; height: 12px; border-radius: 9999px; background: #3b82f6; display: inline-block; margin-right: 8px; flex-shrink: 0; }
-      .tzp-close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 9999px; border: none; cursor: pointer; line-height: 32px; text-align: center; font-size: 18px; }
-      .tzp-dark .tzp-close { background: rgba(255,255,255,0.08); color: #f6d26b; }
+      .tzp-light .tzp-divider { height: 1px; background: rgba(22,26,29,0.08); margin: 10px 0; }
+      .tzp-weekend { font-size: 14px; }
+      .tzp-dark .tzp-dot { width: 10px; height: 10px; border-radius: 9999px; background: #d99a2b; display: inline-block; margin-right: 8px; flex-shrink: 0; }
+      .tzp-light .tzp-dot { width: 10px; height: 10px; border-radius: 9999px; background: #1f8a70; display: inline-block; margin-right: 8px; flex-shrink: 0; }
+      .tzp-close { position: absolute; top: 10px; right: 10px; min-width: 52px; height: 28px; padding: 0 10px; border-radius: 9999px; border: none; cursor: pointer; line-height: 28px; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .tzp-dark .tzp-close { background: rgba(255,255,255,0.08); color: #ffffff; }
       .tzp-dark .tzp-close:hover { background: rgba(255,255,255,0.16); }
-      .tzp-light .tzp-close { background: rgba(15,23,42,0.06); color: #111827; }
-      .tzp-light .tzp-close:hover { background: rgba(15,23,42,0.12); }
+      .tzp-light .tzp-close { background: rgba(31,138,112,0.10); color: #1f8a70; }
+      .tzp-light .tzp-close:hover { background: rgba(31,138,112,0.16); }
       .maplibregl-popup-close-button { display: none; }
     `
     document.head.appendChild(style)
