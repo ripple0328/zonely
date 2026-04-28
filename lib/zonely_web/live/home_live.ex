@@ -331,28 +331,6 @@ defmodule ZonelyWeb.HomeLive do
               <h3>Comparing {length(@selected_user_ids)} teammates</h3>
               <p>{@selected_group_summary.text}</p>
             </div>
-            <div class="selected-group-actions">
-              <button
-                :for={user <- selected_users(@users, @selected_user_ids)}
-                id={"selected-group-remove-#{user.id}"}
-                type="button"
-                class="orbit-compare-button"
-                phx-click="remove_selected_user"
-                phx-value-user_id={user.id}
-                aria-label={"Remove #{user.name} from comparison"}
-              >
-                Remove {user.name}
-              </button>
-              <button
-                type="button"
-                id="selected-group-clear"
-                class="orbit-compare-button"
-                phx-click="clear_selected_users"
-                aria-label="Clear selected teammate comparison"
-              >
-                Clear group
-              </button>
-            </div>
           </section>
         </aside>
 
@@ -461,6 +439,122 @@ defmodule ZonelyWeb.HomeLive do
             name_share_error={@name_card_share_error}
           />
         </div>
+      </div>
+
+      <div
+        :if={length(@selected_user_ids) >= 2}
+        id="selected-group-panel"
+        class="selected-group-panel-shell"
+        data-testid="selected-group-compare-panel"
+      >
+        <button
+          type="button"
+          class="selected-group-panel-backdrop"
+          phx-click="clear_selected_users"
+          aria-label="Close teammate comparison"
+        >
+        </button>
+
+        <section class="selected-group-panel" aria-label="Selected teammate comparison panel">
+          <div class="selected-group-handle" data-testid="selected-group-sheet-handle" aria-hidden="true">
+          </div>
+
+          <header class="selected-group-panel-header">
+            <div>
+              <p class="context-eyebrow">{strip_mode_label(@preview_at)} comparison</p>
+              <h2>{length(@selected_user_ids)} teammate reachability</h2>
+              <p class="selected-group-effective-time" data-testid="selected-group-effective-time">
+                Shared effective time: {strip_time_label(@effective_at, @preview_at)}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              id="selected-group-clear"
+              class="decision-close-button"
+              phx-click="clear_selected_users"
+              aria-label="Clear selected teammate comparison"
+            >
+              <.icon name="hero-x-mark" class="h-4 w-4" />
+            </button>
+          </header>
+
+          <p class="selected-group-decision" data-testid="selected-group-decision">
+            {@selected_group_summary.text}
+          </p>
+
+          <div class="selected-group-rows" role="list" aria-label="Compared teammates">
+            <article
+              :for={user <- selected_users(@users, @selected_user_ids)}
+              id={"selected-group-row-#{user.id}"}
+              class="selected-group-row"
+              role="listitem"
+              data-testid="selected-group-row"
+            >
+              <div class="selected-group-row-main">
+                <span class={["decision-state-dot", decision_state_class(user, @effective_at)]}></span>
+                <div class="selected-group-row-copy">
+                  <h3>{user.name}</h3>
+                  <p>{user.role || "Team Member"} · {Geography.country_name(user.country)}</p>
+                </div>
+                <time class="selected-group-local-time" data-testid="selected-group-local-time">
+                  {Reachability.local_time_label(user.timezone, @effective_at)}
+                </time>
+              </div>
+
+              <dl class="selected-group-row-facts">
+                <div>
+                  <dt>Reachability</dt>
+                  <dd data-testid="selected-group-reachability">
+                    {Reachability.status_label(user, @effective_at)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Work window</dt>
+                  <dd data-testid="selected-group-work-window">{format_user_time_range(user)}</dd>
+                </div>
+                <div>
+                  <dt>Daylight</dt>
+                  <dd data-testid="selected-group-daylight">
+                    {Reachability.daylight_context_label(user, @effective_at)}
+                  </dd>
+                </div>
+              </dl>
+
+              <div class="selected-group-row-actions">
+                <button
+                  type="button"
+                  id={"selected-group-focus-#{user.id}"}
+                  class="group-row-action"
+                  phx-click="show_profile"
+                  phx-value-user_id={user.id}
+                  aria-label={"View #{user.name} alone"}
+                >
+                  View one
+                </button>
+                <button
+                  type="button"
+                  id={"selected-group-remove-#{user.id}"}
+                  class="group-row-action"
+                  phx-click="remove_selected_user"
+                  phx-value-user_id={user.id}
+                  aria-label={"Remove #{user.name} from comparison"}
+                >
+                  Remove
+                </button>
+              </div>
+            </article>
+          </div>
+
+          <button
+            type="button"
+            class="selected-group-clear-button"
+            phx-click="clear_selected_users"
+            aria-label="Clear all compared teammates"
+          >
+            Clear group
+          </button>
+        </section>
       </div>
     </div>
     """
@@ -581,6 +675,20 @@ defmodule ZonelyWeb.HomeLive do
       do: "Remove #{user.name} from comparison",
       else: "Add #{user.name} to comparison"
   end
+
+  defp decision_state_class(user, %DateTime{} = effective_at) do
+    case Reachability.marker_state(user, effective_at) do
+      "working" -> "is-working"
+      "edge" -> "is-edge"
+      _other -> "is-off"
+    end
+  end
+
+  defp format_user_time_range(%{work_start: %Time{} = work_start, work_end: %Time{} = work_end}) do
+    "#{format_time(work_start)}–#{format_time(work_end)}"
+  end
+
+  defp format_user_time_range(_user), do: "Work window unavailable"
 
   defp live_now do
     case Application.get_env(:zonely, :home_live_now) do
