@@ -62,6 +62,116 @@ defmodule Zonely.ReachabilityTest do
     end
   end
 
+  describe "effective time helpers" do
+    test "single-sources preview time ahead of live time" do
+      live_now = ~U[2026-01-15 14:30:00Z]
+      preview_at = ~U[2026-01-15 22:30:00Z]
+
+      assert Reachability.effective_at(preview_at, live_now) == preview_at
+      assert Reachability.effective_at(nil, live_now) == live_now
+    end
+
+    test "decision context changes deterministically at preview time" do
+      teammate = user("America/New_York", "US")
+      live_now = ~U[2026-01-15 14:30:00Z]
+      preview_at = ~U[2026-01-15 22:30:00Z]
+
+      assert Reachability.status(teammate, live_now) == :working
+      assert Reachability.status(teammate, preview_at) == :edge
+      assert Reachability.local_time_label(teammate.timezone, preview_at) == "17:30"
+      assert Reachability.daylight_context_label(teammate, preview_at) == "dusk"
+      assert Reachability.decision_sentence(teammate, live_now) =~ "good moment"
+      assert Reachability.decision_sentence(teammate, preview_at) =~ "near a work-hour boundary"
+    end
+  end
+
+  describe "next_transition/2" do
+    test "returns stable transition data for repeated deterministic calls" do
+      teammate = user("America/New_York", "US")
+      now = ~U[2026-01-15 14:30:00Z]
+
+      transition = Reachability.next_transition(teammate, now)
+
+      assert transition == Reachability.next_transition(teammate, now)
+      assert transition.type == :workday_end
+      assert transition.instant == ~U[2026-01-15 22:00:00Z]
+      assert transition.local_time_label == "17:00"
+      assert transition.text == "Workday ends at 17:00"
+    end
+
+    test "points before-hours and edge-before cases to today's local work start" do
+      teammate = user("America/New_York", "US")
+
+      assert %{
+               type: :workday_start,
+               instant: ~U[2026-01-15 14:00:00Z],
+               local_time_label: "09:00",
+               text: "Workday starts at 09:00"
+             } = Reachability.next_transition(teammate, ~U[2026-01-15 12:30:00Z])
+    end
+
+    test "points after-hours cases to tomorrow's local work start" do
+      teammate = user("America/New_York", "US")
+
+      assert %{
+               type: :back_tomorrow,
+               instant: ~U[2026-01-16 14:00:00Z],
+               local_time_label: "09:00",
+               text: "Back tomorrow at 09:00"
+             } = Reachability.next_transition(teammate, ~U[2026-01-15 23:30:00Z])
+
+      assert Reachability.decision_sentence(teammate, ~U[2026-01-15 23:30:00Z]) =~
+               "back tomorrow at 09:00"
+    end
+
+    test "uses teammate timezone for local labels and UTC instants" do
+      new_york = user("America/New_York", "US")
+      tokyo = user("Asia/Tokyo", "JP")
+      now = ~U[2026-01-15 14:30:00Z]
+
+      assert Reachability.local_time_label(new_york.timezone, now) == "09:30"
+      assert Reachability.local_time_label(tokyo.timezone, now) == "23:30"
+
+      assert Reachability.next_transition(new_york, now).instant == ~U[2026-01-15 22:00:00Z]
+      assert Reachability.next_transition(tokyo, now).instant == ~U[2026-01-16 00:00:00Z]
+      assert Reachability.next_transition(tokyo, now).text == "Back tomorrow at 09:00"
+    end
+
+    test "handles date rollover across teammate timezone boundaries" do
+      los_angeles = user("America/Los_Angeles", "US")
+      tokyo = user("Asia/Tokyo", "JP")
+      now = ~U[2026-01-01 01:30:00Z]
+
+      assert Reachability.local_date_label(los_angeles, now) == "2025-12-31"
+      assert Reachability.local_time_label(los_angeles.timezone, now) == "17:30"
+      assert Reachability.status(los_angeles, now) == :edge
+      assert Reachability.next_transition(los_angeles, now).instant == ~U[2026-01-01 17:00:00Z]
+
+      assert Reachability.local_date_label(tokyo, now) == "2026-01-01"
+      assert Reachability.local_time_label(tokyo.timezone, now) == "10:30"
+      assert Reachability.status(tokyo, now) == :working
+      assert Reachability.next_transition(tokyo, now).instant == ~U[2026-01-01 08:00:00Z]
+    end
+  end
+
+  describe "work-hour boundary behavior" do
+    test "classifies explicit start and end boundaries consistently" do
+      teammate = user("America/New_York", "US")
+
+      cases = [
+        {~U[2026-01-15 13:59:00Z], :edge},
+        {~U[2026-01-15 14:00:00Z], :working},
+        {~U[2026-01-15 22:00:00Z], :edge},
+        {~U[2026-01-15 22:01:00Z], :edge},
+        {~U[2026-01-15 23:01:00Z], :off}
+      ]
+
+      for {now, status} <- cases do
+        assert Reachability.status(teammate, now) == status
+      end
+    end
+  end
+
   defp user(timezone, country) do
     %User{
       name: "Test Teammate",

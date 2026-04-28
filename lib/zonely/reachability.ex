@@ -11,6 +11,16 @@ defmodule Zonely.Reachability do
   alias Zonely.WorkingHours
 
   @type status :: :working | :edge | :off
+  @type transition :: %{
+          type: :workday_start | :workday_end | :back_tomorrow,
+          instant: DateTime.t() | nil,
+          local_time_label: String.t(),
+          text: String.t()
+        }
+
+  @spec effective_at(DateTime.t() | nil, DateTime.t()) :: DateTime.t()
+  def effective_at(%DateTime{} = preview_at, %DateTime{}), do: preview_at
+  def effective_at(nil, %DateTime{} = live_now), do: live_now
 
   @spec status(User.t(), DateTime.t()) :: status()
   def status(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
@@ -82,6 +92,15 @@ defmodule Zonely.Reachability do
 
   def local_time_label(_timezone, _now), do: "--:--"
 
+  @spec local_date_label(User.t(), DateTime.t()) :: String.t()
+  def local_date_label(%User{} = user, %DateTime{} = now) do
+    user
+    |> local_datetime(now)
+    |> case do
+      %DateTime{} = datetime -> Calendar.strftime(datetime, "%Y-%m-%d")
+    end
+  end
+
   @spec offset_label(String.t() | nil, DateTime.t()) :: String.t()
   def offset_label(timezone, now \\ DateTime.utc_now())
 
@@ -93,6 +112,37 @@ defmodule Zonely.Reachability do
   end
 
   def offset_label(_timezone, _now), do: "UTC"
+
+  @spec daylight_context_label(User.t(), DateTime.t()) :: String.t()
+  def daylight_context_label(%User{} = user, %DateTime{} = now) do
+    case local_datetime(user, now) do
+      %DateTime{hour: hour} when hour in 5..7 -> "sunrise"
+      %DateTime{hour: hour} when hour in 8..16 -> "daylight"
+      %DateTime{hour: hour} when hour in 17..19 -> "dusk"
+      %DateTime{} -> "night"
+    end
+  end
+
+  @spec decision_sentence(User.t(), DateTime.t()) :: String.t()
+  def decision_sentence(%User{} = user, %DateTime{} = now) do
+    local_time = local_time_label(user.timezone, now)
+
+    case status(user, now) do
+      :working ->
+        "This is a good moment to reach out. Local time is #{local_time} and the workday is active."
+
+      :edge ->
+        transition = next_transition(user, now)
+
+        "Ask carefully: local time is #{local_time}, near a work-hour boundary. #{transition.text}."
+
+      :off ->
+        transition = next_transition(user, now)
+        transition_text = String.replace_prefix(transition.text, "Back", "back")
+
+        "Wait for a better moment: local time is #{local_time}, outside normal work hours; #{transition_text}."
+    end
+  end
 
   @spec context_sentence(User.t(), DateTime.t()) :: String.t()
   def context_sentence(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
@@ -111,6 +161,70 @@ defmodule Zonely.Reachability do
     end
   end
 
+  @spec next_transition(User.t(), DateTime.t()) :: transition()
+  def next_transition(%User{work_start: %Time{}, work_end: %Time{}} = user, %DateTime{} = now) do
+    with %DateTime{} = local_now <- local_datetime(user, now),
+         {:ok, transition_local} <- next_transition_local(user, local_now),
+         {:ok, transition_utc} <- DateTime.shift_zone(transition_local, "Etc/UTC") do
+      type = transition_type(user, local_now, transition_local)
+      local_time = Calendar.strftime(transition_local, "%H:%M")
+
+      %{
+        type: type,
+        instant: transition_utc,
+        local_time_label: local_time,
+        text: transition_text(type, local_time)
+      }
+    else
+      _error ->
+        %{
+          type: :workday_start,
+          instant: nil,
+          local_time_label: "--:--",
+          text: "Workday starts at --:--"
+        }
+    end
+  end
+
+  def next_transition(_user, _now) do
+    %{
+      type: :workday_start,
+      instant: nil,
+      local_time_label: "--:--",
+      text: "Workday starts at --:--"
+    }
+  end
+
+  defp next_transition_local(%User{work_start: work_start, work_end: work_end} = user, local_now) do
+    local_date = DateTime.to_date(local_now)
+    local_time = DateTime.to_time(local_now)
+
+    cond do
+      WorkingHours.is_working?(user, local_time) ->
+        DateTime.new(local_date, work_end, local_now.time_zone)
+
+      Time.compare(local_time, work_start) == :lt ->
+        DateTime.new(local_date, work_start, local_now.time_zone)
+
+      true ->
+        local_date
+        |> Date.add(1)
+        |> DateTime.new(work_start, local_now.time_zone)
+    end
+  end
+
+  defp transition_type(%User{work_end: work_end}, local_now, transition_local) do
+    cond do
+      DateTime.to_date(transition_local) != DateTime.to_date(local_now) -> :back_tomorrow
+      Time.compare(DateTime.to_time(transition_local), work_end) == :eq -> :workday_end
+      true -> :workday_start
+    end
+  end
+
+  defp transition_text(:workday_end, local_time), do: "Workday ends at #{local_time}"
+  defp transition_text(:workday_start, local_time), do: "Workday starts at #{local_time}"
+  defp transition_text(:back_tomorrow, local_time), do: "Back tomorrow at #{local_time}"
+
   defp local_time(%User{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
     case DateTime.shift_zone(now, timezone) do
       {:ok, datetime} -> DateTime.to_time(datetime)
@@ -119,6 +233,15 @@ defmodule Zonely.Reachability do
   end
 
   defp local_time(_user, %DateTime{} = now), do: DateTime.to_time(now)
+
+  defp local_datetime(%User{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
+    case DateTime.shift_zone(now, timezone) do
+      {:ok, datetime} -> datetime
+      _error -> now
+    end
+  end
+
+  defp local_datetime(_user, %DateTime{} = now), do: now
 
   defp format_utc_offset(total_seconds) do
     sign = if total_seconds < 0, do: "-", else: "+"
