@@ -54,10 +54,13 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   def handle_event("preview_time", params, socket) do
-    case parse_preview_at(params, socket.assigns.live_now) do
+    current_live_now = live_now()
+
+    case parse_preview_at(params, current_live_now) do
       {:ok, preview_at} ->
         {:noreply,
          socket
+         |> assign(:live_now, current_live_now)
          |> assign(:preview_at, preview_at)
          |> assign_effective_time()
          |> push_marker_state_update()}
@@ -68,8 +71,11 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   def handle_event("reset_preview_time", _params, socket) do
+    current_live_now = live_now()
+
     {:noreply,
      socket
+     |> assign(:live_now, current_live_now)
      |> assign(:preview_at, nil)
      |> assign_effective_time()
      |> push_marker_state_update()}
@@ -268,9 +274,26 @@ defmodule ZonelyWeb.HomeLive do
             aria-describedby="map-time-rail-status map-time-rail-ticks"
           >
             <div class="rail-track">
-              <span class="rail-night"></span>
-              <span class="rail-daylight"></span>
-              <span class="rail-overlap"></span>
+              <div
+                id="map-time-rail-context"
+                class="rail-context-markers"
+                aria-label="Computed teammate daylight and work-window markers"
+              >
+                <span
+                  :for={segment <- @rail.segments}
+                  class={["rail-segment", segment.class]}
+                  style={segment.style}
+                  data-kind={segment.kind}
+                  data-user-id={segment.user_id}
+                  data-start-at={segment.start_at}
+                  data-end-at={segment.end_at}
+                  data-left-percent={segment.left_percent}
+                  data-width-percent={segment.width_percent}
+                  role="img"
+                  aria-label={segment.label}
+                >
+                </span>
+              </div>
               <input
                 id="map-time-rail-control"
                 class="rail-control"
@@ -350,7 +373,15 @@ defmodule ZonelyWeb.HomeLive do
       marker_payload(socket.assigns.users, effective_at, nil) |> Jason.encode!()
     )
     |> assign(:reachability, Reachability.summary(socket.assigns.users, effective_at))
-    |> assign(:rail, rail_state(socket.assigns.live_now, socket.assigns.preview_at, effective_at))
+    |> assign(
+      :rail,
+      rail_state(
+        socket.assigns.live_now,
+        socket.assigns.preview_at,
+        effective_at,
+        socket.assigns.users
+      )
+    )
   end
 
   defp push_marker_state_update(socket) do
@@ -379,6 +410,7 @@ defmodule ZonelyWeb.HomeLive do
   defp live_now do
     case Application.get_env(:zonely, :home_live_now) do
       %DateTime{} = now -> DateTime.truncate(now, :second)
+      fun when is_function(fun, 0) -> fun.() |> DateTime.truncate(:second)
       _other -> DateTime.utc_now() |> DateTime.truncate(:second)
     end
   end
@@ -432,7 +464,7 @@ defmodule ZonelyWeb.HomeLive do
   defp clamp(value, _min, max) when value > max, do: max
   defp clamp(value, _min, _max), do: value
 
-  defp rail_state(%DateTime{} = live_now, preview_at, %DateTime{} = effective_at) do
+  defp rail_state(%DateTime{} = live_now, preview_at, %DateTime{} = effective_at, users) do
     offset_minutes =
       effective_at
       |> DateTime.diff(live_now, :second)
@@ -446,8 +478,159 @@ defmodule ZonelyWeb.HomeLive do
       value_text: rail_value_text(effective_at, preview_at),
       status_text: rail_status_text(effective_at, preview_at),
       ticks: rail_ticks(live_now),
-      tick_description: rail_tick_description(live_now)
+      tick_description: rail_tick_description(live_now),
+      segments: rail_segments(users, live_now)
     }
+  end
+
+  defp rail_segments(users, %DateTime{} = live_now) when is_list(users) do
+    window_end = DateTime.add(live_now, 24 * 60 * 60, :second)
+
+    users
+    |> Enum.flat_map(fn user ->
+      daylight_segments(user, live_now, window_end) ++
+        work_window_segments(user, live_now, window_end)
+    end)
+    |> Enum.sort_by(&{&1.start_at, &1.kind, &1.user_id})
+  end
+
+  defp work_window_segments(user, %DateTime{} = window_start, %DateTime{} = window_end) do
+    build_local_time_segments(
+      user,
+      window_start,
+      window_end,
+      user.work_start,
+      user.work_end,
+      "work-window"
+    )
+  end
+
+  defp daylight_segments(user, %DateTime{} = window_start, %DateTime{} = window_end) do
+    build_local_time_segments(
+      user,
+      window_start,
+      window_end,
+      ~T[08:00:00],
+      ~T[17:00:00],
+      "daylight"
+    )
+  end
+
+  defp build_local_time_segments(
+         user,
+         window_start,
+         window_end,
+         %Time{} = starts_at,
+         %Time{} = ends_at,
+         kind
+       ) do
+    user.timezone
+    |> candidate_local_dates(window_start, window_end)
+    |> Enum.flat_map(fn date ->
+      with {:ok, local_start} <- DateTime.new(date, starts_at, user.timezone),
+           {:ok, local_end} <- DateTime.new(date, ends_at, user.timezone),
+           {:ok, utc_start} <- DateTime.shift_zone(local_start, "Etc/UTC"),
+           {:ok, utc_end} <- DateTime.shift_zone(local_end, "Etc/UTC"),
+           {:ok, segment} <-
+             clipped_rail_segment(user, kind, utc_start, utc_end, window_start, window_end) do
+        [segment]
+      else
+        _error -> []
+      end
+    end)
+  end
+
+  defp build_local_time_segments(_user, _window_start, _window_end, _starts_at, _ends_at, _kind),
+    do: []
+
+  defp candidate_local_dates(timezone, %DateTime{} = window_start, %DateTime{} = window_end)
+       when is_binary(timezone) do
+    with {:ok, local_start} <- DateTime.shift_zone(window_start, timezone),
+         {:ok, local_end} <- DateTime.shift_zone(window_end, timezone) do
+      Date.range(
+        Date.add(DateTime.to_date(local_start), -1),
+        Date.add(DateTime.to_date(local_end), 1)
+      )
+      |> Enum.to_list()
+    else
+      _error -> []
+    end
+  end
+
+  defp candidate_local_dates(_timezone, _window_start, _window_end), do: []
+
+  defp clipped_rail_segment(
+         user,
+         kind,
+         %DateTime{} = start_at,
+         %DateTime{} = end_at,
+         window_start,
+         window_end
+       ) do
+    clipped_start = max_datetime(start_at, window_start)
+    clipped_end = min_datetime(end_at, window_end)
+
+    if DateTime.compare(clipped_start, clipped_end) == :lt do
+      left_percent = rail_percent(clipped_start, window_start)
+      width_percent = rail_width_percent(clipped_start, clipped_end)
+
+      {:ok,
+       %{
+         kind: kind,
+         class: rail_segment_class(kind),
+         user_id: user.id,
+         start_at: DateTime.to_iso8601(clipped_start),
+         end_at: DateTime.to_iso8601(clipped_end),
+         left_percent: format_percent(left_percent),
+         width_percent: format_percent(width_percent),
+         style:
+           "left: #{format_percent(left_percent)}%; width: #{format_percent(width_percent)}%;",
+         label: rail_segment_label(user, kind, clipped_start, clipped_end)
+       }}
+    else
+      :error
+    end
+  end
+
+  defp rail_percent(%DateTime{} = datetime, %DateTime{} = window_start) do
+    datetime
+    |> DateTime.diff(window_start, :second)
+    |> Kernel./(24 * 60 * 60)
+    |> Kernel.*(100)
+  end
+
+  defp rail_width_percent(%DateTime{} = start_at, %DateTime{} = end_at) do
+    end_at
+    |> DateTime.diff(start_at, :second)
+    |> Kernel./(24 * 60 * 60)
+    |> Kernel.*(100)
+  end
+
+  defp rail_segment_class("daylight"), do: "rail-segment-daylight"
+  defp rail_segment_class("work-window"), do: "rail-segment-overlap"
+
+  defp rail_segment_label(user, "daylight", start_at, end_at) do
+    "#{user.name} daylight from #{format_rail_time(start_at)} to #{format_rail_time(end_at)} UTC"
+  end
+
+  defp rail_segment_label(user, "work-window", start_at, end_at) do
+    "#{user.name} work window from #{format_rail_time(start_at)} to #{format_rail_time(end_at)} UTC"
+  end
+
+  defp min_datetime(first, second) do
+    if DateTime.compare(first, second) == :gt, do: second, else: first
+  end
+
+  defp max_datetime(first, second) do
+    if DateTime.compare(first, second) == :lt, do: second, else: first
+  end
+
+  defp format_percent(value) do
+    value
+    |> Float.round(4)
+    |> :erlang.float_to_binary(decimals: 4)
+    |> String.trim_trailing("0")
+    |> String.trim_trailing(".")
   end
 
   defp rail_ticks(%DateTime{} = live_now) do

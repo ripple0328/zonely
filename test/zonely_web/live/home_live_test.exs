@@ -110,6 +110,76 @@ defmodule ZonelyWeb.HomeLiveTest do
     refute html =~ "18:47"
   end
 
+  test "preview rail renders computed context segments from teammate windows", %{conn: conn} do
+    {:ok, new_york_user} =
+      Accounts.create_user(%{
+        name: "Alice Remote",
+        role: "Frontend Developer",
+        timezone: "America/New_York",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("40.7128"),
+        longitude: Decimal.new("-74.0060")
+      })
+
+    {:ok, tokyo_user} =
+      Accounts.create_user(%{
+        name: "Yuki Tanaka",
+        role: "Engineering Manager",
+        timezone: "Asia/Tokyo",
+        country: "JP",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("35.6762"),
+        longitude: Decimal.new("139.6503")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#map-time-rail-context")
+
+    assert has_element?(
+             view,
+             "#map-time-rail-context [data-kind='work-window'][data-user-id='#{new_york_user.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#map-time-rail-context [data-kind='work-window'][data-user-id='#{tokyo_user.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#map-time-rail-context [data-kind='daylight'][data-user-id='#{new_york_user.id}']"
+           )
+
+    html = render(view)
+    refute html =~ ~s(class="rail-night")
+    refute html =~ ~s(class="rail-daylight"></span>)
+    refute html =~ ~s(class="rail-overlap"></span>)
+
+    work_segments = Regex.scan(~r/<span[^>]+data-kind="work-window"[^>]*>/, html)
+
+    assert Enum.any?(work_segments, fn [segment] ->
+             segment =~ "data-user-id=\"#{new_york_user.id}\"" and
+               segment =~ "style=\"left: 0%; width: 31.25%;\""
+           end)
+
+    assert Enum.any?(work_segments, fn [segment] ->
+             segment =~ "data-user-id=\"#{tokyo_user.id}\"" and
+               segment =~ ~r/style="left: (3|4)\d\.\d+%; width: 33\.3333%;"/
+           end)
+
+    assert work_segments
+           |> Enum.map(fn [segment] -> Regex.run(~r/style="([^"]+)"/, segment) end)
+           |> Enum.uniq()
+           |> length() > 1
+
+    assert html =~ "Alice Remote work window"
+    assert html =~ "Yuki Tanaka work window"
+  end
+
   test "preview rail stores server preview state, updates strip and orbit, and resets", %{
     conn: conn
   } do
@@ -148,6 +218,54 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert has_element?(view, "#now-context-strip", "Now")
     assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "09:30")
     assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "Reachable now")
+  end
+
+  test "preview bounds and reset use refreshed live_now source after mount", %{conn: conn} do
+    now_agent = start_supervised!({Agent, fn -> ~U[2026-01-15 14:30:00Z] end})
+    Application.put_env(:zonely, :home_live_now, fn -> Agent.get(now_agent, & &1) end)
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        name: "Mara Okafor",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "14:30")
+
+    Agent.update(now_agent, fn _old_now -> ~U[2026-01-15 15:45:00Z] end)
+
+    view
+    |> element("#map-time-rail-form")
+    |> render_change(%{"offset_minutes" => "60"})
+
+    assert has_element?(view, "#map-time-rail-status", "2026-01-15 16:45 UTC")
+    assert has_element?(view, "#map-time-rail-control[value='60']")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "16:45")
+    assert has_element?(view, "#map-time-rail-ticks [data-offset-minutes='0']", "15:45")
+
+    Agent.update(now_agent, fn _old_now -> ~U[2026-01-15 16:15:00Z] end)
+
+    view
+    |> element("#map-time-rail-reset")
+    |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      effective_at: "2026-01-15T16:15:00Z",
+      mode: "live"
+    })
+
+    refute has_element?(view, "#map-time-rail-reset")
+    assert has_element?(view, "#map-time-rail-status", "Live now at 16:15 UTC")
+    assert has_element?(view, "#team-orbit-user-#{user.id} .orbit-context", "16:15")
+    assert has_element?(view, "#map-time-rail-ticks [data-offset-minutes='0']", "16:15")
   end
 
   test "preview timestamps are parsed normalized clamped and malformed input is ignored", %{

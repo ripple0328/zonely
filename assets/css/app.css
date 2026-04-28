@@ -384,30 +384,33 @@ html, body {
   background: rgba(139, 151, 161, 0.22);
 }
 
-.rail-night,
-.rail-daylight,
-.rail-overlap {
+.rail-context-markers,
+.rail-segment {
   position: absolute;
+}
+
+.rail-context-markers {
+  left: 0;
+  right: 0;
   top: 50%;
   height: 0.7rem;
   transform: translateY(-50%);
+  border-radius: 999px;
+  overflow: hidden;
 }
 
-.rail-night {
-  left: 0;
-  width: 26%;
-  background: rgba(15, 23, 42, 0.34);
+.rail-segment {
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  border-radius: 999px;
 }
 
-.rail-daylight {
-  left: 22%;
-  width: 56%;
+.rail-segment-daylight {
   background: rgba(217, 154, 43, 0.32);
 }
 
-.rail-overlap {
-  left: 42%;
-  width: 24%;
+.rail-segment-overlap {
   background: rgba(31, 138, 112, 0.45);
 }
 
