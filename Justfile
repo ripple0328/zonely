@@ -10,6 +10,9 @@ PORT := "${PORT:-4020}"
 PHX_HOST := "${PHX_HOST:-zonely.qingbo.us}"
 DEPLOY_HOST := "${DEPLOY_HOST:-mini}"
 
+dev:
+	@portless zonely mix phx.server
+
 _platform command:
 	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} DEPLOY_HOST={{DEPLOY_HOST}} just -f {{PLATFORM_JUST}} {{command}}
 

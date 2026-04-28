@@ -13,10 +13,23 @@ mix deps.get
 mix assets.setup
 mix db.up
 mix ecto.setup
-mix phx.server
+just dev
 ```
 
-Open [localhost:4000](http://localhost:4000).
+Open [zonely.localhost](https://zonely.localhost).
+
+`just dev` is the golden path for the local web server. It starts Phoenix through
+Portless:
+
+```sh
+portless zonely mix phx.server
+```
+
+Portless assigns Phoenix a free local port through `PORT` and exposes the app at
+the stable browser URL `https://zonely.localhost`. The Phoenix dev endpoint still
+defaults to `http://localhost:4000` when started directly with `mix phx.server`.
+Keep Postgres, Redis, MailHog SMTP, and other non-HTTP local services on their
+Docker Compose ports.
 
 ## Configuration
 

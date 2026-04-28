@@ -38,8 +38,12 @@ cp .mise.local.toml.example .mise.local.toml
 mix deps.get
 mix db.up
 mix ecto.setup
-mix phx.server
+just dev
 ```
+
+The golden-path dev server runs through Portless so the browser URL stays stable:
+`https://zonely.localhost`. Phoenix still supports direct startup with
+`mix phx.server`, defaulting to `http://localhost:4000` unless `PORT` is set.
 
 Run checks before handing off changes:
 
