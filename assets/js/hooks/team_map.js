@@ -25,6 +25,7 @@ const TeamMap = {
       if (this.selectedMarkerEl) this.selectedMarkerEl.classList.remove('is-selected')
       const markerEl = marker.getElement()
       markerEl.classList.add('is-selected')
+      markerEl.dataset.selected = 'true'
       this.selectedMarkerEl = markerEl
 
       this.map.flyTo({
@@ -34,6 +35,10 @@ const TeamMap = {
         curve: 1.25,
         essential: true
       })
+    })
+
+    this.handleEvent('team_marker_states', (payload) => {
+      this.applyMarkerStates(payload)
     })
 
     if (!window.maplibregl) {
@@ -92,6 +97,11 @@ const TeamMap = {
         markerEl.className = `team-marker-pin state-${status}`
         markerEl.setAttribute('data-user-id', user.id)
         markerEl.setAttribute('data-status', status)
+        markerEl.dataset.selected = user.selected ? 'true' : 'false'
+        if (user.selected) {
+          markerEl.classList.add('is-selected')
+          this.selectedMarkerEl = markerEl
+        }
         const picture = this.escapeHtml(user.profile_picture || '')
         const name = this.escapeHtml(user.name || 'Team member')
         markerEl.innerHTML = `
@@ -125,6 +135,53 @@ const TeamMap = {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;')
+  },
+
+  applyMarkerStates(payload) {
+    const markers = Array.isArray(payload && payload.markers) ? payload.markers : []
+    const selectedUserId = payload && payload.selected_user_id != null ? String(payload.selected_user_id) : null
+
+    markers.forEach(markerState => {
+      if (!markerState || markerState.id == null) return
+
+      const userId = String(markerState.id)
+      const marker = this.markersById && this.markersById[userId]
+      if (!marker) return
+
+      const markerEl = marker.getElement()
+      const status = ['working', 'edge', 'off'].includes(markerState.status) ? markerState.status : 'off'
+      const isSelected = selectedUserId ? userId === selectedUserId : markerState.selected === true
+
+      markerEl.classList.remove('state-working', 'state-edge', 'state-off')
+      markerEl.classList.add(`state-${status}`)
+      markerEl.classList.toggle('is-selected', isSelected)
+      markerEl.dataset.status = status
+      markerEl.dataset.effectiveAt = payload.effective_at || ''
+      markerEl.dataset.previewMode = payload.mode || 'live'
+      markerEl.dataset.selected = isSelected ? 'true' : 'false'
+
+      if (isSelected) this.selectedMarkerEl = markerEl
+    })
+
+    if (!selectedUserId && this.selectedMarkerEl) {
+      this.selectedMarkerEl.classList.remove('is-selected')
+      this.selectedMarkerEl.dataset.selected = 'false'
+      this.selectedMarkerEl = null
+    }
+
+    if (window.teamUsers) {
+      const stateById = new Map(markers.map(markerState => [String(markerState.id), markerState]))
+      window.teamUsers = window.teamUsers.map(user => {
+        const markerState = stateById.get(String(user.id))
+        if (!markerState) return user
+
+        return {
+          ...user,
+          status: markerState.status,
+          selected: selectedUserId ? String(user.id) === selectedUserId : markerState.selected === true
+        }
+      })
+    }
   },
 
   async addTimezoneOverlay(map) {

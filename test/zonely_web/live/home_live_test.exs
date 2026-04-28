@@ -183,6 +183,80 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert has_element?(view, "#map-time-rail-control[value='1440']")
   end
 
+  test "preview and reset push structured marker payloads while preserving selected teammate", %{
+    conn: conn
+  } do
+    {:ok, new_york_user} =
+      Accounts.create_user(%{
+        name: "Alice Remote",
+        role: "Frontend Developer",
+        timezone: "America/New_York",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("40.7128"),
+        longitude: Decimal.new("-74.0060")
+      })
+
+    {:ok, lisbon_user} =
+      Accounts.create_user(%{
+        name: "Mara Okafor",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+    lisbon_user_id = lisbon_user.id
+    lisbon_user_id_string = to_string(lisbon_user_id)
+
+    view
+    |> element("#team-orbit-user-#{lisbon_user.id}")
+    |> render_click()
+
+    assert_push_event(view, "focus_user", %{user_id: ^lisbon_user_id_string})
+
+    view
+    |> element("#map-time-rail-form")
+    |> render_change(%{"offset_minutes" => "480"})
+
+    assert_push_event(view, "team_marker_states", %{
+      effective_at: "2026-01-15T22:30:00Z",
+      mode: "preview",
+      selected_user_id: lisbon_user_id,
+      markers: preview_markers
+    })
+
+    assert Enum.find(preview_markers, &(&1.id == new_york_user.id)).status == "edge"
+
+    assert %{id: ^lisbon_user_id, status: "off", selected: true} =
+             Enum.find(preview_markers, &(&1.id == lisbon_user_id))
+
+    assert has_element?(view, "#profile-panel", "Mara Okafor")
+
+    view
+    |> element("#map-time-rail-reset")
+    |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      effective_at: "2026-01-15T14:30:00Z",
+      mode: "live",
+      selected_user_id: lisbon_user_id,
+      markers: live_markers
+    })
+
+    assert Enum.find(live_markers, &(&1.id == new_york_user.id)).status == "working"
+
+    assert %{id: ^lisbon_user_id, status: "working", selected: true} =
+             Enum.find(live_markers, &(&1.id == lisbon_user_id))
+
+    assert has_element?(view, "#profile-panel", "Mara Okafor")
+  end
+
   test "team orbit opens selected teammate context on the map", %{conn: conn} do
     {:ok, user} =
       Accounts.create_user(%{

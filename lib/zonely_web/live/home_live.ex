@@ -59,7 +59,8 @@ defmodule ZonelyWeb.HomeLive do
         {:noreply,
          socket
          |> assign(:preview_at, preview_at)
-         |> assign_effective_time()}
+         |> assign_effective_time()
+         |> push_marker_state_update()}
 
       :error ->
         {:noreply, socket}
@@ -70,7 +71,8 @@ defmodule ZonelyWeb.HomeLive do
     {:noreply,
      socket
      |> assign(:preview_at, nil)
-     |> assign_effective_time()}
+     |> assign_effective_time()
+     |> push_marker_state_update()}
   end
 
   def handle_event("play_english_pronunciation", %{"user_id" => id}, socket) do
@@ -316,7 +318,7 @@ defmodule ZonelyWeb.HomeLive do
           aria-label="Close teammate context"
         >
         </button>
-        <div class="profile-panel-position" phx-click-away="hide_profile">
+        <div class="profile-panel-position">
           <.profile_card
             user={@selected_user}
             loading_pronunciation={@loading_pronunciation}
@@ -342,10 +344,36 @@ defmodule ZonelyWeb.HomeLive do
 
     socket
     |> assign(:effective_at, effective_at)
-    |> assign(:map_users_json, users_to_json(socket.assigns.users, effective_at))
+    |> assign(
+      :map_users_json,
+      marker_payload(socket.assigns.users, effective_at, nil) |> Jason.encode!()
+    )
     |> assign(:reachability, Reachability.summary(socket.assigns.users, effective_at))
     |> assign(:rail, rail_state(socket.assigns.live_now, socket.assigns.preview_at, effective_at))
   end
+
+  defp push_marker_state_update(socket) do
+    push_event(socket, "team_marker_states", marker_state_payload(socket))
+  end
+
+  defp marker_state_payload(socket) do
+    selected_user_id = selected_user_id(socket.assigns.selected_user)
+
+    %{
+      effective_at: DateTime.to_iso8601(socket.assigns.effective_at),
+      mode: if(socket.assigns.preview_at, do: "preview", else: "live"),
+      selected_user_id: selected_user_id,
+      markers:
+        marker_payload(
+          socket.assigns.users,
+          socket.assigns.effective_at,
+          selected_user_id
+        )
+    }
+  end
+
+  defp selected_user_id(%{id: id}), do: id
+  defp selected_user_id(_selected_user), do: nil
 
   defp live_now do
     case Application.get_env(:zonely, :home_live_now) do
@@ -524,7 +552,7 @@ defmodule ZonelyWeb.HomeLive do
 
   defp share_error_message(_reason), do: "Could not create SayMyName share right now."
 
-  defp users_to_json(users, %DateTime{} = effective_at) do
+  defp marker_payload(users, %DateTime{} = effective_at, selected_user_id) do
     users
     |> Enum.filter(&(&1.latitude && &1.longitude))
     |> Enum.map(fn user ->
@@ -540,10 +568,10 @@ defmodule ZonelyWeb.HomeLive do
         work_start: format_time(user.work_start),
         work_end: format_time(user.work_end),
         status: Reachability.marker_state(user, effective_at),
+        selected: user.id == selected_user_id,
         profile_picture: AvatarService.generate_avatar_url(user.name, 64)
       }
     end)
-    |> Jason.encode!()
   end
 
   defp coordinate_to_float(%Decimal{} = value), do: Decimal.to_float(value)

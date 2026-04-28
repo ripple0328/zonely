@@ -348,7 +348,7 @@ html, body {
   position: absolute;
   left: 50%;
   bottom: max(1rem, env(safe-area-inset-bottom));
-  z-index: 4;
+  z-index: 60;
   width: min(42rem, calc(100vw - 2rem));
   transform: translateX(-50%);
   border-radius: 20px;
