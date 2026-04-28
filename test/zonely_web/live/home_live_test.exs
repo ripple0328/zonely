@@ -375,6 +375,105 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert has_element?(view, "#profile-panel", "Mara Okafor")
   end
 
+  test "multi-select state is canonical capped accessible and reset preserves group", %{
+    conn: conn
+  } do
+    users =
+      [
+        {"Alice Remote", "Frontend Developer", "America/New_York", "US", "40.7128", "-74.0060"},
+        {"Mara Okafor", "Product Lead", "Europe/Lisbon", "PT", "38.7223", "-9.1393"},
+        {"Yuki Tanaka", "Engineering Manager", "Asia/Tokyo", "JP", "35.6762", "139.6503"},
+        {"Diego Silva", "Designer", "America/Sao_Paulo", "BR", "-23.5505", "-46.6333"}
+      ]
+      |> Enum.map(fn {name, role, timezone, country, latitude, longitude} ->
+        {:ok, user} =
+          Accounts.create_user(%{
+            name: name,
+            role: role,
+            timezone: timezone,
+            country: country,
+            work_start: ~T[09:00:00],
+            work_end: ~T[17:00:00],
+            latitude: Decimal.new(latitude),
+            longitude: Decimal.new(longitude)
+          })
+
+        user
+      end)
+
+    [alice, mara, yuki, diego] = users
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view |> element("#team-orbit-add-#{alice.id}") |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      selected_user_ids: [alice_id],
+      markers: markers
+    })
+
+    assert alice_id == alice.id
+    assert Enum.find(markers, &(&1.id == alice.id)).selected == true
+    refute has_element?(view, "#profile-panel [data-testid='selected-decision-sheet']")
+
+    view |> element("#team-orbit-add-#{mara.id}") |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      selected_user_ids: selected_ids,
+      selected_user_id: nil,
+      markers: markers
+    })
+
+    assert selected_ids == [alice.id, mara.id]
+    assert Enum.filter(markers, & &1.selected) |> Enum.map(& &1.id) == [alice.id, mara.id]
+    refute has_element?(view, "#profile-panel [data-testid='selected-decision-sheet']")
+    assert has_element?(view, "#selected-group-summary", "2 of 2 teammates are reachable now")
+
+    view |> element("#team-orbit-add-#{yuki.id}") |> render_click()
+    assert_push_event(view, "team_marker_states", %{selected_user_ids: three_ids})
+    assert three_ids == [alice.id, mara.id, yuki.id]
+
+    view |> element("#team-orbit-add-#{diego.id}") |> render_click()
+    assert has_element?(view, "#selected-group-feedback", "Compare up to three teammates.")
+    assert has_element?(view, "#selected-group-summary", "Comparing 3 teammates")
+
+    view |> element("#map-time-rail-form") |> render_change(%{"offset_minutes" => "600"})
+
+    assert_push_event(view, "team_marker_states", %{
+      mode: "preview",
+      selected_user_ids: preview_selected_ids,
+      markers: preview_markers
+    })
+
+    assert preview_selected_ids == [alice.id, mara.id, yuki.id]
+
+    assert Enum.filter(preview_markers, & &1.selected) |> Enum.map(& &1.id) ==
+             preview_selected_ids
+
+    assert has_element?(view, "#selected-group-summary", "Preview")
+
+    view |> element("#map-time-rail-reset") |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      mode: "live",
+      selected_user_ids: reset_selected_ids,
+      markers: reset_markers
+    })
+
+    assert reset_selected_ids == [alice.id, mara.id, yuki.id]
+    assert Enum.filter(reset_markers, & &1.selected) |> Enum.map(& &1.id) == reset_selected_ids
+    assert has_element?(view, "#selected-group-summary", "Comparing 3 teammates")
+    refute has_element?(view, "#map-time-rail-reset")
+
+    view |> element("#selected-group-remove-#{mara.id}") |> render_click()
+    assert_push_event(view, "team_marker_states", %{selected_user_ids: [^alice_id, yuki_id]})
+    assert yuki_id == yuki.id
+    assert has_element?(view, "#selected-group-summary", "Comparing 2 teammates")
+
+    view |> element("#selected-group-clear") |> render_click()
+    assert_push_event(view, "team_marker_states", %{selected_user_ids: []})
+    refute has_element?(view, "#selected-group-summary")
+  end
+
   test "boundary/off teammate preview journey synchronizes rail map orbit strip sheet and reset",
        %{
          conn: conn

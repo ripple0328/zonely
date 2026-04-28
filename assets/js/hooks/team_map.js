@@ -17,15 +17,14 @@ const TeamMap = {
     window.teamUsers = users
     this.markersById = {}
     this.selectedMarkerEl = null
+    this.selectedMarkerEls = new Set()
 
     this.handleEvent('focus_user', ({ user_id }) => {
       const marker = this.markersById && this.markersById[user_id]
       if (!marker || !this.map) return
 
-      if (this.selectedMarkerEl) this.selectedMarkerEl.classList.remove('is-selected')
       const markerEl = marker.getElement()
-      markerEl.classList.add('is-selected')
-      markerEl.dataset.selected = 'true'
+      this.setSelectedMarkers(new Set([String(user_id)]))
       this.selectedMarkerEl = markerEl
 
       this.map.flyTo({
@@ -101,6 +100,7 @@ const TeamMap = {
         if (user.selected) {
           markerEl.classList.add('is-selected')
           this.selectedMarkerEl = markerEl
+          this.selectedMarkerEls.add(markerEl)
         }
         const picture = this.escapeHtml(user.profile_picture || '')
         const name = this.escapeHtml(user.name || 'Team member')
@@ -139,7 +139,11 @@ const TeamMap = {
 
   applyMarkerStates(payload) {
     const markers = Array.isArray(payload && payload.markers) ? payload.markers : []
+    const selectedUserIds = Array.isArray(payload && payload.selected_user_ids)
+      ? payload.selected_user_ids.map(id => String(id))
+      : []
     const selectedUserId = payload && payload.selected_user_id != null ? String(payload.selected_user_id) : null
+    const selectedIdSet = new Set(selectedUserIds.length > 0 ? selectedUserIds : (selectedUserId ? [selectedUserId] : []))
 
     markers.forEach(markerState => {
       if (!markerState || markerState.id == null) return
@@ -150,7 +154,7 @@ const TeamMap = {
 
       const markerEl = marker.getElement()
       const status = ['working', 'edge', 'off'].includes(markerState.status) ? markerState.status : 'off'
-      const isSelected = selectedUserId ? userId === selectedUserId : markerState.selected === true
+      const isSelected = selectedIdSet.size > 0 ? selectedIdSet.has(userId) : markerState.selected === true
 
       markerEl.classList.remove('state-working', 'state-edge', 'state-off')
       markerEl.classList.add(`state-${status}`)
@@ -160,13 +164,16 @@ const TeamMap = {
       markerEl.dataset.previewMode = payload.mode || 'live'
       markerEl.dataset.selected = isSelected ? 'true' : 'false'
 
-      if (isSelected) this.selectedMarkerEl = markerEl
+      if (isSelected) {
+        this.selectedMarkerEl = markerEl
+        this.selectedMarkerEls.add(markerEl)
+      } else {
+        this.selectedMarkerEls.delete(markerEl)
+      }
     })
 
-    if (!selectedUserId && this.selectedMarkerEl) {
-      this.selectedMarkerEl.classList.remove('is-selected')
-      this.selectedMarkerEl.dataset.selected = 'false'
-      this.selectedMarkerEl = null
+    if (selectedIdSet.size === 0) {
+      this.clearSelectedMarkers()
     }
 
     if (window.teamUsers) {
@@ -178,9 +185,41 @@ const TeamMap = {
         return {
           ...user,
           status: markerState.status,
-          selected: selectedUserId ? String(user.id) === selectedUserId : markerState.selected === true
+          selected: selectedIdSet.size > 0 ? selectedIdSet.has(String(user.id)) : markerState.selected === true
         }
       })
+    }
+  },
+
+  setSelectedMarkers(selectedIdSet) {
+    if (!this.markersById) return
+
+    Object.entries(this.markersById).forEach(([userId, marker]) => {
+      const markerEl = marker.getElement()
+      const isSelected = selectedIdSet.has(String(userId))
+      markerEl.classList.toggle('is-selected', isSelected)
+      markerEl.dataset.selected = isSelected ? 'true' : 'false'
+      if (isSelected) {
+        this.selectedMarkerEls.add(markerEl)
+      } else {
+        this.selectedMarkerEls.delete(markerEl)
+      }
+    })
+  },
+
+  clearSelectedMarkers() {
+    if (this.selectedMarkerEls) {
+      this.selectedMarkerEls.forEach(markerEl => {
+        markerEl.classList.remove('is-selected')
+        markerEl.dataset.selected = 'false'
+      })
+      this.selectedMarkerEls.clear()
+    }
+
+    if (this.selectedMarkerEl) {
+      this.selectedMarkerEl.classList.remove('is-selected')
+      this.selectedMarkerEl.dataset.selected = 'false'
+      this.selectedMarkerEl = null
     }
   },
 

@@ -8,6 +8,8 @@ defmodule ZonelyWeb.HomeLive do
   alias Zonely.Reachability
   alias Zonely.SayMyNameShareClient
 
+  @comparison_limit 3
+
   @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_users()
@@ -20,8 +22,10 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:users, users)
      |> assign(:live_now, live_now)
      |> assign(:preview_at, nil)
-     |> assign_effective_time()
+     |> assign(:selected_user_ids, [])
      |> assign(:selected_user, nil)
+     |> assign(:selection_feedback, nil)
+     |> assign_effective_time()
      |> assign(:loading_pronunciation, nil)
      |> assign(:playing_pronunciation, %{})
      |> assign(:name_card_share_urls, %{})
@@ -39,18 +43,60 @@ defmodule ZonelyWeb.HomeLive do
 
   @impl true
   def handle_event("show_profile", %{"user_id" => id}, socket) do
-    user = Enum.find(socket.assigns.users, &("#{&1.id}" == id))
+    selected_user_ids = user_ids_from_param(id, socket.assigns.users) |> Enum.take(1)
+    user = selected_user(socket.assigns.users, selected_user_ids)
 
     socket =
       socket
+      |> assign(:selected_user_ids, selected_user_ids)
       |> assign(:selected_user, user)
+      |> assign(:selection_feedback, nil)
+      |> assign_effective_time()
       |> push_event("focus_user", %{user_id: id})
+      |> push_marker_state_update()
 
     {:noreply, socket}
   end
 
   def handle_event("hide_profile", _params, socket) do
-    {:noreply, assign(socket, :selected_user, nil)}
+    {:noreply, clear_selection(socket)}
+  end
+
+  def handle_event("toggle_compare_user", %{"user_id" => id}, socket) do
+    selected_user_ids =
+      toggle_selected_user_id(socket.assigns.selected_user_ids, id, socket.assigns.users)
+
+    capped_user_ids = Enum.take(selected_user_ids, @comparison_limit)
+
+    feedback =
+      if length(selected_user_ids) > @comparison_limit,
+        do: "Compare up to three teammates.",
+        else: nil
+
+    {:noreply,
+     socket
+     |> assign(:selected_user_ids, capped_user_ids)
+     |> assign(:selected_user, nil)
+     |> assign(:selection_feedback, feedback)
+     |> assign_effective_time()
+     |> push_marker_state_update()}
+  end
+
+  def handle_event("remove_selected_user", %{"user_id" => id}, socket) do
+    ids_to_remove = user_ids_from_param(id, socket.assigns.users)
+    selected_user_ids = socket.assigns.selected_user_ids -- ids_to_remove
+
+    {:noreply,
+     socket
+     |> assign(:selected_user_ids, selected_user_ids)
+     |> assign(:selection_feedback, nil)
+     |> assign_selected_user_from_ids()
+     |> assign_effective_time()
+     |> push_marker_state_update()}
+  end
+
+  def handle_event("clear_selected_users", _params, socket) do
+    {:noreply, clear_selection(socket)}
   end
 
   def handle_event("preview_time", params, socket) do
@@ -235,10 +281,11 @@ defmodule ZonelyWeb.HomeLive do
               :for={user <- @users}
               id={"team-orbit-user-#{user.id}"}
               type="button"
-              class="orbit-row"
+              class={["orbit-row", selected_user?(@selected_user_ids, user.id) && "is-selected"]}
               phx-click="show_profile"
               phx-value-user_id={user.id}
               data-testid="team-orbit-row"
+              aria-pressed={@selected_user_ids == [user.id]}
             >
               <span class={["orbit-status-dot", Reachability.orbit_status_class(user, @effective_at)]}></span>
               <span class="orbit-copy">
@@ -249,7 +296,64 @@ defmodule ZonelyWeb.HomeLive do
               </span>
               <span class="orbit-offset">{Reachability.offset_label(user.timezone, @effective_at)}</span>
             </button>
+            <button
+              :for={user <- @users}
+              id={"team-orbit-add-#{user.id}"}
+              type="button"
+              class="orbit-compare-button"
+              phx-click="toggle_compare_user"
+              phx-value-user_id={user.id}
+              aria-pressed={selected_user?(@selected_user_ids, user.id)}
+              aria-label={compare_button_label(@selected_user_ids, user)}
+            >
+              {compare_button_text(@selected_user_ids, user)}
+            </button>
           </div>
+
+          <p
+            :if={@selection_feedback}
+            id="selected-group-feedback"
+            class="selection-feedback"
+            role="status"
+            aria-live="polite"
+          >
+            {@selection_feedback}
+          </p>
+
+          <section
+            :if={length(@selected_user_ids) >= 2}
+            id="selected-group-summary"
+            class="selected-group-summary"
+            aria-label="Selected teammate comparison summary"
+          >
+            <div>
+              <p class="context-eyebrow">{strip_mode_label(@preview_at)}</p>
+              <h3>Comparing {length(@selected_user_ids)} teammates</h3>
+              <p>{@selected_group_summary.text}</p>
+            </div>
+            <div class="selected-group-actions">
+              <button
+                :for={user <- selected_users(@users, @selected_user_ids)}
+                id={"selected-group-remove-#{user.id}"}
+                type="button"
+                class="orbit-compare-button"
+                phx-click="remove_selected_user"
+                phx-value-user_id={user.id}
+                aria-label={"Remove #{user.name} from comparison"}
+              >
+                Remove {user.name}
+              </button>
+              <button
+                type="button"
+                id="selected-group-clear"
+                class="orbit-compare-button"
+                phx-click="clear_selected_users"
+                aria-label="Clear selected teammate comparison"
+              >
+                Clear group
+              </button>
+            </div>
+          </section>
         </aside>
 
         <div
@@ -370,14 +474,17 @@ defmodule ZonelyWeb.HomeLive do
 
   defp assign_effective_time(socket) do
     effective_at = Reachability.effective_at(socket.assigns.preview_at, socket.assigns.live_now)
+    selected_user_ids = Map.get(socket.assigns, :selected_user_ids, [])
+    selected_users = selected_users(socket.assigns.users, selected_user_ids)
 
     socket
     |> assign(:effective_at, effective_at)
     |> assign(
       :map_users_json,
-      marker_payload(socket.assigns.users, effective_at, nil) |> Jason.encode!()
+      marker_payload(socket.assigns.users, effective_at, selected_user_ids) |> Jason.encode!()
     )
     |> assign(:reachability, Reachability.summary(socket.assigns.users, effective_at))
+    |> assign(:selected_group_summary, Reachability.group_summary(selected_users, effective_at))
     |> assign(
       :rail,
       rail_state(
@@ -394,23 +501,86 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   defp marker_state_payload(socket) do
-    selected_user_id = selected_user_id(socket.assigns.selected_user)
+    selected_user_ids = socket.assigns.selected_user_ids
+    selected_user_id = single_selected_user_id(selected_user_ids)
 
     %{
       effective_at: DateTime.to_iso8601(socket.assigns.effective_at),
       mode: if(socket.assigns.preview_at, do: "preview", else: "live"),
       selected_user_id: selected_user_id,
+      selected_user_ids: selected_user_ids,
       markers:
         marker_payload(
           socket.assigns.users,
           socket.assigns.effective_at,
-          selected_user_id
+          selected_user_ids
         )
     }
   end
 
-  defp selected_user_id(%{id: id}), do: id
-  defp selected_user_id(_selected_user), do: nil
+  defp single_selected_user_id([id]), do: id
+  defp single_selected_user_id(_selected_user_ids), do: nil
+
+  defp clear_selection(socket) do
+    socket
+    |> assign(:selected_user_ids, [])
+    |> assign(:selected_user, nil)
+    |> assign(:selection_feedback, nil)
+    |> assign_effective_time()
+    |> push_marker_state_update()
+  end
+
+  defp assign_selected_user_from_ids(socket) do
+    assign(
+      socket,
+      :selected_user,
+      selected_user(socket.assigns.users, socket.assigns.selected_user_ids)
+    )
+  end
+
+  defp selected_user(users, [id]), do: Enum.find(users, &(&1.id == id))
+  defp selected_user(_users, _selected_user_ids), do: nil
+
+  defp selected_users(users, selected_user_ids) when is_list(selected_user_ids) do
+    selected_user_ids
+    |> Enum.map(fn id -> Enum.find(users, &(&1.id == id)) end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp selected_user?(selected_user_ids, user_id), do: user_id in selected_user_ids
+
+  defp toggle_selected_user_id(selected_user_ids, id, users) do
+    case user_ids_from_param(id, users) do
+      [user_id] ->
+        if user_id in selected_user_ids do
+          List.delete(selected_user_ids, user_id)
+        else
+          selected_user_ids ++ [user_id]
+        end
+
+      [] ->
+        selected_user_ids
+    end
+  end
+
+  defp user_ids_from_param(id, users) do
+    users
+    |> Enum.find(&("#{&1.id}" == to_string(id)))
+    |> case do
+      %{id: user_id} -> [user_id]
+      nil -> []
+    end
+  end
+
+  defp compare_button_text(selected_user_ids, user) do
+    if selected_user?(selected_user_ids, user.id), do: "Remove", else: "Compare"
+  end
+
+  defp compare_button_label(selected_user_ids, user) do
+    if selected_user?(selected_user_ids, user.id),
+      do: "Remove #{user.name} from comparison",
+      else: "Add #{user.name} to comparison"
+  end
 
   defp live_now do
     case Application.get_env(:zonely, :home_live_now) do
@@ -748,7 +918,7 @@ defmodule ZonelyWeb.HomeLive do
 
   defp share_error_message(_reason), do: "Could not create SayMyName share right now."
 
-  defp marker_payload(users, %DateTime{} = effective_at, selected_user_id) do
+  defp marker_payload(users, %DateTime{} = effective_at, selected_user_ids) do
     users
     |> Enum.filter(&(&1.latitude && &1.longitude))
     |> Enum.map(fn user ->
@@ -764,7 +934,7 @@ defmodule ZonelyWeb.HomeLive do
         work_start: format_time(user.work_start),
         work_end: format_time(user.work_end),
         status: Reachability.marker_state(user, effective_at),
-        selected: user.id == selected_user_id,
+        selected: user.id in selected_user_ids,
         profile_picture: AvatarService.generate_avatar_url(user.name, 64)
       }
     end)

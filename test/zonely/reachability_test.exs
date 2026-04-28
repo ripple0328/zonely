@@ -40,6 +40,39 @@ defmodule Zonely.ReachabilityTest do
     end
   end
 
+  describe "group_summary/2" do
+    test "summarizes selected teammates deterministically from the effective time" do
+      users = [
+        user("America/New_York", "US"),
+        user("Europe/Lisbon", "PT"),
+        user("Asia/Tokyo", "JP")
+      ]
+
+      live_summary = Reachability.group_summary(users, @now)
+      preview_summary = Reachability.group_summary(users, ~U[2026-01-16 00:30:00Z])
+
+      assert live_summary == Reachability.group_summary(users, @now)
+      assert live_summary.selected_count == 3
+      assert live_summary.working == 2
+      assert live_summary.edge == 0
+      assert live_summary.off == 1
+      assert live_summary.text == "2 of 3 teammates are reachable now; 1 should wait."
+
+      assert preview_summary.working == 1
+      assert preview_summary.text == "1 of 3 teammates is reachable now; 2 should wait."
+    end
+
+    test "handles empty selected groups without hidden clock calls" do
+      assert Reachability.group_summary([], @now) == %{
+               selected_count: 0,
+               working: 0,
+               edge: 0,
+               off: 0,
+               text: "No teammates selected."
+             }
+    end
+  end
+
   describe "labels" do
     test "explains reachable teammates with direct map copy" do
       user = user("America/New_York", "US")

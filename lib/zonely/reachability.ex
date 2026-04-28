@@ -47,6 +47,26 @@ defmodule Zonely.Reachability do
     }
   end
 
+  @spec group_summary([User.t()], DateTime.t()) :: %{
+          selected_count: non_neg_integer(),
+          working: non_neg_integer(),
+          edge: non_neg_integer(),
+          off: non_neg_integer(),
+          text: String.t()
+        }
+  def group_summary(users, %DateTime{} = now) when is_list(users) do
+    summary = summary(users, now)
+    selected_count = length(users)
+
+    %{
+      selected_count: selected_count,
+      working: summary.working,
+      edge: summary.edge,
+      off: summary.off,
+      text: group_summary_text(selected_count, summary.working, summary.edge, summary.off)
+    }
+  end
+
   @spec marker_state(User.t(), DateTime.t()) :: String.t()
   def marker_state(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     user
@@ -224,6 +244,29 @@ defmodule Zonely.Reachability do
   defp transition_text(:workday_end, local_time), do: "Workday ends at #{local_time}"
   defp transition_text(:workday_start, local_time), do: "Workday starts at #{local_time}"
   defp transition_text(:back_tomorrow, local_time), do: "Back tomorrow at #{local_time}"
+
+  defp group_summary_text(0, _working, _edge, _off), do: "No teammates selected."
+
+  defp group_summary_text(selected_count, working, edge, off) do
+    [
+      reachable_group_phrase(working, selected_count),
+      count_phrase(edge, "near a boundary"),
+      count_phrase(off, "should wait")
+    ]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("; ")
+    |> Kernel.<>(".")
+  end
+
+  defp reachable_group_phrase(1, selected_count),
+    do: "1 of #{selected_count} teammates is reachable now"
+
+  defp reachable_group_phrase(count, selected_count),
+    do: "#{count} of #{selected_count} teammates are reachable now"
+
+  defp count_phrase(0, _label), do: ""
+  defp count_phrase(1, label), do: "1 #{label}"
+  defp count_phrase(count, label), do: "#{count} #{label}"
 
   defp local_time(%User{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
     case DateTime.shift_zone(now, timezone) do
