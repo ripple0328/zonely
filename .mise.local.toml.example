@@ -1,0 +1,7 @@
+# Local-only Zonely secrets. Copy to `.mise.local.toml`.
+# `.mise.local.toml` is gitignored and must not be committed.
+
+[env]
+# MAPTILER_API_KEY = "..."
+# PRONUNCIATION_API_KEY = "..."
+

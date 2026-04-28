@@ -49,8 +49,10 @@ npm-debug.log
 .env
 .env.local
 .envrc
+.mise.local.toml
 
-# Production environment files (contains secrets)
+# Legacy production env files. Production secrets live on Mini in
+# ~/.config/zonely/env.runtime and are never committed here.
 .env.prod
 
 # IDE and editor files

@@ -3,8 +3,6 @@
 
 const TeamMap = {
   mounted() {
-    console.log('TeamMap hook mounted!')
-
     // Store initial timezone info - will calculate offset properly after map loads
     try {
       this.viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Etc/UTC'
@@ -16,6 +14,12 @@ const TeamMap = {
     this.ensurePopupStyles()
 
     const users = JSON.parse(this.el.dataset.users || '[]')
+    window.teamUsers = users
+
+    if (!window.maplibregl) {
+      this.el.dataset.mapState = 'missing-maplibre'
+      return
+    }
 
     // Initialize MapLibre GL JS map (OSM raster)
     let map
@@ -53,9 +57,6 @@ const TeamMap = {
       // Now that all methods are available, properly calculate viewer offset
       this.viewerOffsetHours = this.resolveOffsetHours(this.viewerTz, {})
       
-      // Inform LiveView of the viewer's timezone
-      this.pushEvent('set_viewer_tz', { tz: this.viewerTz })
-      
       // Add timezone overlay with hover highlight
       this.addTimezoneOverlay(map)
       // Add day/night sunlight overlay
@@ -67,12 +68,16 @@ const TeamMap = {
       // Add team member markers
       users.forEach(user => {
         const markerEl = document.createElement('div')
-        markerEl.className = 'team-marker-pin'
+        const status = ['working', 'edge', 'off'].includes(user.status) ? user.status : 'off'
+        markerEl.className = `team-marker-pin state-${status}`
         markerEl.setAttribute('data-user-id', user.id)
+        markerEl.setAttribute('data-status', status)
+        const picture = this.escapeHtml(user.profile_picture || '')
+        const name = this.escapeHtml(user.name || 'Team member')
         markerEl.innerHTML = `
           <div class="relative flex flex-col items-center">
             <div class="relative">
-              <img src="${user.profile_picture}" alt="${user.name}" class="w-12 h-12 rounded-full border-3 border-white shadow-lg object-cover cursor-pointer" />
+              <img src="${picture}" alt="${name}" class="h-12 w-12 rounded-full border-[3px] border-white object-cover shadow-lg cursor-pointer" />
             </div>
           </div>
         `
@@ -87,121 +92,16 @@ const TeamMap = {
           this.pushEvent('show_profile', { user_id: user.id })
         })
       })
-      // Hide CTA if cookie says so
-      try {
-        if (document.cookie.includes('map_demo_hide=1')) {
-          const cta = document.getElementById('start-demo-cta')
-          if (cta) cta.remove()
-        }
-      } catch (_) {}
     })
+  },
 
-    // Server-driven demo: open timezone popup at coordinates
-    this.handleEvent('open_tz_popup', ({ tzid, lat, lng }) => {
-      try {
-        const offsetHours = this.resolveOffsetHours(tzid, {})
-        const { timeStr, dateStr } = this.formatTimeAndDate(tzid, offsetHours)
-        const displayName = this.friendlyZoneName(tzid, offsetHours)
-        const theme = this.isDaytimeInZone(tzid, offsetHours) ? 'tzp-light' : 'tzp-dark'
-        const popup = new maplibregl.Popup({ className: 'tz-popup', closeButton: false, closeOnMove: true, offset: 18, maxWidth: '320px' })
-          .setLngLat([lng, lat])
-          .setHTML(this.renderPopup({ theme, flag: '', displayName, timeStr, dateStr, rel: '', weekend: this.isWeekendInZone(tzid, offsetHours) }))
-          .addTo(this.map)
-        const el = popup.getElement()
-        const btn = el && el.querySelector('.tzp-close')
-        if (btn) btn.onclick = () => popup.remove()
-      } catch (e) {
-        console.warn('Failed to open tz popup', e)
-      }
-    })
-
-    // Server-driven highlight: dims page and outlines a target selector
-    this.handleEvent('demo_highlight', ({ selector }) => {
-      try {
-        // Ensure only one overlay exists
-        let overlay = document.getElementById('demo-overlay')
-        if (!overlay) {
-          overlay = document.createElement('div')
-          overlay.id = 'demo-overlay'
-          overlay.style.position = 'fixed'
-          overlay.style.inset = '0'
-          overlay.style.background = 'rgba(0,0,0,0.35)'
-          overlay.style.zIndex = '999'
-          overlay.style.pointerEvents = 'none'
-          document.body.appendChild(overlay)
-        }
-
-        // Remove previous highlight to avoid stacking
-        const prev = document.getElementById('demo-highlight')
-        if (prev) prev.remove()
-
-        // Special end signal clears everything
-        if (selector === '__end__') {
-          document.getElementById('demo-highlight')?.remove()
-          document.getElementById('demo-overlay')?.remove()
-          // Show end-of-demo prompt to remove CTA button and remember preference
-          try {
-            const cta = document.getElementById('start-demo-cta')
-            if (cta && !document.getElementById('end-demo-prompt')) {
-              const prompt = document.createElement('div')
-              prompt.id = 'end-demo-prompt'
-              prompt.style.position = 'absolute'
-              prompt.style.top = '0'
-              prompt.style.right = '0'
-              prompt.style.transform = 'translateY(calc(100% + 8px))'
-              prompt.style.background = '#ffffff'
-              prompt.style.border = '1px solid #e5e7eb'
-              prompt.style.borderRadius = '8px'
-              prompt.style.boxShadow = '0 10px 20px rgba(0,0,0,0.12)'
-              prompt.style.padding = '8px'
-              prompt.style.zIndex = '1600'
-              prompt.innerHTML = `
-                <div style="font-size:12px; color:#374151; margin-bottom:6px">Hide the Start Demo button next time?</div>
-                <div style="display:flex; gap:6px">
-                  <button id="hide-demo" style="padding:6px 8px; border-radius:6px; background:#ef4444; color:#fff; border:none; font-size:12px">Remove</button>
-                  <button id="keep-demo" style="padding:6px 8px; border-radius:6px; background:#e5e7eb; color:#111827; border:1px solid #d1d5db; font-size:12px">Keep</button>
-                </div>
-              `
-              cta.appendChild(prompt)
-              const hide = prompt.querySelector('#hide-demo')
-              const keep = prompt.querySelector('#keep-demo')
-              if (hide) hide.onclick = () => {
-                try { document.cookie = 'map_demo_hide=1; Max-Age=31536000; path=/; SameSite=Lax' } catch (_) {}
-                cta.remove()
-                prompt.remove()
-              }
-              if (keep) keep.onclick = () => {
-                prompt.remove()
-              }
-            }
-          } catch (_) {}
-          return
-        }
-
-        const target = selector ? document.querySelector(selector) : null
-        if (target) {
-          const rect = target.getBoundingClientRect()
-          const highlight = document.createElement('div')
-          highlight.style.position = 'fixed'
-          highlight.style.left = `${rect.left - 8}px`
-          highlight.style.top = `${rect.top - 8}px`
-          highlight.style.width = `${rect.width + 16}px`
-          highlight.style.height = `${rect.height + 16}px`
-          highlight.style.border = '4px solid #6366f1'
-          highlight.style.borderRadius = '10px'
-          highlight.style.boxShadow = '0 0 0 9999px rgba(0,0,0,0.35)'
-          highlight.style.pointerEvents = 'none'
-          highlight.style.zIndex = '1000'
-          highlight.id = 'demo-highlight'
-          document.body.appendChild(highlight)
-        } else {
-          // No target: remove any highlight but keep the overlay for consistency across steps
-          document.getElementById('demo-highlight')?.remove()
-        }
-      } catch (e) {
-        console.warn('Failed to apply demo highlight', e)
-      }
-    })
+  escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;')
   },
 
   async addTimezoneOverlay(map) {
@@ -433,17 +333,6 @@ const TeamMap = {
     // When sun is east (positive), night should be WEST
     const nightIsEast = sunLongitude < 0
 
-    console.log('[Night Overlay Debug]', {
-      utcHours: utcHours.toFixed(2),
-      sunLongitude: sunLongitude.toFixed(2),
-      sunPosition: sunLongitude < 0 ? 'WEST' : 'EAST',
-      nightIsEast,
-      actualShading: nightIsEast ? 'Shading EAST side' : 'Shading WEST side',
-      terminatorPointsCount: terminatorPoints.length,
-      firstTerminatorPoint: terminatorPoints[0],
-      lastTerminatorPoint: terminatorPoints[terminatorPoints.length - 1]
-    })
-
     // Terminator points go from lon=-180 to lon=+180
     // We need to create a closed polygon that fills one hemisphere
     const nightSide = []
@@ -472,11 +361,6 @@ const TeamMap = {
       // Close back to terminator start (polygon auto-closes)
     }
 
-    console.log('[Night Overlay Debug] Final polygon:', {
-      totalPoints: nightSide.length,
-      first3: nightSide.slice(0, 3),
-      last3: nightSide.slice(-3)
-    })
     return nightSide
   },
 
@@ -791,5 +675,3 @@ const TeamMap = {
 }
 
 export default TeamMap
-
-

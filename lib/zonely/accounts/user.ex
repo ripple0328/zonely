@@ -20,11 +20,6 @@ defmodule Zonely.Accounts.User do
     field(:latitude, :decimal)
     field(:longitude, :decimal)
 
-    # Forvo API caching fields
-    # Note: database type is :text for long URLs
-    field(:forvo_audio_url, :string)
-    field(:forvo_last_checked, :utc_datetime)
-
     timestamps(type: :utc_datetime)
   end
 
@@ -42,9 +37,7 @@ defmodule Zonely.Accounts.User do
       :name_native,
       :native_language,
       :latitude,
-      :longitude,
-      :forvo_audio_url,
-      :forvo_last_checked
+      :longitude
     ])
     |> validate_required([:name, :timezone, :country, :work_start, :work_end])
     |> validate_timezone()

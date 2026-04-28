@@ -18,14 +18,152 @@ This is a web application written using the Phoenix web framework.
 custom classes must fully style the input
 
 <!-- usage-rules-start -->
-<!-- usage-rules-header -->
-# Usage Rules
+<!-- usage_rules-start -->
+## usage_rules usage
+_A config-driven dev tool for Elixir projects to manage AGENTS.md files and agent skills from dependencies_
 
-**IMPORTANT**: Consult these usage rules early and often when working with the packages listed below. 
-Before attempting to use any of these packages or to discover if you should use them, review their 
-usage rules to understand the correct patterns, conventions, and best practices.
-<!-- usage-rules-header-end -->
+## Using Usage Rules
 
+Many packages have usage rules, which you should *thoroughly* consult before taking any
+action. These usage rules contain guidelines and rules *directly from the package authors*.
+They are your best source of knowledge for making decisions.
+
+## Modules & functions in the current app and dependencies
+
+When looking for docs for modules & functions that are dependencies of the current project,
+or for Elixir itself, use `mix usage_rules.docs`
+
+```
+# Search a whole module
+mix usage_rules.docs Enum
+
+# Search a specific function
+mix usage_rules.docs Enum.zip
+
+# Search a specific function & arity
+mix usage_rules.docs Enum.zip/1
+```
+
+
+## Searching Documentation
+
+You should also consult the documentation of any tools you are using, early and often. The best
+way to accomplish this is to use the `usage_rules.search_docs` mix task. Once you have
+found what you are looking for, use the links in the search results to get more detail. For example:
+
+```
+# Search docs for all packages in the current application, including Elixir
+mix usage_rules.search_docs Enum.zip
+
+# Search docs for specific packages
+mix usage_rules.search_docs Req.get -p req
+
+# Search docs for multi-word queries
+mix usage_rules.search_docs "making requests" -p req
+
+# Search only in titles (useful for finding specific functions/modules)
+mix usage_rules.search_docs "Enum.zip" --query-by title
+```
+
+
+<!-- usage_rules-end -->
+<!-- usage_rules:elixir-start -->
+## usage_rules:elixir usage
+# Elixir Core Usage Rules
+
+## Pattern Matching
+- Use pattern matching over conditional logic when possible
+- Prefer to match on function heads instead of using `if`/`else` or `case` in function bodies
+- `%{}` matches ANY map, not just empty maps. Use `map_size(map) == 0` guard to check for truly empty maps
+
+## Error Handling
+- Use `{:ok, result}` and `{:error, reason}` tuples for operations that can fail
+- Avoid raising exceptions for control flow
+- Use `with` for chaining operations that return `{:ok, _}` or `{:error, _}`
+
+## Common Mistakes to Avoid
+- Elixir has no `return` statement, nor early returns. The last expression in a block is always returned.
+- Don't use `Enum` functions on large collections when `Stream` is more appropriate
+- Avoid nested `case` statements - refactor to a single `case`, `with` or separate functions
+- Don't use `String.to_atom/1` on user input (memory leak risk)
+- Lists and enumerables cannot be indexed with brackets. Use pattern matching or `Enum` functions
+- Prefer `Enum` functions like `Enum.reduce` over recursion
+- When recursion is necessary, prefer to use pattern matching in function heads for base case detection
+- Using the process dictionary is typically a sign of unidiomatic code
+- Only use macros if explicitly requested
+- There are many useful standard library functions, prefer to use them where possible
+
+## Function Design
+- Use guard clauses: `when is_binary(name) and byte_size(name) > 0`
+- Prefer multiple function clauses over complex conditional logic
+- Name functions descriptively: `calculate_total_price/2` not `calc/2`
+- Predicate function names should not start with `is` and should end in a question mark.
+- Names like `is_thing` should be reserved for guards
+
+## Data Structures
+- Use structs over maps when the shape is known: `defstruct [:name, :age]`
+- Prefer keyword lists for options: `[timeout: 5000, retries: 3]`
+- Use maps for dynamic key-value data
+- Prefer to prepend to lists `[new | list]` not `list ++ [new]`
+
+## Mix Tasks
+
+- Use `mix help` to list available mix tasks
+- Use `mix help task_name` to get docs for an individual task
+- Read the docs and options fully before using tasks
+
+## Testing
+- Run tests in a specific file with `mix test test/my_test.exs` and a specific test with the line number `mix test path/to/test.exs:123`
+- Limit the number of failed tests with `mix test --max-failures n`
+- Use `@tag` to tag specific tests, and `mix test --only tag` to run only those tests
+- Use `assert_raise` for testing expected exceptions: `assert_raise ArgumentError, fn -> invalid_function() end`
+- Use `mix help test` to for full documentation on running tests
+
+## Debugging
+
+- Use `dbg/1` to print values while debugging. This will display the formatted value and other relevant information in the console.
+
+<!-- usage_rules:elixir-end -->
+<!-- usage_rules:otp-start -->
+## usage_rules:otp usage
+# OTP Usage Rules
+
+## GenServer Best Practices
+- Keep state simple and serializable
+- Handle all expected messages explicitly
+- Use `handle_continue/2` for post-init work
+- Implement proper cleanup in `terminate/2` when necessary
+
+## Process Communication
+- Use `GenServer.call/3` for synchronous requests expecting replies
+- Use `GenServer.cast/2` for fire-and-forget messages.
+- When in doubt, use `call` over `cast`, to ensure back-pressure
+- Set appropriate timeouts for `call/3` operations
+
+## Fault Tolerance
+- Set up processes such that they can handle crashing and being restarted by supervisors
+- Use `:max_restarts` and `:max_seconds` to prevent restart loops
+
+## Task and Async
+- Use `Task.Supervisor` for better fault tolerance
+- Handle task failures with `Task.yield/2` or `Task.shutdown/2`
+- Set appropriate task timeouts
+- Use `Task.async_stream/3` for concurrent enumeration with back-pressure
+
+<!-- usage_rules:otp-end -->
+<!-- phoenix:ecto-start -->
+## phoenix:ecto usage
+## Ecto Guidelines
+
+- **Always** preload Ecto associations in queries when they'll be accessed in templates, ie a message that needs to reference the `message.user.email`
+- Remember `import Ecto.Query` and other supporting modules when you write `seeds.exs`
+- `Ecto.Schema` fields always use the `:string` type, even for `:text`, columns, ie: `field :name, :string`
+- `Ecto.Changeset.validate_number/2` **DOES NOT SUPPORT the `:allow_nil` option**. By default, Ecto validations only run if a change for the given field exists and the change value is not nil, so such as option is never needed
+- You **must** use `Ecto.Changeset.get_field(changeset, :field)` to access changeset fields
+- Fields which are set programmatically, such as `user_id`, must not be listed in `cast` calls or similar for security purposes. Instead they must be explicitly set when creating the struct
+- **Always** invoke `mix ecto.gen.migration migration_name_using_underscores` when generating migration files, so the correct timestamp and conventions are applied
+
+<!-- phoenix:ecto-end -->
 <!-- phoenix:elixir-start -->
 ## phoenix:elixir usage
 ## Elixir guidelines
@@ -72,38 +210,19 @@ usage rules to understand the correct patterns, conventions, and best practices.
 - To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
 - `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
 
+## Test guidelines
+
+- **Always use `start_supervised!/1`** to start processes in tests as it guarantees cleanup between tests
+- **Avoid** `Process.sleep/1` and `Process.alive?/1` in tests
+  - Instead of sleeping to wait for a process to finish, **always** use `Process.monitor/1` and assert on the DOWN message:
+
+      ref = Process.monitor(pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+
+   - Instead of sleeping to synchronize before the next call, **always** use `_ = :sys.get_state/1` to ensure the process has handled prior messages
+
+
 <!-- phoenix:elixir-end -->
-<!-- phoenix:phoenix-start -->
-## phoenix:phoenix usage
-## Phoenix guidelines
-
-- Remember Phoenix router `scope` blocks include an optional alias which is prefixed for all routes within the scope. **Always** be mindful of this when creating routes within a scope to avoid duplicate module prefixes.
-
-- You **never** need to create your own `alias` for route definitions! The `scope` provides the alias, ie:
-
-      scope "/admin", AppWeb.Admin do
-        pipe_through :browser
-
-        live "/users", UserLive, :index
-      end
-
-  the UserLive route would point to the `AppWeb.Admin.UserLive` module
-
-- `Phoenix.View` no longer is needed or included with Phoenix, don't use it
-
-<!-- phoenix:phoenix-end -->
-<!-- phoenix:ecto-start -->
-## phoenix:ecto usage
-## Ecto Guidelines
-
-- **Always** preload Ecto associations in queries when they'll be accessed in templates, ie a message that needs to reference the `message.user.email`
-- Remember `import Ecto.Query` and other supporting modules when you write `seeds.exs`
-- `Ecto.Schema` fields always use the `:string` type, even for `:text`, columns, ie: `field :name, :string`
-- `Ecto.Changeset.validate_number/2` **DOES NOT SUPPORT the `:allow_nil` option**. By default, Ecto validations only run if a change for the given field exists and the change value is not nil, so such as option is never needed
-- You **must** use `Ecto.Changeset.get_field(changeset, :field)` to access changeset fields
-- Fields which are set programatically, such as `user_id`, must not be listed in `cast` calls or similar for security purposes. Instead they must be explicitly set when creating the struct
-
-<!-- phoenix:ecto-end -->
 <!-- phoenix:html-start -->
 ## phoenix:html usage
 ## Phoenix HTML guidelines
@@ -114,7 +233,7 @@ usage rules to understand the correct patterns, conventions, and best practices.
 - **Always** add unique DOM IDs to key elements (like forms, buttons, etc) when writing templates, these IDs can later be used in tests (`<.form for={@form} id="product-form">`)
 - For "app wide" template imports, you can import/alias into the `my_app_web.ex`'s `html_helpers` block, so they will be available to all LiveViews, LiveComponent's, and all modules that do `use MyAppWeb, :html` (replace "my_app" by the actual app name)
 
-- Elixir supports `if/else` but **does NOT support `if/else if` or `if/elsif`. **Never use `else if` or `elseif` in Elixir**, **always** use `cond` or `case` for multiple conditionals.
+- Elixir supports `if/else` but **does NOT support `if/else if` or `if/elsif`**. **Never use `else if` or `elseif` in Elixir**, **always** use `cond` or `case` for multiple conditionals.
 
   **Never do this (invalid)**:
 
@@ -191,8 +310,6 @@ usage rules to understand the correct patterns, conventions, and best practices.
 - **Never** use the deprecated `live_redirect` and `live_patch` functions, instead **always** use the `<.link navigate={href}>` and  `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` functions LiveViews
 - **Avoid LiveComponent's** unless you have a strong, specific need for them
 - LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
-- Remember anytime you use `phx-hook="MyHook"` and that js hook manages its own DOM, you **must** also set the `phx-update="ignore"` attribute
-- **Never** write embedded `<script>` tags in HEEx. Instead always write your scripts and hooks in the `assets/js` directory and integrate them with the `assets/js/app.js` file
 
 ### LiveView streams
 
@@ -217,24 +334,129 @@ usage rules to understand the correct patterns, conventions, and best practices.
         messages = list_messages(filter)
 
         {:noreply,
-        socket
-        |> assign(:messages_empty?, messages == [])
-        # reset the stream with the new messages
-        |> stream(:messages, messages, reset: true)}
+         socket
+         |> assign(:messages_empty?, messages == [])
+         # reset the stream with the new messages
+         |> stream(:messages, messages, reset: true)}
       end
 
 - LiveView streams *do not support counting or empty states*. If you need to display a count, you must track it using a separate assign. For empty states, you can use Tailwind classes:
 
       <div id="tasks" phx-update="stream">
         <div class="hidden only:block">No tasks yet</div>
-        <div :for={{id, task} <- @stream.tasks} id={id}>
+        <div :for={{id, task} <- @streams.tasks} id={id}>
           {task.name}
         </div>
       </div>
 
   The above only works if the empty state is the only HTML block alongside the stream for-comprehension.
 
+- When updating an assign that should change content inside any streamed item(s), you MUST re-stream the items
+  along with the updated assign:
+
+      def handle_event("edit_message", %{"message_id" => message_id}, socket) do
+        message = Chat.get_message!(message_id)
+        edit_form = to_form(Chat.change_message(message, %{content: message.content}))
+
+        # re-insert message so @editing_message_id toggle logic takes effect for that stream item
+        {:noreply,
+         socket
+         |> stream_insert(:messages, message)
+         |> assign(:editing_message_id, String.to_integer(message_id))
+         |> assign(:edit_form, edit_form)}
+      end
+
+  And in the template:
+
+      <div id="messages" phx-update="stream">
+        <div :for={{id, message} <- @streams.messages} id={id} class="flex group">
+          {message.username}
+          <%= if @editing_message_id == message.id do %>
+            <%!-- Edit mode --%>
+            <.form for={@edit_form} id="edit-form-#{message.id}" phx-submit="save_edit">
+              ...
+            </.form>
+          <% end %>
+        </div>
+      </div>
+
 - **Never** use the deprecated `phx-update="append"` or `phx-update="prepend"` for collections
+
+### LiveView JavaScript interop
+
+- Remember anytime you use `phx-hook="MyHook"` and that JS hook manages its own DOM, you **must** also set the `phx-update="ignore"` attribute
+- **Always** provide an unique DOM id alongside `phx-hook` otherwise a compiler error will be raised
+
+LiveView hooks come in two flavors, 1) colocated js hooks for "inline" scripts defined inside HEEx,
+and 2) external `phx-hook` annotations where JavaScript object literals are defined and passed to the `LiveSocket` constructor.
+
+#### Inline colocated js hooks
+
+**Never** write raw embedded `<script>` tags in heex as they are incompatible with LiveView.
+Instead, **always use a colocated js hook script tag (`:type={Phoenix.LiveView.ColocatedHook}`)
+when writing scripts inside the template**:
+
+    <input type="text" name="user[phone_number]" id="user-phone-number" phx-hook=".PhoneNumber" />
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".PhoneNumber">
+      export default {
+        mounted() {
+          this.el.addEventListener("input", e => {
+            let match = this.el.value.replace(/\D/g, "").match(/^(\d{3})(\d{3})(\d{4})$/)
+            if(match) {
+              this.el.value = `${match[1]}-${match[2]}-${match[3]}`
+            }
+          })
+        }
+      }
+    </script>
+
+- colocated hooks are automatically integrated into the app.js bundle
+- colocated hooks names **MUST ALWAYS** start with a `.` prefix, i.e. `.PhoneNumber`
+
+#### External phx-hook
+
+External JS hooks (`<div id="myhook" phx-hook="MyHook">`) must be placed in `assets/js/` and passed to the
+LiveSocket constructor:
+
+    const MyHook = {
+      mounted() { ... }
+    }
+    let liveSocket = new LiveSocket("/live", Socket, {
+      hooks: { MyHook }
+    });
+
+#### Pushing events between client and server
+
+Use LiveView's `push_event/3` when you need to push events/data to the client for a phx-hook to handle.
+**Always** return or rebind the socket on `push_event/3` when pushing events:
+
+    # re-bind socket so we maintain event state to be pushed
+    socket = push_event(socket, "my_event", %{...})
+
+    # or return the modified socket directly:
+    def handle_event("some_event", _, socket) do
+      {:noreply, push_event(socket, "my_event", %{...})}
+    end
+
+Pushed events can then be picked up in a JS hook with `this.handleEvent`:
+
+    mounted() {
+      this.handleEvent("my_event", data => console.log("from server:", data));
+    }
+
+Clients can also push an event to the server and receive a reply with `this.pushEvent`:
+
+    mounted() {
+      this.el.addEventListener("click", e => {
+        this.pushEvent("my_event", { one: 1 }, reply => console.log("got reply from server:", reply));
+      })
+    }
+
+Where the server handled it via:
+
+    def handle_event("my_event", %{"one" => 1}, socket) do
+      {:reply, %{two: 2}, socket}
+    end
 
 ### LiveView tests
 
@@ -316,142 +538,59 @@ And **never** do this:
 - **Never** use `<.form let={f} ...>` in the template, instead **always use `<.form for={@form} ...>`**, then drive all form references from the form assign as in `@form[:field]`. The UI should **always** be driven by a `to_form/2` assigned in the LiveView module that is derived from a changeset
 
 <!-- phoenix:liveview-end -->
+<!-- phoenix:phoenix-start -->
+## phoenix:phoenix usage
+## Phoenix guidelines
+
+- Remember Phoenix router `scope` blocks include an optional alias which is prefixed for all routes within the scope. **Always** be mindful of this when creating routes within a scope to avoid duplicate module prefixes.
+
+- You **never** need to create your own `alias` for route definitions! The `scope` provides the alias, ie:
+
+      scope "/admin", AppWeb.Admin do
+        pipe_through :browser
+
+        live "/users", UserLive, :index
+      end
+
+  the UserLive route would point to the `AppWeb.Admin.UserLive` module
+
+- `Phoenix.View` no longer is needed or included with Phoenix, don't use it
+
+<!-- phoenix:phoenix-end -->
 <!-- igniter-start -->
 ## igniter usage
 _A code generation and project patching framework_
 
-[igniter usage rules](deps/igniter/usage-rules.md)
+# Rules for working with Igniter
+
+## Understanding Igniter
+
+Igniter is a code generation and project patching framework that enables semantic manipulation of Elixir codebases. It provides tools for creating intelligent generators that can both create new files and modify existing ones safely. Igniter works with AST (Abstract Syntax Trees) through Sourceror.Zipper to make precise, context-aware changes to your code.
+
+## Available Modules
+
+### Project-Level Modules (`Igniter.Project.*`)
+
+- **`Igniter.Project.Application`** - Working with Application modules and application configuration
+- **`Igniter.Project.Config`** - Modifying Elixir config files (config.exs, runtime.exs, etc.)
+- **`Igniter.Project.Deps`** - Managing dependencies declared in mix.exs
+- **`Igniter.Project.Formatter`** - Interacting with .formatter.exs files
+- **`Igniter.Project.IgniterConfig`** - Managing .igniter.exs configuration files
+- **`Igniter.Project.MixProject`** - Updating project configuration in mix.exs
+- **`Igniter.Project.Module`** - Creating and managing modules with proper file placement
+- **`Igniter.Project.TaskAliases`** - Managing task aliases in mix.exs
+- **`Igniter.Project.Test`** - Working with test and test support files
+
+### Code-Level Modules (`Igniter.Code.*`)
+
+- **`Igniter.Code.Common`** - General purpose utilities for working with Sourceror.Zipper
+- **`Igniter.Code.Function`** - Working with function definitions and calls
+- **`Igniter.Code.Keyword`** - Manipulating keyword lists
+- **`Igniter.Code.List`** - Working with lists in AST
+- **`Igniter.Code.Map`** - Manipulating maps
+- **`Igniter.Code.Module`** - Working with module definitions and usage
+- **`Igniter.Code.String`** - Utilities for string literals
+- **`Igniter.Code.Tuple`** - Working with tuples
+
 <!-- igniter-end -->
-<!-- usage_rules-start -->
-## usage_rules usage
-_A dev tool for Elixir projects to gather LLM usage rules from dependencies_
-
-## Using Usage Rules
-
-Many packages have usage rules, which you should *thoroughly* consult before taking any
-action. These usage rules contain guidelines and rules *directly from the package authors*.
-They are your best source of knowledge for making decisions.
-
-## Modules & functions in the current app and dependencies
-
-When looking for docs for modules & functions that are dependencies of the current project,
-or for Elixir itself, use `mix usage_rules.docs`
-
-```
-# Search a whole module
-mix usage_rules.docs Enum
-
-# Search a specific function
-mix usage_rules.docs Enum.zip
-
-# Search a specific function & arity
-mix usage_rules.docs Enum.zip/1
-```
-
-
-## Searching Documentation
-
-You should also consult the documentation of any tools you are using, early and often. The best 
-way to accomplish this is to use the `usage_rules.search_docs` mix task. Once you have
-found what you are looking for, use the links in the search results to get more detail. For example:
-
-```
-# Search docs for all packages in the current application, including Elixir
-mix usage_rules.search_docs Enum.zip
-
-# Search docs for specific packages
-mix usage_rules.search_docs Req.get -p req
-
-# Search docs for multi-word queries
-mix usage_rules.search_docs "making requests" -p req
-
-# Search only in titles (useful for finding specific functions/modules)
-mix usage_rules.search_docs "Enum.zip" --query-by title
-```
-
-
-<!-- usage_rules-end -->
-<!-- usage_rules:elixir-start -->
-## usage_rules:elixir usage
-# Elixir Core Usage Rules
-
-## Pattern Matching
-- Use pattern matching over conditional logic when possible
-- Prefer to match on function heads instead of using `if`/`else` or `case` in function bodies
-
-## Error Handling
-- Use `{:ok, result}` and `{:error, reason}` tuples for operations that can fail
-- Avoid raising exceptions for control flow
-- Use `with` for chaining operations that return `{:ok, _}` or `{:error, _}`
-
-## Common Mistakes to Avoid
-- Elixir has no `return` statement, nor early returns. The last expression in a block is always returned.
-- Don't use `Enum` functions on large collections when `Stream` is more appropriate
-- Avoid nested `case` statements - refactor to a single `case`, `with` or separate functions
-- Don't use `String.to_atom/1` on user input (memory leak risk)
-- Lists and enumerables cannot be indexed with brackets. Use pattern matching or `Enum` functions
-- Prefer `Enum` functions like `Enum.reduce` over recursion
-- When recursion is necessary, prefer to use pattern matching in function heads for base case detection
-- Using the process dictionary is typically a sign of unidiomatic code
-- Only use macros if explicitly requested
-- There are many useful standard library functions, prefer to use them where possible
-
-## Function Design
-- Use guard clauses: `when is_binary(name) and byte_size(name) > 0`
-- Prefer multiple function clauses over complex conditional logic
-- Name functions descriptively: `calculate_total_price/2` not `calc/2`
-- Predicate function names should not start with `is` and should end in a question mark. 
-- Names like `is_thing` should be reserved for guards
-
-## Data Structures
-- Use structs over maps when the shape is known: `defstruct [:name, :age]`
-- Prefer keyword lists for options: `[timeout: 5000, retries: 3]`
-- Use maps for dynamic key-value data
-- Prefer to prepend to lists `[new | list]` not `list ++ [new]`
-
-## Mix Tasks
-
-- Use `mix help` to list available mix tasks
-- Use `mix help task_name` to get docs for an individual task
-- Read the docs and options fully before using tasks
-
-## Testing
-- Run tests in a specific file with `mix test test/my_test.exs` and a specific test with the line number `mix test path/to/test.exs:123`
-- Limit the number of failed tests with `mix test --max-failures n`
-- Use `@tag` to tag specific tests, and `mix test --only tag` to run only those tests
-- Use `assert_raise` for testing expected exceptions: `assert_raise ArgumentError, fn -> invalid_function() end`
-- Use `mix help test` to for full documentation on running tests
-
-## Debugging
-
-- Use `dbg/1` to print values while debugging. This will display the formatted value and other relevant information in the console.
-
-<!-- usage_rules:elixir-end -->
-<!-- usage_rules:otp-start -->
-## usage_rules:otp usage
-# OTP Usage Rules
-
-## GenServer Best Practices
-- Keep state simple and serializable
-- Handle all expected messages explicitly
-- Use `handle_continue/2` for post-init work
-- Implement proper cleanup in `terminate/2` when necessary
-
-## Process Communication
-- Use `GenServer.call/3` for synchronous requests expecting replies
-- Use `GenServer.cast/2` for fire-and-forget messages.
-- When in doubt, us `call` over `cast`, to ensure back-pressure
-- Set appropriate timeouts for `call/3` operations
-
-## Fault Tolerance
-- Set up processes such that they can handle crashing and being restarted by supervisors
-- Use `:max_restarts` and `:max_seconds` to prevent restart loops
-
-## Task and Async
-- Use `Task.Supervisor` for better fault tolerance
-- Handle task failures with `Task.yield/2` or `Task.shutdown/2`
-- Set appropriate task timeouts
-- Use `Task.async_stream/3` for concurrent enumeration with back-pressure
-
-<!-- usage_rules:otp-end -->
 <!-- usage-rules-end -->

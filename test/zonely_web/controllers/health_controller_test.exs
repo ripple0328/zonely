@@ -1,23 +1,23 @@
 defmodule ZonelyWeb.HealthControllerTest do
   use ZonelyWeb.ConnCase, async: true
 
-  @host "saymyname.qingbo.us"
+  @host "zonely.qingbo.us"
 
   test "GET /healthz returns ok", %{conn: conn} do
     conn =
       conn
-      |> put_req_header("host", @host)
+      |> Map.put(:host, @host)
       |> get("/healthz")
 
-    assert json_response(conn, 200) == %{"status" => "ok"}
+    assert response(conn, 200) == "ok"
   end
 
   test "GET /readyz returns ready", %{conn: conn} do
     conn =
       conn
-      |> put_req_header("host", @host)
+      |> Map.put(:host, @host)
       |> get("/readyz")
 
-    assert json_response(conn, 200) == %{"status" => "ready"}
+    assert response(conn, 200) == "ready"
   end
 end

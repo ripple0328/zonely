@@ -1,33 +1,32 @@
-# Zonely — thin wrapper around platform ops Justfile
+# Zonely delegates production operations to ../mini-infra.
 
 set shell := ["/usr/bin/env", "bash", "-lc"]
 
-PLATFORM_JUST := "/Users/qingbo/Projects/Personal/platform/Justfile"
+PLATFORM_JUST := "../mini-infra/platform/Justfile"
 APP_NAME := "zonely"
-LAUNCHD_LABEL := "com.zonely.prod"
-ENV_FILE := "${HOME}/.config/zonely/.envrc.worker"
-PORT := "${PORT:-4010}"
-PHX_HOST := "${PHX_HOST:-saymyname.qingbo.us}"
+LAUNCHD_LABEL := "us.qingbo.zonely.prod"
+ENV_FILE := "${HOME}/.config/zonely/env.runtime"
+PORT := "${PORT:-4020}"
+PHX_HOST := "${PHX_HOST:-zonely.qingbo.us}"
+DEPLOY_HOST := "${DEPLOY_HOST:-mini}"
 
-status:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} status
+_platform command:
+	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} DEPLOY_HOST={{DEPLOY_HOST}} just -f {{PLATFORM_JUST}} {{command}}
 
-health:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} health
+deploy: (_platform "deploy")
 
-logs:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} logs
+install: (_platform "install")
 
-restart:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} restart
+status: (_platform "status")
 
-migrate:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} migrate
+health: (_platform "health")
 
-deploy-mini:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} deploy-mini
+logs: (_platform "logs")
 
-deploy-mini-local:
-	@APP_NAME={{APP_NAME}} LAUNCHD_LABEL={{LAUNCHD_LABEL}} ENV_FILE={{ENV_FILE}} PORT={{PORT}} PHX_HOST={{PHX_HOST}} just -f {{PLATFORM_JUST}} deploy-mini-local
+tail: (_platform "tail")
 
-deploy: deploy-mini
+restart: (_platform "restart")
+
+rollback: (_platform "rollback")
+
+migrate: (_platform "migrate")

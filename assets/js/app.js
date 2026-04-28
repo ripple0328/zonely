@@ -27,89 +27,19 @@ import TeamMap from "./hooks/team_map"
 import TimeScrubber from "./hooks/time_scrubber"
 import LiveClock from "./hooks/live_clock"
 import LocalTime from "./hooks/local_time"
-import AnalyticsGeoMap from "./hooks/analytics_geo_map"
 import Clipboard from "./hooks/clipboard"
 
 // Setup simple audio functionality first to create AudioHook
 setupSimpleAudio()
 
 // Register hooks in a dedicated object to avoid the legacy inline Hooks
-const LV_HOOKS = { TeamMap, TimeScrubber, LiveClock, LocalTime, AnalyticsGeoMap, Clipboard, AudioHook: window.AudioHook }
+const LV_HOOKS = { TeamMap, TimeScrubber, LiveClock, LocalTime, Clipboard, AudioHook: window.AudioHook }
 
 // TimeScrubber handled via ./hooks/time_scrubber
 
 // Setup topbar and connect LiveView
 initTopbar()
 const liveSocket = initLiveSocket(LV_HOOKS)
-
-// Metric flash on value change - enhanced for live dashboard feel
-function initMetricFlash() {
-  const valueFlashClass = 'metric-flash'
-  const cardFlashClass = 'metric-card-flash'
-  const rankFlashClass = 'rank-item-flash'
-  const observedElements = new WeakSet()
-
-  const observe = (root) => {
-    // Observe metric value elements (the number itself)
-    root.querySelectorAll('[data-metric-value]').forEach((el) => {
-      if (observedElements.has(el)) return
-      observedElements.add(el)
-
-      const obs = new MutationObserver((mutations) => {
-        // Only flash if content actually changed
-        const hasChange = mutations.some(m =>
-          m.type === 'childList' || m.type === 'characterData'
-        )
-        if (!hasChange) return
-
-        // Flash the value itself
-        el.classList.remove(valueFlashClass)
-        void el.offsetWidth // Force reflow
-        el.classList.add(valueFlashClass)
-        setTimeout(() => el.classList.remove(valueFlashClass), 800)
-
-        // Flash the parent card if it exists
-        const card = el.closest('[data-metric-card]')
-        if (card) {
-          card.classList.remove(cardFlashClass)
-          void card.offsetWidth
-          card.classList.add(cardFlashClass)
-          setTimeout(() => card.classList.remove(cardFlashClass), 1000)
-        }
-      })
-      obs.observe(el, { childList: true, characterData: true, subtree: true })
-    })
-
-    // Observe ranked list items
-    root.querySelectorAll('[data-rank-item]').forEach((el) => {
-      if (observedElements.has(el)) return
-      observedElements.add(el)
-
-      const obs = new MutationObserver((mutations) => {
-        const hasChange = mutations.some(m =>
-          m.type === 'childList' || m.type === 'characterData'
-        )
-        if (!hasChange) return
-
-        el.classList.remove(rankFlashClass)
-        void el.offsetWidth
-        el.classList.add(rankFlashClass)
-        setTimeout(() => el.classList.remove(rankFlashClass), 800)
-      })
-      obs.observe(el, { childList: true, characterData: true, subtree: true })
-    })
-  }
-
-  // Initial observation
-  observe(document)
-
-  // Re-observe after LiveView updates
-  if (typeof liveSocket !== 'undefined') {
-    liveSocket.onViewUpdate(() => observe(document))
-  }
-}
-
-initMetricFlash()
 
 // expose liveSocket helpers in console docs
 // >> liveSocket.enableDebug()

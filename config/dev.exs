@@ -31,12 +31,6 @@ config :zonely, ZonelyWeb.Endpoint,
 
 config :zonely, dev_routes: true
 
-# Configure Forvo API for real name pronunciations
-# Get your free API key from: https://api.forvo.com/
-# Set environment variable: export FORVO_API_KEY="your_key_here"
-config :zonely,
-  forvo_api_key: System.get_env("FORVO_API_KEY")
-
 # Tidewave AI assistant configuration
 config :tidewave,
   enabled: true,
@@ -46,15 +40,6 @@ config :tidewave,
 config :phoenix_live_view,
   debug_heex_annotations: true,
   debug_attributes: true
-
-# Audio cache directory (runtime-generated files)
-config :zonely, :audio_cache_dir, Path.expand("priv/static/audio/cache", File.cwd!())
-
-# Use local backend in dev
-config :zonely, :audio_cache,
-  backend: "local",
-  s3_bucket: "zonely-cache",
-  public_base_url: "https://zonely-cache.s3.amazonaws.com"
 
 config :logger, :console, format: "[$level] $message\n"
 
