@@ -10,6 +10,8 @@ Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 
 - Fullscreen team map with local work-hour, daylight, timezone, and location context
 - Map-native team orbit for scanning teammates without leaving the geographic surface
+- Reachability preview rail for simulating the next 24 hours, with one Reset to now action that restores live map, marker, orbit, context-strip, and selected-sheet state
+- Selected teammate decision sheet with effective local time, work window, timezone offset, daylight, reachability guidance, and next transition context
 - Optional profile pronunciation playback through the production pronunciation API
 
 ## Architecture
@@ -54,6 +56,7 @@ colliding with sibling apps.
 Run checks before handing off changes:
 
 ```sh
+MIX_ENV=test mix test
 mix precommit
 ```
 

@@ -757,9 +757,9 @@ html, body {
   .profile-panel-position {
     top: auto;
     right: 50%;
-    bottom: max(1rem, env(safe-area-inset-bottom));
+    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 13.75rem);
     width: min(92vw, 28rem);
-    max-height: 72dvh;
+    max-height: 50dvh;
     overflow: auto;
     transform: translateX(50%);
   }

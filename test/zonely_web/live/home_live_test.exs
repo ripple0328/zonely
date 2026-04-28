@@ -257,6 +257,129 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert has_element?(view, "#profile-panel", "Mara Okafor")
   end
 
+  test "boundary/off teammate preview journey synchronizes rail map orbit strip sheet and reset",
+       %{
+         conn: conn
+       } do
+    {:ok, tokyo_user} =
+      Accounts.create_user(%{
+        name: "Yuki Tanaka",
+        role: "Engineering Manager",
+        timezone: "Asia/Tokyo",
+        country: "JP",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("35.6762"),
+        longitude: Decimal.new("139.6503")
+      })
+
+    {:ok, _lisbon_user} =
+      Accounts.create_user(%{
+        name: "Mara Okafor",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#global-team-map")
+    assert has_element?(view, "#now-context-strip", "Now")
+    assert has_element?(view, "#team-orbit-user-#{tokyo_user.id} .orbit-context", "23:30")
+    assert has_element?(view, "#team-orbit-user-#{tokyo_user.id} .orbit-context", "Wait")
+    refute has_element?(view, "#map-time-rail-reset")
+
+    live_html = render(view)
+    assert live_html =~ "&quot;id&quot;:&quot;#{tokyo_user.id}&quot;"
+    assert live_html =~ "&quot;status&quot;:&quot;off&quot;"
+    refute live_html =~ "dashboard"
+    refute live_html =~ "metric"
+    refute live_html =~ ~s(id="team-directory")
+
+    view
+    |> element("#team-orbit-user-#{tokyo_user.id}")
+    |> render_click()
+
+    tokyo_user_id_string = to_string(tokyo_user.id)
+    assert_push_event(view, "focus_user", %{user_id: ^tokyo_user_id_string})
+    assert has_element?(view, "#profile-panel", "Yuki Tanaka")
+    assert has_element?(view, "#profile-panel [data-testid='selected-local-time']", "23:30")
+    assert has_element?(view, "#profile-panel [data-testid='selected-reachability']", "Wait")
+
+    view
+    |> element("#map-time-rail-form")
+    |> render_change(%{"offset_minutes" => "600"})
+
+    assert_push_event(view, "team_marker_states", %{
+      effective_at: "2026-01-16T00:30:00Z",
+      mode: "preview",
+      selected_user_id: selected_user_id,
+      markers: preview_markers
+    })
+
+    assert selected_user_id == tokyo_user.id
+
+    assert %{id: tokyo_user_id, status: "working", selected: true} =
+             Enum.find(preview_markers, &(&1.id == tokyo_user.id))
+
+    assert tokyo_user_id == tokyo_user.id
+
+    assert has_element?(
+             view,
+             "#map-time-rail-status",
+             "Simulated preview at 2026-01-16 00:30 UTC"
+           )
+
+    assert has_element?(view, "#map-time-rail-control[value='600']")
+    assert has_element?(view, "#now-context-strip", "Preview")
+    assert has_element?(view, "#now-context-strip", "Simulated 00:30 UTC")
+    assert has_element?(view, "#team-orbit-user-#{tokyo_user.id} .orbit-context", "09:30")
+    assert has_element?(view, "#team-orbit-user-#{tokyo_user.id} .orbit-context", "Reachable now")
+    assert has_element?(view, "#profile-panel [data-testid='selected-local-time']", "09:30")
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-reachability']",
+             "Reachable now"
+           )
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-copy']",
+             "good moment"
+           )
+
+    preview_html = render(view)
+    assert Regex.scan(~r/id="map-time-rail-reset"/, preview_html) |> length() == 1
+
+    view
+    |> element("#map-time-rail-reset")
+    |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      effective_at: "2026-01-15T14:30:00Z",
+      mode: "live",
+      selected_user_id: reset_selected_user_id,
+      markers: reset_markers
+    })
+
+    assert reset_selected_user_id == tokyo_user.id
+
+    assert %{id: ^tokyo_user_id, status: "off", selected: true} =
+             Enum.find(reset_markers, &(&1.id == tokyo_user.id))
+
+    refute has_element?(view, "#map-time-rail-reset")
+    assert has_element?(view, "#now-context-strip", "Now")
+    assert has_element?(view, "#team-orbit-user-#{tokyo_user.id} .orbit-context", "23:30")
+    assert has_element?(view, "#team-orbit-user-#{tokyo_user.id} .orbit-context", "Wait")
+    assert has_element?(view, "#profile-panel [data-testid='selected-local-time']", "23:30")
+    assert has_element?(view, "#profile-panel [data-testid='selected-reachability']", "Wait")
+  end
+
   test "team orbit opens selected teammate context on the map", %{conn: conn} do
     {:ok, user} =
       Accounts.create_user(%{
