@@ -65,6 +65,16 @@ mix precommit
 
 `mix precommit` is the handoff gate. Browser automation was removed with the stale route specs; add a new end-to-end harness only when the product surface needs it again.
 
+## Stitch MCP
+
+This repo includes a project-scoped MCP server in `.mcp.json`.
+
+```sh
+npx -y @modelcontextprotocol/inspector --cli --config .mcp.json --server stitch --method tools/list
+```
+
+Use [design.md](design.md) as the prompt source when generating Zonely screens in Stitch. The Stitch MCP points at the official remote endpoint through `mcp-remote`; do not add local npm asset setup for this Phoenix app.
+
 ## Core Modules
 
 - `Zonely.Accounts` manages teammate profiles.

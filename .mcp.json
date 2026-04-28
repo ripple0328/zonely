@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://stitch.googleapis.com/mcp"
+      ],
+      "env": {}
+    }
+  }
+}
