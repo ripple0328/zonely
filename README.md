@@ -25,7 +25,11 @@ Pronunciation boundary:
 
 - `Zonely.Audio` builds playback events for profile buttons.
 - `Zonely.PronunciationClient` calls only `https://saymyname.qingbo.us/api/v1/pronounce`.
-- `PRONUNCIATION_API_KEY` may be set for authenticated production API access.
+- `Zonely.NameProfileContract` converts Zonely users into the SayMyName portable profile contract using canonical `lang`/`text` variants.
+- `Zonely.SayMyNameShareClient` creates reusable production name-card and name-list shares through `https://saymyname.qingbo.us/api/v1/name-card-shares` and `https://saymyname.qingbo.us/api/v1/name-list-shares`.
+- `PRONUNCIATION_API_KEY` is required for authenticated production SayMyName API access.
+
+Zonely does not own pronunciation providers, pronunciation caches, or SayMyName snapshot storage. It only renders team/profile context and sends portable share payloads to production SayMyName.
 
 ## Development
 

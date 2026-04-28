@@ -3,6 +3,27 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   alias Zonely.Accounts
 
+  setup do
+    previous_request_fun = Application.get_env(:zonely, :say_my_name_share_request_fun)
+    previous_api_key = System.get_env("PRONUNCIATION_API_KEY")
+
+    on_exit(fn ->
+      if previous_request_fun do
+        Application.put_env(:zonely, :say_my_name_share_request_fun, previous_request_fun)
+      else
+        Application.delete_env(:zonely, :say_my_name_share_request_fun)
+      end
+
+      if previous_api_key do
+        System.put_env("PRONUNCIATION_API_KEY", previous_api_key)
+      else
+        System.delete_env("PRONUNCIATION_API_KEY")
+      end
+    end)
+
+    :ok
+  end
+
   test "home page loads MapLibre assets", %{conn: conn} do
     conn = get(conn, ~p"/")
     html = html_response(conn, 200)
@@ -71,6 +92,101 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert html =~ "Mara Okafor"
     assert html =~ "Europe/Lisbon"
     assert html =~ "Teammate context"
+  end
+
+  test "selected teammate profile can create a SayMyName name-card share", %{conn: conn} do
+    System.put_env("PRONUNCIATION_API_KEY", "test-share-key")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        name: "Qingbo",
+        role: "Founder",
+        timezone: "America/Los_Angeles",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("37.7749"),
+        longitude: Decimal.new("-122.4194")
+      })
+
+    Application.put_env(:zonely, :say_my_name_share_request_fun, fn opts ->
+      assert opts[:method] == :post
+      assert opts[:url] == "https://saymyname.qingbo.us/api/v1/name-card-shares"
+      assert opts[:headers] == [{"authorization", "Bearer test-share-key"}]
+      assert opts[:json]["id"] == user.id
+      assert opts[:json]["display_name"] == "Qingbo"
+      assert opts[:json]["variants"] == [%{"lang" => "en-US", "text" => "Qingbo"}]
+
+      {:ok,
+       %{
+         status: 201,
+         body: %{
+           "share_token" => "card-token",
+           "share_url" => "https://saymyname.qingbo.us/card/card-token"
+         }
+       }}
+    end)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#team-orbit-user-#{user.id}")
+    |> render_click()
+
+    view
+    |> element("#share-name-card-#{user.id}")
+    |> render_click()
+
+    assert has_element?(view, "#copy-name-card-share-#{user.id}")
+
+    html = render(view)
+    assert html =~ "https://saymyname.qingbo.us/card/card-token"
+    assert html =~ "data-clipboard-text=\"https://saymyname.qingbo.us/card/card-token\""
+  end
+
+  test "team orbit can create a SayMyName name-list share", %{conn: conn} do
+    System.put_env("PRONUNCIATION_API_KEY", "test-share-key")
+
+    {:ok, _user} =
+      Accounts.create_user(%{
+        name: "Alice Remote",
+        role: "Frontend Developer",
+        timezone: "America/New_York",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("40.7128"),
+        longitude: Decimal.new("-74.0060")
+      })
+
+    Application.put_env(:zonely, :say_my_name_share_request_fun, fn opts ->
+      assert opts[:method] == :post
+      assert opts[:url] == "https://saymyname.qingbo.us/api/v1/name-list-shares"
+      assert opts[:headers] == [{"authorization", "Bearer test-share-key"}]
+      assert opts[:json]["name"] == "Zonely Team"
+      assert [%{"display_name" => "Alice Remote"}] = opts[:json]["entries"]
+
+      {:ok,
+       %{
+         status: 201,
+         body: %{
+           "share_token" => "list-token",
+           "share_url" => "https://saymyname.qingbo.us/list/list-token"
+         }
+       }}
+    end)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#share-team-names")
+    |> render_click()
+
+    assert has_element?(view, "#copy-team-name-list-share")
+
+    html = render(view)
+    assert html =~ "https://saymyname.qingbo.us/list/list-token"
+    assert html =~ "data-clipboard-text=\"https://saymyname.qingbo.us/list/list-token\""
   end
 
   test "directory route is removed", %{conn: conn} do

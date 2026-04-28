@@ -260,6 +260,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
         id: 3,
         name: "Maria Garcia",
         name_native: "María García",
+        native_language: "es-ES",
         country: "ES",
         work_start: ~T[09:00:00],
         work_end: ~T[17:00:00]
@@ -270,6 +271,51 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "Native Name"
       assert html =~ "María García"
       assert html =~ "Spanish"
+    end
+
+    test "renders SayMyName variants as separate playable rows" do
+      user = %User{
+        id: 9,
+        name: "Yuki Tanaka",
+        name_native: "田中雪",
+        native_language: "ja-JP",
+        country: "JP",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00]
+      }
+
+      html = render_component_test(&profile_card/1, %{user: user})
+
+      assert html =~ "SayMyName profile"
+      assert html =~ "English row"
+      assert html =~ "Native row"
+      assert html =~ "Yuki Tanaka"
+      assert html =~ "田中雪"
+      assert html =~ "ja-JP"
+      assert html =~ "play_english_pronunciation"
+      assert html =~ "play_native_pronunciation"
+      assert html =~ "data-testid=\"pronunciation-english\""
+      assert html =~ "data-testid=\"pronunciation-native\""
+    end
+
+    test "renders reusable name-card share result" do
+      user = %User{
+        id: 10,
+        name: "Share User",
+        country: "US",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00]
+      }
+
+      html =
+        render_component_test(&profile_card/1, %{
+          user: user,
+          name_share_url: "https://saymyname.qingbo.us/card/share-token"
+        })
+
+      assert html =~ "https://saymyname.qingbo.us/card/share-token"
+      assert html =~ "data-testid=\"copy-name-card-share\""
+      assert html =~ "data-clipboard-text=\"https://saymyname.qingbo.us/card/share-token\""
     end
 
     test "applies custom CSS classes" do

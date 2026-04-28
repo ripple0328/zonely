@@ -168,6 +168,50 @@ html, body {
   font-weight: 750;
 }
 
+.orbit-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.45rem;
+}
+
+.orbit-share-button,
+.orbit-copy-button,
+.name-share-button,
+.name-share-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(31, 138, 112, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--charcoal-ink);
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.orbit-share-button,
+.orbit-copy-button {
+  padding: 0.45rem 0.62rem;
+}
+
+.orbit-share-button:hover,
+.orbit-copy-button:hover,
+.name-share-button:hover,
+.name-share-copy:hover {
+  transform: translateY(-1px);
+  border-color: rgba(31, 138, 112, 0.34);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.orbit-share-button:disabled,
+.name-share-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .orbit-empty {
   margin: 0 1rem 1rem;
   border-radius: 16px;
@@ -405,6 +449,107 @@ html, body {
   top: 6rem;
   width: min(26rem, calc(100vw - 2rem));
   pointer-events: auto;
+}
+
+.name-profile-card {
+  display: grid;
+  gap: 0.8rem;
+  border: 1px solid rgba(31, 138, 112, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 0.95rem;
+}
+
+.name-profile-card-header,
+.name-share-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.name-share-button,
+.name-share-copy {
+  padding: 0.52rem 0.72rem;
+}
+
+.name-profile-rows {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.name-profile-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid rgba(100, 116, 139, 0.14);
+  border-radius: 14px;
+  background: rgba(247, 249, 248, 0.78);
+  padding: 0.62rem 0.7rem;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.name-profile-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(31, 138, 112, 0.26);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.name-profile-row:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.name-profile-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: rgba(31, 138, 112, 0.12);
+  color: var(--live-meridian);
+}
+
+.name-profile-row-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.name-profile-row-label,
+.name-profile-row-lang {
+  color: var(--slate-signal);
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.name-profile-row-text,
+.name-share-url {
+  overflow: hidden;
+  color: var(--charcoal-ink);
+  font-size: 0.88rem;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name-profile-row-lang {
+  font-family: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.name-share-url {
+  min-width: 0;
+  color: var(--live-meridian);
+  font-size: 0.78rem;
+}
+
+.name-share-error {
+  color: #b42318;
+  font-size: 0.78rem;
+  font-weight: 650;
 }
 
 @media (max-width: 767px) {

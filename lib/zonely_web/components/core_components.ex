@@ -5,7 +5,7 @@ defmodule ZonelyWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  alias Zonely.{Geography, Reachability, WorkingHours}
+  alias Zonely.{Geography, NameProfileContract, Reachability, WorkingHours}
 
   @doc """
   Renders the Zonely logo with consistent styling.
@@ -1489,6 +1489,14 @@ defmodule ZonelyWeb.CoreComponents do
   attr(:show_actions, :boolean, default: false, doc: "Whether to show action buttons")
   attr(:show_local_time, :boolean, default: false, doc: "Whether to show calculated local time")
   attr(:class, :string, default: "", doc: "Additional CSS classes")
+  attr(:name_share_url, :string, default: nil, doc: "SayMyName reusable name-card share URL")
+
+  attr(:name_share_loading, :boolean,
+    default: false,
+    doc: "Whether the name-card share is loading"
+  )
+
+  attr(:name_share_error, :string, default: nil, doc: "Name-card share error message")
 
   attr(:loading_pronunciation, :string,
     default: nil,
@@ -1502,6 +1510,10 @@ defmodule ZonelyWeb.CoreComponents do
   )
 
   def profile_card(assigns) do
+    assigns =
+      assigns
+      |> assign(:name_rows, name_profile_rows(assigns))
+
     ~H"""
     <div class={[
       "overflow-hidden rounded-[20px] p-5 text-[var(--charcoal-ink)]",
@@ -1522,7 +1534,6 @@ defmodule ZonelyWeb.CoreComponents do
               <%= @user.name %>
               </h3>
             </div>
-            <.pronunciation_buttons user={@user} size={:small} show_labels={false} loading_pronunciation={@loading_pronunciation} playing_pronunciation={@playing_pronunciation} />
           </div>
 
           <p class="mt-1 text-sm text-[var(--slate-signal)]">
@@ -1543,6 +1554,80 @@ defmodule ZonelyWeb.CoreComponents do
         <p class="text-sm leading-6 text-[var(--charcoal-ink)]">
           <%= Reachability.context_sentence(@user) %>
         </p>
+      </div>
+
+      <div class="name-profile-card" data-testid="name-profile-card">
+        <div class="name-profile-card-header">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--slate-signal)]">
+              SayMyName profile
+            </p>
+            <p class="mt-1 text-sm text-[var(--charcoal-ink)]">
+              Portable pronunciation rows
+            </p>
+          </div>
+
+          <button
+            type="button"
+            id={"share-name-card-#{@user.id}"}
+            class="name-share-button"
+            phx-click="share_name_card"
+            phx-value-user_id={@user.id}
+            disabled={@name_share_loading}
+            data-testid="share-name-card"
+          >
+            <.icon
+              name={if @name_share_loading, do: "hero-arrow-path", else: "hero-share"}
+              class={if @name_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
+            />
+            <span><%= if @name_share_loading, do: "Sharing", else: "Share" %></span>
+          </button>
+        </div>
+
+        <div id={"name-profile-rows-#{@user.id}"} class="name-profile-rows">
+          <button
+            :for={row <- @name_rows}
+            type="button"
+            id={"name-profile-row-#{@user.id}-#{row.type}"}
+            class="name-profile-row"
+            phx-click={row.event}
+            phx-value-user_id={@user.id}
+            data-testid={"pronunciation-#{row.type}"}
+            title={row.state.tooltip}
+            disabled={row.state.state == :loading}
+          >
+            <span class="name-profile-row-icon">
+              <.icon
+                name={pronunciation_state_icon(row.state.icon)}
+                class={if row.state.icon == :spinner, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
+              />
+            </span>
+            <span class="name-profile-row-copy">
+              <span class="name-profile-row-label"><%= row.label %></span>
+              <span class="name-profile-row-text"><%= row.text %></span>
+            </span>
+            <span class="name-profile-row-lang"><%= row.lang %></span>
+          </button>
+        </div>
+
+        <div :if={@name_share_url} class="name-share-result">
+          <a href={@name_share_url} target="_blank" rel="noreferrer" class="name-share-url">
+            <%= @name_share_url %>
+          </a>
+          <button
+            type="button"
+            id={"copy-name-card-share-#{@user.id}"}
+            class="name-share-copy"
+            phx-hook="Clipboard"
+            data-clipboard-text={@name_share_url}
+            data-testid="copy-name-card-share"
+          >
+            <.icon name="hero-clipboard" class="h-4 w-4" />
+            <span>Copy</span>
+          </button>
+        </div>
+
+        <p :if={@name_share_error} class="name-share-error"><%= @name_share_error %></p>
       </div>
 
       <dl class="grid grid-cols-2 gap-3 text-sm">
@@ -1692,6 +1777,41 @@ defmodule ZonelyWeb.CoreComponents do
   defp time_range_label(user) do
     WorkingHours.format_hours(user)
   end
+
+  defp name_profile_rows(assigns) do
+    user = assigns.user
+    playing_info = Map.get(assigns.playing_pronunciation, user.id, %{})
+
+    user
+    |> NameProfileContract.variants_for()
+    |> Enum.map(fn variant ->
+      type = pronunciation_row_type(user, variant)
+
+      %{
+        type: type,
+        event: "play_#{type}_pronunciation",
+        label: pronunciation_row_label(type),
+        lang: variant["lang"],
+        text: variant["text"],
+        state: get_button_state(type, assigns.loading_pronunciation, playing_info)
+      }
+    end)
+  end
+
+  defp pronunciation_row_type(user, %{"lang" => "en-US", "text" => text}) do
+    if text == user.name, do: "english", else: "native"
+  end
+
+  defp pronunciation_row_type(_user, _variant), do: "native"
+
+  defp pronunciation_row_label("english"), do: "English row"
+  defp pronunciation_row_label("native"), do: "Native row"
+
+  defp pronunciation_state_icon(:spinner), do: "hero-arrow-path"
+  defp pronunciation_state_icon(:user), do: "hero-user"
+  defp pronunciation_state_icon(:robot), do: "hero-cpu-chip"
+  defp pronunciation_state_icon(:sound_waves), do: "hero-speaker-wave"
+  defp pronunciation_state_icon(_icon), do: "hero-play"
 
   @doc """
   Renders a quick actions bar for user interactions.

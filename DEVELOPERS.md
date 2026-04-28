@@ -65,7 +65,16 @@ Optional:
 PRONUNCIATION_API_KEY=...
 ```
 
-`PRONUNCIATION_API_KEY` is used only against the production pronunciation API at `https://saymyname.qingbo.us`.
+`PRONUNCIATION_API_KEY` is used only against the production SayMyName API at `https://saymyname.qingbo.us`.
+It authenticates pronunciation playback plus reusable name-card/name-list share creation:
+
+- `GET /api/v1/pronounce`
+- `POST /api/v1/name-card-shares`
+- `GET /api/v1/name-card-shares/:token`
+- `POST /api/v1/name-list-shares`
+- `GET /api/v1/name-list-shares/:token`
+
+Zonely owns teams, users, permissions, timezone/location context, and profile UI. SayMyName owns pronunciation providers, audio caching, pronunciation generation, and immutable share snapshot storage.
 
 Do not use `.envrc` or `.env` for new local secrets.
 

@@ -6,6 +6,7 @@ defmodule ZonelyWeb.HomeLive do
   alias Zonely.AvatarService
   alias Zonely.Geography
   alias Zonely.Reachability
+  alias Zonely.SayMyNameShareClient
 
   @impl true
   def mount(_params, _session, socket) do
@@ -20,7 +21,13 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:reachability, Reachability.summary(users))
      |> assign(:selected_user, nil)
      |> assign(:loading_pronunciation, nil)
-     |> assign(:playing_pronunciation, %{})}
+     |> assign(:playing_pronunciation, %{})
+     |> assign(:name_card_share_urls, %{})
+     |> assign(:name_card_share_loading, nil)
+     |> assign(:name_card_share_error, nil)
+     |> assign(:team_name_list_share_url, nil)
+     |> assign(:team_name_list_share_loading, false)
+     |> assign(:team_name_list_share_error, nil)}
   end
 
   @impl true
@@ -50,6 +57,69 @@ defmodule ZonelyWeb.HomeLive do
 
   def handle_event("play_native_pronunciation", %{"user_id" => id}, socket) do
     play_pronunciation(socket, id, :native)
+  end
+
+  def handle_event("share_name_card", %{"user_id" => id}, socket) do
+    case Enum.find(socket.assigns.users, &("#{&1.id}" == id)) do
+      nil ->
+        {:noreply, assign(socket, :name_card_share_error, "Could not find teammate.")}
+
+      user ->
+        socket =
+          socket
+          |> assign(:name_card_share_loading, id)
+          |> assign(:name_card_share_error, nil)
+
+        case SayMyNameShareClient.create_card_share(user) do
+          {:ok, %{"share_url" => share_url}} ->
+            {:noreply,
+             socket
+             |> assign(:name_card_share_loading, nil)
+             |> assign(
+               :name_card_share_urls,
+               Map.put(socket.assigns.name_card_share_urls, id, share_url)
+             )}
+
+          {:ok, _body} ->
+            {:noreply,
+             socket
+             |> assign(:name_card_share_loading, nil)
+             |> assign(:name_card_share_error, "SayMyName did not return a share URL.")}
+
+          {:error, reason} ->
+            {:noreply,
+             socket
+             |> assign(:name_card_share_loading, nil)
+             |> assign(:name_card_share_error, share_error_message(reason))}
+        end
+    end
+  end
+
+  def handle_event("share_team_names", _params, socket) do
+    socket =
+      socket
+      |> assign(:team_name_list_share_loading, true)
+      |> assign(:team_name_list_share_error, nil)
+
+    case SayMyNameShareClient.create_list_share("Zonely Team", socket.assigns.users) do
+      {:ok, %{"share_url" => share_url}} ->
+        {:noreply,
+         socket
+         |> assign(:team_name_list_share_loading, false)
+         |> assign(:team_name_list_share_url, share_url)}
+
+      {:ok, _body} ->
+        {:noreply,
+         socket
+         |> assign(:team_name_list_share_loading, false)
+         |> assign(:team_name_list_share_error, "SayMyName did not return a team share URL.")}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:team_name_list_share_loading, false)
+         |> assign(:team_name_list_share_error, share_error_message(reason))}
+    end
   end
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
@@ -86,8 +156,40 @@ defmodule ZonelyWeb.HomeLive do
               <p class="context-eyebrow">Team orbit</p>
               <h2>{length(@users)} teammates</h2>
             </div>
-            <span class="orbit-live-pill">{Reachability.format_count(@reachability.working, "reachable")}</span>
+            <div class="orbit-actions">
+              <span class="orbit-live-pill">{Reachability.format_count(@reachability.working, "reachable")}</span>
+              <button
+                type="button"
+                id="share-team-names"
+                class="orbit-share-button"
+                phx-click="share_team_names"
+                disabled={@team_name_list_share_loading}
+                data-testid="share-team-names"
+              >
+                <.icon
+                  name={if @team_name_list_share_loading, do: "hero-arrow-path", else: "hero-share"}
+                  class={if @team_name_list_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
+                />
+                <span>{if @team_name_list_share_loading, do: "Sharing", else: "Share"}</span>
+              </button>
+              <button
+                :if={@team_name_list_share_url}
+                type="button"
+                id="copy-team-name-list-share"
+                class="orbit-copy-button"
+                phx-hook="Clipboard"
+                data-clipboard-text={@team_name_list_share_url}
+                data-testid="copy-team-name-list-share"
+              >
+                <.icon name="hero-clipboard" class="h-4 w-4" />
+                <span>Copy</span>
+              </button>
+            </div>
           </div>
+
+          <p :if={@team_name_list_share_error} class="name-share-error px-4 pb-2">
+            {@team_name_list_share_error}
+          </p>
 
           <div :if={@users == []} id="team-orbit-empty" class="orbit-empty">
             Add teammates with location and work hours to place them on the map.
@@ -165,6 +267,9 @@ defmodule ZonelyWeb.HomeLive do
             user={@selected_user}
             loading_pronunciation={@loading_pronunciation}
             playing_pronunciation={@playing_pronunciation}
+            name_share_url={Map.get(@name_card_share_urls, "#{@selected_user.id}")}
+            name_share_loading={@name_card_share_loading == "#{@selected_user.id}"}
+            name_share_error={@name_card_share_error}
           />
         </div>
       </div>
@@ -203,6 +308,16 @@ defmodule ZonelyWeb.HomeLive do
   defp playback_source({:play_sequence, _data}), do: "audio"
   defp playback_source({:play_tts_audio, _data}), do: "tts"
   defp playback_source({:play_tts, _data}), do: "tts"
+
+  defp share_error_message(:missing_api_key),
+    do: "Missing PRONUNCIATION_API_KEY for SayMyName sharing."
+
+  defp share_error_message(:unauthorized), do: "SayMyName rejected the configured API key."
+
+  defp share_error_message({:validation_failed, _body}),
+    do: "SayMyName could not validate this profile."
+
+  defp share_error_message(_reason), do: "Could not create SayMyName share right now."
 
   defp users_to_json(users) do
     users
