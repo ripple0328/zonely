@@ -975,6 +975,7 @@ html, body {
 
   .map-time-rail {
     bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 0.25rem);
+    z-index: 84;
   }
 
   .profile-panel-shell {

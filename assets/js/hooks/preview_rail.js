@@ -24,6 +24,7 @@ const PreviewRail = {
 
   updated() {
     this.pendingValue = this.el.value
+    this.lastPushedValue = String(this.el.value || '0')
   },
 
   destroyed() {
