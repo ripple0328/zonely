@@ -25,6 +25,7 @@ import {setupSimpleAudio} from "./simple-audio"
 // Extracted hooks
 import TeamMap from "./hooks/team_map"
 import TimeScrubber from "./hooks/time_scrubber"
+import PreviewRail from "./hooks/preview_rail"
 import LiveClock from "./hooks/live_clock"
 import LocalTime from "./hooks/local_time"
 import Clipboard from "./hooks/clipboard"
@@ -33,7 +34,7 @@ import Clipboard from "./hooks/clipboard"
 setupSimpleAudio()
 
 // Register hooks in a dedicated object to avoid the legacy inline Hooks
-const LV_HOOKS = { TeamMap, TimeScrubber, LiveClock, LocalTime, Clipboard, AudioHook: window.AudioHook }
+const LV_HOOKS = { TeamMap, TimeScrubber, PreviewRail, LiveClock, LocalTime, Clipboard, AudioHook: window.AudioHook }
 
 // TimeScrubber handled via ./hooks/time_scrubber
 

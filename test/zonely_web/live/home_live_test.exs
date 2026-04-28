@@ -95,7 +95,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
     assert has_element?(
              view,
-             "#map-time-rail-control[type='range'][min='0'][max='1440'][step='15']"
+             "#map-time-rail-control[phx-hook='PreviewRail'][type='range'][min='0'][max='1440'][step='15']"
            )
 
     assert has_element?(view, "#map-time-rail-ticks")
@@ -518,6 +518,9 @@ defmodule ZonelyWeb.HomeLiveTest do
     |> render_click()
 
     assert has_element?(view, "#profile-panel")
+    assert has_element?(view, "#profile-panel .profile-panel-position")
+    assert has_element?(view, "#profile-panel [data-testid='selected-sheet-handle']")
+    assert has_element?(view, "#profile-panel button[aria-label='Close teammate context']")
     assert has_element?(view, "#profile-panel [data-testid='pronunciation-english']")
 
     html = render(view)

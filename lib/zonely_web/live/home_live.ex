@@ -56,17 +56,21 @@ defmodule ZonelyWeb.HomeLive do
   def handle_event("preview_time", params, socket) do
     current_live_now = live_now()
 
-    case parse_preview_at(params, current_live_now) do
-      {:ok, preview_at} ->
-        {:noreply,
-         socket
-         |> assign(:live_now, current_live_now)
-         |> assign(:preview_at, preview_at)
-         |> assign_effective_time()
-         |> push_marker_state_update()}
+    if duplicate_preview_offset?(params, socket) do
+      {:noreply, socket}
+    else
+      case parse_preview_at(params, current_live_now) do
+        {:ok, preview_at} ->
+          {:noreply,
+           socket
+           |> assign(:live_now, current_live_now)
+           |> assign(:preview_at, preview_at)
+           |> assign_effective_time()
+           |> push_marker_state_update()}
 
-      :error ->
-        {:noreply, socket}
+        :error ->
+          {:noreply, socket}
+      end
     end
   end
 
@@ -299,6 +303,7 @@ defmodule ZonelyWeb.HomeLive do
                 class="rail-control"
                 type="range"
                 name="offset_minutes"
+                phx-hook="PreviewRail"
                 min="0"
                 max="1440"
                 step="15"
@@ -414,6 +419,13 @@ defmodule ZonelyWeb.HomeLive do
       _other -> DateTime.utc_now() |> DateTime.truncate(:second)
     end
   end
+
+  defp duplicate_preview_offset?(%{"offset_minutes" => value}, socket) do
+    socket.assigns.preview_at &&
+      to_string(socket.assigns.rail.offset_minutes) == to_string(value)
+  end
+
+  defp duplicate_preview_offset?(_params, _socket), do: false
 
   defp parse_preview_at(%{"offset_minutes" => value}, %DateTime{} = live_now) do
     case Integer.parse(to_string(value)) do

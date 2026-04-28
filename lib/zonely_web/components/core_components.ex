@@ -1530,7 +1530,12 @@ defmodule ZonelyWeb.CoreComponents do
       "overflow-hidden rounded-[20px] p-5 text-[var(--charcoal-ink)]",
       @class
     ]} data-testid="selected-decision-sheet">
-      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[color:var(--hairline)] sm:hidden"></div>
+      <div
+        class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[color:var(--hairline)] sm:hidden"
+        data-testid="selected-sheet-handle"
+        aria-hidden="true"
+      >
+      </div>
       <!-- Header with avatar and name -->
       <div class="flex items-start gap-4">
         <.user_avatar user={@user} size={56} class="border-[3px] border-white shadow-[0_12px_28px_rgba(22,26,29,0.16)]" />

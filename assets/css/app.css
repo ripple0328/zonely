@@ -757,14 +757,35 @@ html, body {
     bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 0.25rem);
   }
 
+  .profile-panel-shell {
+    z-index: 80;
+  }
+
+  .profile-panel-backdrop {
+    background: linear-gradient(
+      to top,
+      rgba(15, 23, 42, 0.16),
+      rgba(15, 23, 42, 0.06) 36%,
+      rgba(15, 23, 42, 0) 68%
+    );
+  }
+
   .profile-panel-position {
     top: auto;
-    right: 50%;
-    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 13.75rem);
+    right: auto;
+    left: 50%;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
     width: min(92vw, 28rem);
-    max-height: 50dvh;
-    overflow: auto;
-    transform: translateX(50%);
+    max-width: 92vw;
+    max-height: min(72dvh, calc(100dvh - 7rem));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateX(-50%);
+  }
+
+  .profile-panel-position > * {
+    max-width: 100%;
   }
 }
 
