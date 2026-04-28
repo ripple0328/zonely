@@ -4,3 +4,4 @@ elixir = "1.19.5-otp-28"
 
 [env]
 MIX_ENV = "dev"
+POSTGRES_PORT = "5434"

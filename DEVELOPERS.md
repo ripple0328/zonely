@@ -28,8 +28,11 @@ portless zonely mix phx.server
 Portless assigns Phoenix a free local port through `PORT` and exposes the app at
 the stable browser URL `https://zonely.localhost`. The Phoenix dev endpoint still
 defaults to `http://localhost:4000` when started directly with `mix phx.server`.
-Keep Postgres, Redis, MailHog SMTP, and other non-HTTP local services on their
-Docker Compose ports.
+The Phoenix local HTTP port is intentionally unregistered because Portless owns
+the browser-facing URL. Keep Postgres, Redis, MailHog SMTP, and other non-HTTP
+local services on registered Docker Compose ports. Zonely's local Postgres host
+port is `5434`; `POSTGRES_PORT` is committed in `.mise.toml` and defaults to
+`5434` in Phoenix dev/test config.
 
 ## Configuration
 

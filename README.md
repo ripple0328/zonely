@@ -48,6 +48,8 @@ just dev
 The golden-path dev server runs through Portless so the browser URL stays stable:
 `https://zonely.localhost`. Phoenix still supports direct startup with
 `mix phx.server`, defaulting to `http://localhost:4000` unless `PORT` is set.
+Local Postgres runs on host port `5434`, registered in `../mini-infra` to avoid
+colliding with sibling apps.
 
 Run checks before handing off changes:
 
