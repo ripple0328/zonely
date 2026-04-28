@@ -10,7 +10,7 @@ Pronunciation support is deliberately decoupled from implementation: Zonely prof
 mise trust
 mise install
 mix deps.get
-npm install --prefix assets
+mix assets.setup
 mix db.up
 mix ecto.setup
 mix phx.server
@@ -72,7 +72,7 @@ mix precommit
 - `Zonely.Holidays` provides holiday context.
 - `Zonely.Audio` converts profile pronunciation clicks into playback events.
 - `Zonely.PronunciationClient` is the production API boundary for pronunciation.
-- `ZonelyWeb.HomeLive` renders the team directory.
+- `ZonelyWeb.HomeLive` renders the map-first home page and directory page.
 
 ## Deployment
 
