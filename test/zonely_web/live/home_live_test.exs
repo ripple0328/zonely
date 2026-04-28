@@ -408,12 +408,19 @@ defmodule ZonelyWeb.HomeLiveTest do
 
     assert_push_event(view, "team_marker_states", %{
       selected_user_ids: [alice_id],
+      selected_user_id: selected_user_id,
       markers: markers
     })
 
     assert alice_id == alice.id
+    assert selected_user_id == alice.id
     assert Enum.find(markers, &(&1.id == alice.id)).selected == true
-    refute has_element?(view, "#profile-panel [data-testid='selected-decision-sheet']")
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-sheet']",
+             "Alice Remote"
+           )
 
     view |> element("#team-orbit-add-#{mara.id}") |> render_click()
 
@@ -484,6 +491,42 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert_push_event(view, "team_marker_states", %{selected_user_ids: [^alice_id, yuki_id]})
     assert yuki_id == yuki.id
     assert has_element?(view, "#selected-group-summary", "Comparing 2 teammates")
+
+    view |> element("#selected-group-remove-#{yuki.id}") |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      selected_user_ids: [^alice_id],
+      selected_user_id: ^alice_id,
+      markers: single_markers
+    })
+
+    assert Enum.find(single_markers, &(&1.id == alice.id)).selected == true
+    refute has_element?(view, "#selected-group-summary")
+    refute has_element?(view, "#selected-group-panel")
+
+    assert has_element?(
+             view,
+             "#profile-panel [data-testid='selected-decision-sheet']",
+             "Alice Remote"
+           )
+
+    view |> element("#profile-panel .profile-panel-backdrop") |> render_click()
+    assert_push_event(view, "team_marker_states", %{selected_user_ids: []})
+    refute has_element?(view, "#selected-group-summary")
+    refute has_element?(view, "#selected-group-panel")
+    refute has_element?(view, "#profile-panel [data-testid='selected-decision-sheet']")
+
+    view |> element("#team-orbit-add-#{alice.id}") |> render_click()
+    assert_push_event(view, "team_marker_states", %{selected_user_ids: [^alice_id]})
+
+    view |> element("#team-orbit-add-#{mara.id}") |> render_click()
+
+    assert_push_event(view, "team_marker_states", %{
+      selected_user_ids: [^alice_id, rebuilt_mara_id]
+    })
+
+    assert rebuilt_mara_id == mara.id
+    assert has_element?(view, "#selected-group-panel")
 
     view |> element("#selected-group-clear") |> render_click()
     assert_push_event(view, "team_marker_states", %{selected_user_ids: []})

@@ -76,8 +76,8 @@ defmodule ZonelyWeb.HomeLive do
     {:noreply,
      socket
      |> assign(:selected_user_ids, capped_user_ids)
-     |> assign(:selected_user, nil)
      |> assign(:selection_feedback, feedback)
+     |> assign_selected_user_from_ids()
      |> assign_effective_time()
      |> push_marker_state_update()}
   end
