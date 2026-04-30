@@ -543,19 +543,23 @@ defmodule Zonely.Schedules do
   end
 
   defp next_work_start(schedule, local_date, timezone, effective_at) do
-    first_window = List.first(schedule.windows)
-
     0..14
     |> Enum.find_value(fn offset ->
       candidate = Date.add(local_date, offset)
 
       if MapSet.member?(schedule.working_days, weekday(candidate)) do
-        with {:ok, starts_at} <- local_to_utc(candidate, first_window.start, timezone),
-             true <- future_datetime?(starts_at, effective_at) do
-          %{type: "work_window_start", date: candidate, time: first_window.start}
-        else
-          _not_future_or_invalid -> nil
-        end
+        next_work_start_for_day(schedule.windows, candidate, timezone, effective_at)
+      end
+    end)
+  end
+
+  defp next_work_start_for_day(windows, local_date, timezone, effective_at) do
+    Enum.find_value(windows, fn window ->
+      with {:ok, starts_at} <- local_to_utc(local_date, window.start, timezone),
+           true <- future_datetime?(starts_at, effective_at) do
+        %{type: "work_window_start", date: local_date, time: window.start}
+      else
+        _not_future_or_invalid -> nil
       end
     end)
   end

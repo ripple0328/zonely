@@ -88,6 +88,44 @@ defmodule Zonely.SchedulesTest do
       assert DateTime.compare(~U[2026-05-05 09:00:00Z], ~U[2026-05-04 17:10:00Z]) == :gt
     end
 
+    test "between same-day work windows, next transition selects the nearest future start" do
+      split_schedule = %{
+        working_days: [:monday],
+        windows: [
+          %{start: ~T[09:00:00], end: ~T[11:00:00]},
+          %{start: ~T[13:00:00], end: ~T[17:00:00]}
+        ]
+      }
+
+      assert {:ok, result} =
+               Schedules.evaluate(split_schedule, ~U[2026-05-04 11:45:00Z], "Etc/UTC")
+
+      assert result.state == "outside_work_window"
+      assert result.reason_codes == ["outside_work_window"]
+      assert result.work_window == nil
+      assert result.next_transition.type == "work_window_start"
+      assert result.next_transition.at == "2026-05-04T13:00:00Z"
+      assert result.next_transition.local_date == "2026-05-04"
+      assert result.next_transition.local_time == "13:00:00"
+      assert DateTime.compare(~U[2026-05-04 13:00:00Z], ~U[2026-05-04 11:45:00Z]) == :gt
+    end
+
+    test "same-day next transition uses the nearest future start regardless of input order" do
+      split_schedule = %{
+        working_days: [:monday],
+        windows: [
+          %{start: ~T[13:00:00], end: ~T[17:00:00]},
+          %{start: ~T[09:00:00], end: ~T[11:00:00]}
+        ]
+      }
+
+      assert {:ok, result} =
+               Schedules.evaluate(split_schedule, ~U[2026-05-04 11:45:00Z], "Etc/UTC")
+
+      assert result.next_transition.type == "work_window_start"
+      assert result.next_transition.at == "2026-05-04T13:00:00Z"
+    end
+
     test "classifies configured non-working days without inventing default hours" do
       assert {:ok, result} =
                Schedules.evaluate(@weekday_schedule, ~U[2026-05-09 10:30:00Z], "Etc/UTC")
