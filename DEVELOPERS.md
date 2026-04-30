@@ -34,9 +34,10 @@ endpoint still defaults to `http://localhost:4000` when started directly with
 because Portless owns the browser-facing URL.
 
 `just dev` also opens Tidewave.app when needed and prints the working Tidewave
-URLs. Tidewave Web uses the public Portless app URL as `origin`; do not use
-Phoenix's internal random `PORT` for the Web URL. The raw `/tidewave/mcp`
-endpoint is for MCP clients only and uses JSON-RPC over POST.
+URLs. Tidewave Web uses Phoenix's assigned app URL as `origin`: the same
+`.localhost` host plus the current random `PORT`. The Portless URL is for normal
+browser access; the direct app URL is what Tidewave Web uses to connect. The raw
+`/tidewave/mcp` endpoint is for MCP clients only and uses JSON-RPC over POST.
 
 Keep Postgres, Redis, MailHog SMTP, and other non-HTTP local services on
 registered Docker Compose ports. Zonely's local Postgres host port is `5434`;

@@ -13,7 +13,8 @@ if [[ -z "${app_host}" ]]; then
   app_host="localhost"
 fi
 
-tidewave_origin="${app_url%/}"
+direct_app_url="http://${app_host}:${app_port}"
+tidewave_origin="${direct_app_url}"
 tidewave_origin_encoded="${tidewave_origin//:/%3A}"
 tidewave_origin_encoded="${tidewave_origin_encoded//\//%2F}"
 tidewave_web_url="http://${app_host}:9832/?origin=${tidewave_origin_encoded}"
@@ -44,7 +45,8 @@ fi
 cat <<EOF
 
 ${app_label} dev URLs
-  App:                  ${app_url}
+  App:                  ${direct_app_url}
+  Portless:             ${app_url}
   Tidewave Web:         ${tidewave_web_url}
   Tidewave Web status:  ${tidewave_status}
   Tidewave MCP (POST):  ${tidewave_mcp_url}
