@@ -14,6 +14,8 @@ Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 - Selected teammate decision sheet with effective local time, work window, timezone offset, daylight, reachability guidance, and next transition context
 - Compact selected-group card that summarizes whether the selected teammates have a good moment now and who needs attention
 - Optional profile pronunciation playback and SayMyName share previews through the production pronunciation API
+- SayMyName `shared_profile_v1` card/list import into reloadable Zonely drafts that collect only missing location, timezone, and work-hour fields
+- Opaque team packet invite links for append-self roster collection, owner review, accepted-member publish, pass-on accumulation, and published map visibility without inferred coordinates
 
 ## Architecture
 
@@ -40,6 +42,7 @@ Shared profile boundary:
 - Use JSContact as the modern JSON contact reference and keep a clear long-term projection to vCard 4.0 export.
 - Zonely owns location, timezone, work hours, team membership, and reachability.
 - SayMyName owns name variants, per-variant pronunciation, and name-card/list rendering.
+- Cross-app exchange uses `shared_profile_v1` over share/invite links. Zonely preserves missing Zonely-owned fields as incomplete draft state, keeps coordinates absent unless explicitly supplied, and publishes only owner-accepted complete draft members into the normal team/map flow.
 
 ## Development
 
