@@ -55,8 +55,8 @@ mix ecto.setup
 just dev
 ```
 
-The golden-path dev server runs through Portless so the browser URL stays stable:
-`https://zonely.localhost`. Phoenix still supports direct startup with
+The golden-path dev server runs through a shared no-TLS Portless proxy so the
+browser URL stays stable: `http://zonely.localhost:1355`. Phoenix still supports direct startup with
 `mix phx.server`, defaulting to `http://localhost:4000` unless `PORT` is set.
 Local Postgres runs on host port `5434`, registered in `../mini-infra` to avoid
 colliding with sibling apps.

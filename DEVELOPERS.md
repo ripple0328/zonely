@@ -16,23 +16,32 @@ mix ecto.setup
 just dev
 ```
 
-Open [zonely.localhost](https://zonely.localhost).
+Open [zonely.localhost](http://zonely.localhost:1355).
 
 `just dev` is the golden path for the local web server. It starts Phoenix through
 Portless:
 
 ```sh
-portless zonely mix phx.server
+PORTLESS_STATE_DIR=/tmp/personal-portless-http PORTLESS_HTTPS=0 PORTLESS_PORT=1355 APP_DISPLAY_NAME=Zonely portless zonely ./scripts/dev_with_tidewave_banner.sh
 ```
 
 Portless assigns Phoenix a free local port through `PORT` and exposes the app at
-the stable browser URL `https://zonely.localhost`. The Phoenix dev endpoint still
-defaults to `http://localhost:4000` when started directly with `mix phx.server`.
-The Phoenix local HTTP port is intentionally unregistered because Portless owns
-the browser-facing URL. Keep Postgres, Redis, MailHog SMTP, and other non-HTTP
-local services on registered Docker Compose ports. Zonely's local Postgres host
-port is `5434`; `POSTGRES_PORT` is committed in `.mise.toml` and defaults to
-`5434` in Phoenix dev/test config.
+the stable browser URL `http://zonely.localhost:1355`. The no-TLS Portless
+state is shared with sibling Phoenix apps at `/tmp/personal-portless-http`, so
+multiple app routes can coexist behind one local HTTP proxy. The Phoenix dev
+endpoint still defaults to `http://localhost:4000` when started directly with
+`mix phx.server`. The Phoenix local HTTP port is intentionally unregistered
+because Portless owns the browser-facing URL.
+
+`just dev` also opens Tidewave.app when needed and prints the working Tidewave
+URLs. Tidewave Web uses the public Portless app URL as `origin`; do not use
+Phoenix's internal random `PORT` for the Web URL. The raw `/tidewave/mcp`
+endpoint is for MCP clients only and uses JSON-RPC over POST.
+
+Keep Postgres, Redis, MailHog SMTP, and other non-HTTP local services on
+registered Docker Compose ports. Zonely's local Postgres host port is `5434`;
+`POSTGRES_PORT` is committed in `.mise.toml` and defaults to `5434` in Phoenix
+dev/test config.
 
 ## Configuration
 
