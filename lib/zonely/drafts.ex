@@ -75,6 +75,18 @@ defmodule Zonely.Drafts do
 
   def get_draft_by_invite_token(_token), do: nil
 
+  def get_draft_by_source_idempotency_key(key) when is_binary(key) do
+    Repo.get_by(TeamDraft, source_idempotency_key: key)
+  end
+
+  def get_draft_by_source_idempotency_key(_key), do: nil
+
+  def owner_token_matches?(%TeamDraft{} = draft, token) when is_binary(token) do
+    draft.owner_token_hash == hash_token(token)
+  end
+
+  def owner_token_matches?(%TeamDraft{}, _token), do: false
+
   def get_draft_member!(id), do: Repo.get!(TeamDraftMember, id)
 
   def list_draft_members(%TeamDraft{} = draft) do
@@ -93,6 +105,18 @@ defmodule Zonely.Drafts do
     %TeamDraftMember{}
     |> TeamDraftMember.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def change_draft_member_completion(%TeamDraftMember{} = member, attrs \\ %{}) do
+    member
+    |> TeamDraftMember.changeset(completion_attrs(attrs))
+    |> Map.put(:action, :validate)
+  end
+
+  def update_draft_member_completion(%TeamDraftMember{} = member, attrs) do
+    member
+    |> TeamDraftMember.changeset(completion_attrs(attrs))
+    |> Repo.update()
   end
 
   def create_submission_member(%TeamDraft{} = draft, attrs \\ %{}) do
@@ -291,6 +315,12 @@ defmodule Zonely.Drafts do
       {key, value} when is_binary(key) -> {Map.get(@attr_keys, key, key), value}
       {key, value} -> {key, value}
     end)
+  end
+
+  defp completion_attrs(attrs) do
+    attrs
+    |> normalize_attrs()
+    |> Map.take([:location_country, :location_label, :timezone, :work_start, :work_end])
   end
 
   defp maybe_put(map, _key, nil), do: map

@@ -34,6 +34,8 @@ defmodule ZonelyWeb.Router do
     pipe_through(:browser)
 
     live("/", HomeLive, :map)
+    get("/imports/saymyname/card", ImportController, :say_my_name_card)
+    live("/imports/:id", ImportLive, :show)
   end
 
   if Application.compile_env(:zonely, :dev_routes) do
