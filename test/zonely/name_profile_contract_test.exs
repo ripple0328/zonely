@@ -153,4 +153,203 @@ defmodule Zonely.NameProfileContractTest do
              ]
     end
   end
+
+  describe "parse/1" do
+    test "accepts and projects a canonical shared_profile_v1 card payload" do
+      payload = %{
+        "version" => "shared_profile_v1",
+        "person" => %{
+          "id" => "say-1",
+          "display_name" => "San Zhang",
+          "pronouns" => "he/him",
+          "role" => "Engineering",
+          "name_variants" => [
+            %{
+              "lang" => "en-US",
+              "text" => "San Zhang",
+              "script" => "Latn",
+              "pronunciation" => %{
+                "audio_url" => "https://saymyname.example/audio/san.mp3",
+                "source_kind" => "recorded"
+              }
+            },
+            %{"lang" => "zh-CN", "text" => "张三", "script" => "Hans"}
+          ]
+        },
+        "location" => %{
+          "country" => "US",
+          "label" => "San Francisco",
+          "latitude" => 37.7749,
+          "longitude" => -122.4194
+        },
+        "availability" => %{
+          "timezone" => "America/Los_Angeles",
+          "work_start" => "09:00",
+          "work_end" => "17:00"
+        }
+      }
+
+      assert {:ok, projection} = NameProfileContract.parse(payload)
+
+      assert projection == %{
+               kind: :person,
+               version: "shared_profile_v1",
+               person: %{
+                 "id" => "say-1",
+                 "display_name" => "San Zhang",
+                 "pronouns" => "he/him",
+                 "role" => "Engineering",
+                 "name_variants" => [
+                   %{
+                     "lang" => "en-US",
+                     "text" => "San Zhang",
+                     "script" => "Latn",
+                     "pronunciation" => %{
+                       "audio_url" => "https://saymyname.example/audio/san.mp3",
+                       "source_kind" => "recorded"
+                     }
+                   },
+                   %{"lang" => "zh-CN", "text" => "张三", "script" => "Hans"}
+                 ]
+               },
+               location: %{
+                 "country" => "US",
+                 "label" => "San Francisco",
+                 "latitude" => 37.7749,
+                 "longitude" => -122.4194
+               },
+               availability: %{
+                 "timezone" => "America/Los_Angeles",
+                 "work_start" => "09:00",
+                 "work_end" => "17:00"
+               }
+             }
+    end
+
+    test "accepts and projects a canonical team/list payload" do
+      payload = %{
+        "version" => "shared_profile_v1",
+        "team" => %{"id" => "team-1", "name" => "Zonely Team"},
+        "memberships" => [
+          %{
+            "person" => %{"display_name" => "Avery Stone"},
+            "role" => "Design",
+            "location" => %{"country" => "GB", "label" => "London"},
+            "availability" => %{
+              "timezone" => "Europe/London",
+              "work_start" => "08:30",
+              "work_end" => "16:30"
+            }
+          },
+          %{
+            "person" => %{
+              "display_name" => "Mina Park",
+              "name_variants" => [%{"lang" => "ko-KR", "text" => "박민아"}]
+            },
+            "location" => %{"country" => "KR", "label" => "Seoul"}
+          }
+        ]
+      }
+
+      assert {:ok, projection} = NameProfileContract.parse(payload)
+
+      assert projection.kind == :team
+      assert projection.team == %{"id" => "team-1", "name" => "Zonely Team"}
+      assert length(projection.memberships) == 2
+      assert hd(projection.memberships)["role"] == "Design"
+
+      assert get_in(List.last(projection.memberships), ["person", "name_variants"]) == [
+               %{"lang" => "ko-KR", "text" => "박민아"}
+             ]
+    end
+
+    test "rejects unsupported versions and unrelated payload shapes" do
+      assert {:error, :unsupported_version} =
+               NameProfileContract.parse(%{"version" => "shared_profile_v2", "person" => %{}})
+
+      assert {:error, :unsupported_shape} =
+               NameProfileContract.parse(%{"version" => "shared_profile_v1", "people" => []})
+    end
+
+    test "rejects empty team lists and memberships missing person identity" do
+      assert {:error, :empty_memberships} =
+               NameProfileContract.parse(%{
+                 "version" => "shared_profile_v1",
+                 "team" => %{"name" => "Empty"},
+                 "memberships" => []
+               })
+
+      assert {:error, {:invalid_membership, 0, :missing_display_name}} =
+               NameProfileContract.parse(%{
+                 "version" => "shared_profile_v1",
+                 "team" => %{"name" => "Invalid"},
+                 "memberships" => [%{"person" => %{"name_variants" => []}}]
+               })
+    end
+
+    test "preserves missing Zonely-owned fields without defaults and does not infer coordinates" do
+      payload = %{
+        "version" => "shared_profile_v1",
+        "person" => %{"display_name" => "Lina Torres", "pronouns" => "she/her"},
+        "location" => %{"country" => "PT", "label" => "Lisbon"}
+      }
+
+      assert {:ok, projection} = NameProfileContract.parse(payload)
+
+      refute Map.has_key?(projection, :availability)
+      assert projection.location == %{"country" => "PT", "label" => "Lisbon"}
+      refute Map.has_key?(projection.location, "latitude")
+      refute Map.has_key?(projection.location, "longitude")
+    end
+
+    test "rejects partial coordinates, invalid timezone offsets, invalid work hours, and invalid variants" do
+      assert {:error, {:invalid_location, :partial_coordinates}} =
+               NameProfileContract.parse(%{
+                 "version" => "shared_profile_v1",
+                 "person" => %{"display_name" => "Kai"},
+                 "location" => %{"latitude" => 35.6762}
+               })
+
+      assert {:error, {:invalid_availability, :invalid_timezone}} =
+               NameProfileContract.parse(%{
+                 "version" => "shared_profile_v1",
+                 "person" => %{"display_name" => "Kai"},
+                 "availability" => %{"timezone" => "+08:00"}
+               })
+
+      assert {:error, {:invalid_availability, :invalid_work_start}} =
+               NameProfileContract.parse(%{
+                 "version" => "shared_profile_v1",
+                 "person" => %{"display_name" => "Kai"},
+                 "availability" => %{"work_start" => "9am"}
+               })
+
+      assert {:error, {:invalid_person, :invalid_name_variants}} =
+               NameProfileContract.parse(%{
+                 "version" => "shared_profile_v1",
+                 "person" => %{
+                   "display_name" => "Kai",
+                   "name_variants" => [%{"lang" => "", "text" => "Kai"}]
+                 }
+               })
+    end
+
+    test "normalizes wrapped share-link payloads only at explicit payload boundaries" do
+      payload = %{
+        "version" => "shared_profile_v1",
+        "person" => %{"display_name" => "Rhea Patel"}
+      }
+
+      assert {:ok, %{kind: :person, person: %{"display_name" => "Rhea Patel"}}} =
+               NameProfileContract.parse(%{"payload" => payload})
+
+      assert {:ok, %{kind: :person, person: %{"display_name" => "Rhea Patel"}}} =
+               NameProfileContract.parse(%{"data" => %{"payload" => payload}})
+
+      assert {:error, :invalid_payload} =
+               NameProfileContract.parse("https://example.test/share/abc")
+
+      assert {:error, :invalid_payload} = NameProfileContract.parse(%{"payload" => "not-json"})
+    end
+  end
 end

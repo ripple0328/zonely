@@ -58,6 +58,22 @@ defmodule Zonely.NameProfileContract do
     }
   end
 
+  @doc """
+  Parses a `shared_profile_v1` card or team/list payload into Zonely's import projection.
+
+  The parser is intentionally pure and conservative: it accepts only the canonical
+  shared contract version, preserves supplied SayMyName-owned name/pronunciation
+  fields, keeps absent Zonely-owned location/availability fields absent, and only
+  retains coordinates when a valid latitude/longitude pair is explicitly present.
+  """
+  @spec parse(term()) :: {:ok, map()} | {:error, term()}
+  def parse(payload) do
+    with {:ok, payload} <- normalize_link_payload(payload),
+         {:ok, payload} <- validate_version(payload) do
+      parse_contract_shape(payload)
+    end
+  end
+
   @spec variants_for(Person.t()) :: [map()]
   def variants_for(%Person{name_variants: variants}) when is_list(variants) and variants != [] do
     variants
@@ -69,6 +85,302 @@ defmodule Zonely.NameProfileContract do
     [variant(@default_english_locale, person.name), native_variant(person)]
     |> Enum.reject(&is_nil/1)
   end
+
+  defp normalize_link_payload(%{"payload" => payload}) when is_map(payload), do: {:ok, payload}
+  defp normalize_link_payload(%{"payload" => _payload}), do: {:error, :invalid_payload}
+
+  defp normalize_link_payload(%{"data" => %{"payload" => payload}}) when is_map(payload),
+    do: {:ok, payload}
+
+  defp normalize_link_payload(%{"data" => %{"payload" => _payload}}),
+    do: {:error, :invalid_payload}
+
+  defp normalize_link_payload(payload) when is_map(payload), do: {:ok, payload}
+  defp normalize_link_payload(_payload), do: {:error, :invalid_payload}
+
+  defp validate_version(%{"version" => "shared_profile_v1"} = payload), do: {:ok, payload}
+  defp validate_version(%{"version" => _version}), do: {:error, :unsupported_version}
+  defp validate_version(_payload), do: {:error, :unsupported_shape}
+
+  defp parse_contract_shape(%{"person" => person} = payload)
+       when is_map(person) and not is_map_key(payload, "team") and
+              not is_map_key(payload, "memberships") do
+    case project_person(person) do
+      {:ok, person} ->
+        with {:ok, projection} <-
+               put_optional_location(
+                 %{kind: :person, version: "shared_profile_v1", person: person},
+                 payload
+               ),
+             {:ok, projection} <- put_optional_availability(projection, payload) do
+          {:ok, projection}
+        end
+
+      {:error, reason} ->
+        {:error, {:invalid_person, reason}}
+    end
+  end
+
+  defp parse_contract_shape(%{"team" => team, "memberships" => memberships})
+       when is_map(team) and is_list(memberships) do
+    with {:ok, team} <- project_team(team),
+         {:ok, memberships} <- project_memberships(memberships) do
+      {:ok,
+       %{
+         kind: :team,
+         version: "shared_profile_v1",
+         team: team,
+         memberships: memberships
+       }}
+    end
+  end
+
+  defp parse_contract_shape(%{"team" => team, "memberships" => _memberships}) when is_map(team),
+    do: {:error, :invalid_memberships}
+
+  defp parse_contract_shape(_payload), do: {:error, :unsupported_shape}
+
+  defp project_person(%{"display_name" => display_name} = person) do
+    case normalize_text(display_name) do
+      nil ->
+        {:error, :missing_display_name}
+
+      display_name ->
+        with {:ok, name_variants} <- project_name_variants(Map.get(person, "name_variants")),
+             {:ok, pronunciation} <- project_pronunciation(Map.get(person, "pronunciation")) do
+          projected =
+            %{
+              "id" => normalize_text(Map.get(person, "id")),
+              "display_name" => display_name,
+              "pronouns" => normalize_text(Map.get(person, "pronouns")),
+              "role" => normalize_text(Map.get(person, "role")),
+              "name_variants" => name_variants,
+              "pronunciation" => pronunciation
+            }
+            |> reject_nil_values()
+
+          {:ok, projected}
+        end
+    end
+  end
+
+  defp project_person(_person), do: {:error, :missing_display_name}
+
+  defp project_team(team) do
+    case normalize_text(Map.get(team, "name")) do
+      nil ->
+        {:error, :missing_team_name}
+
+      name ->
+        {:ok,
+         %{
+           "id" => normalize_text(Map.get(team, "id")),
+           "name" => name
+         }
+         |> reject_nil_values()}
+    end
+  end
+
+  defp project_memberships([]), do: {:error, :empty_memberships}
+
+  defp project_memberships(memberships) do
+    memberships
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, []}, fn {membership, index}, {:ok, projected} ->
+      case project_membership(membership) do
+        {:ok, membership} -> {:cont, {:ok, [membership | projected]}}
+        {:error, reason} -> {:halt, {:error, {:invalid_membership, index, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, projected} -> {:ok, Enum.reverse(projected)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp project_membership(%{"person" => person} = membership) when is_map(person) do
+    with {:ok, person} <- project_person(person),
+         {:ok, projected} <- put_optional_location(%{"person" => person}, membership),
+         {:ok, projected} <- put_optional_availability(projected, membership) do
+      projected =
+        projected
+        |> Map.put("role", normalize_text(Map.get(membership, "role")))
+        |> reject_nil_values()
+
+      {:ok, projected}
+    end
+  end
+
+  defp project_membership(_membership), do: {:error, :missing_person}
+
+  defp put_optional_location(projection, %{"location" => location}) do
+    case project_location(location) do
+      {:ok, location} -> {:ok, maybe_put(projection, location_key(projection), location)}
+      {:error, reason} -> {:error, {:invalid_location, reason}}
+    end
+  end
+
+  defp put_optional_location(projection, _payload), do: {:ok, projection}
+
+  defp put_optional_availability(projection, %{"availability" => availability}) do
+    case project_availability(availability) do
+      {:ok, availability} ->
+        {:ok, maybe_put(projection, availability_key(projection), availability)}
+
+      {:error, reason} ->
+        {:error, {:invalid_availability, reason}}
+    end
+  end
+
+  defp put_optional_availability(projection, _payload), do: {:ok, projection}
+
+  defp location_key(%{"person" => _person}), do: "location"
+  defp location_key(_projection), do: :location
+
+  defp availability_key(%{"person" => _person}), do: "availability"
+  defp availability_key(_projection), do: :availability
+
+  defp maybe_put(projection, _key, value) when value == %{}, do: projection
+  defp maybe_put(projection, key, value), do: Map.put(projection, key, value)
+
+  defp project_location(location) when is_map(location) do
+    with {:ok, coordinates} <- project_coordinates(location) do
+      location =
+        %{
+          "country" => normalize_text(Map.get(location, "country")),
+          "label" => normalize_text(Map.get(location, "label"))
+        }
+        |> Map.merge(coordinates)
+        |> reject_nil_values()
+
+      {:ok, location}
+    end
+  end
+
+  defp project_location(_location), do: {:error, :invalid_shape}
+
+  defp project_coordinates(location) do
+    latitude = Map.get(location, "latitude")
+    longitude = Map.get(location, "longitude")
+
+    cond do
+      is_nil(latitude) and is_nil(longitude) ->
+        {:ok, %{}}
+
+      is_nil(latitude) or is_nil(longitude) ->
+        {:error, :partial_coordinates}
+
+      valid_latitude?(latitude) and valid_longitude?(longitude) ->
+        {:ok, %{"latitude" => latitude, "longitude" => longitude}}
+
+      true ->
+        {:error, :invalid_coordinates}
+    end
+  end
+
+  defp project_availability(availability) when is_map(availability) do
+    with {:ok, timezone} <- project_timezone(Map.get(availability, "timezone")),
+         {:ok, work_start} <- project_work_time(Map.get(availability, "work_start"), :work_start),
+         {:ok, work_end} <- project_work_time(Map.get(availability, "work_end"), :work_end) do
+      {:ok,
+       %{
+         "timezone" => timezone,
+         "work_start" => work_start,
+         "work_end" => work_end
+       }
+       |> reject_nil_values()}
+    end
+  end
+
+  defp project_availability(_availability), do: {:error, :invalid_shape}
+
+  defp project_timezone(nil), do: {:ok, nil}
+
+  defp project_timezone(timezone) when is_binary(timezone) do
+    timezone = String.trim(timezone)
+
+    cond do
+      timezone == "" -> {:ok, nil}
+      valid_iana_timezone?(timezone) -> {:ok, timezone}
+      true -> {:error, :invalid_timezone}
+    end
+  end
+
+  defp project_timezone(_timezone), do: {:error, :invalid_timezone}
+
+  defp project_work_time(nil, _field), do: {:ok, nil}
+
+  defp project_work_time(value, field) when is_binary(value) do
+    value = String.trim(value)
+
+    cond do
+      value == "" ->
+        {:ok, nil}
+
+      valid_work_time?(value) ->
+        {:ok, value}
+
+      true ->
+        {:error, :"invalid_#{field}"}
+    end
+  end
+
+  defp project_work_time(_value, field), do: {:error, :"invalid_#{field}"}
+
+  defp project_name_variants(nil), do: {:ok, nil}
+
+  defp project_name_variants(variants) when is_list(variants) and variants != [] do
+    variants
+    |> Enum.reduce_while({:ok, []}, fn variant, {:ok, projected} ->
+      case project_name_variant(variant) do
+        {:ok, variant} -> {:cont, {:ok, [variant | projected]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, projected} -> {:ok, Enum.reverse(projected)}
+      {:error, _reason} -> {:error, :invalid_name_variants}
+    end
+  end
+
+  defp project_name_variants(_variants), do: {:error, :invalid_name_variants}
+
+  defp project_name_variant(%{"lang" => lang, "text" => text} = variant) do
+    with lang when not is_nil(lang) <- normalize_text(lang),
+         text when not is_nil(text) <- normalize_text(text),
+         {:ok, pronunciation} <- project_pronunciation(Map.get(variant, "pronunciation")) do
+      projected =
+        %{
+          "lang" => lang,
+          "text" => text,
+          "script" => normalize_text(Map.get(variant, "script")),
+          "pronunciation" => pronunciation
+        }
+        |> reject_nil_values()
+
+      {:ok, projected}
+    else
+      nil -> {:error, :invalid_name_variant}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp project_name_variant(_variant), do: {:error, :invalid_name_variant}
+
+  defp project_pronunciation(nil), do: {:ok, nil}
+
+  defp project_pronunciation(pronunciation) when is_map(pronunciation) do
+    {:ok,
+     %{
+       "audio_url" => normalize_text(Map.get(pronunciation, "audio_url")),
+       "source_kind" => normalize_text(Map.get(pronunciation, "source_kind")),
+       "phonetic" => normalize_text(Map.get(pronunciation, "phonetic")),
+       "source_url" => normalize_text(Map.get(pronunciation, "source_url"))
+     }
+     |> reject_nil_values()}
+  end
+
+  defp project_pronunciation(_pronunciation), do: {:error, :invalid_pronunciation}
 
   defp person_map(%Person{} = person) do
     %{
@@ -161,6 +473,34 @@ defmodule Zonely.NameProfileContract do
   end
 
   defp normalize_text(_value), do: nil
+
+  defp valid_latitude?(latitude) when is_number(latitude), do: latitude >= -90 and latitude <= 90
+  defp valid_latitude?(_latitude), do: false
+
+  defp valid_longitude?(longitude) when is_number(longitude),
+    do: longitude >= -180 and longitude <= 180
+
+  defp valid_longitude?(_longitude), do: false
+
+  defp valid_iana_timezone?(timezone) do
+    case DateTime.now(timezone) do
+      {:ok, _datetime} -> true
+      {:error, _reason} -> false
+    end
+  end
+
+  defp valid_work_time?(value) do
+    cond do
+      match?({:ok, _time}, Time.from_iso8601(value)) ->
+        true
+
+      Regex.match?(~r/^\d{2}:\d{2}$/, value) ->
+        match?({:ok, _time}, Time.from_iso8601(value <> ":00"))
+
+      true ->
+        false
+    end
+  end
 
   defp normalize_language(language, country) do
     country_locale = Geography.country_to_locale(country || "")
