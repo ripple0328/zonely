@@ -66,6 +66,28 @@ defmodule Zonely.SchedulesTest do
       assert outside.reason_codes == ["outside_work_window"]
     end
 
+    test "after the final work window, next transition points to a future work start" do
+      assert {:ok, result} =
+               Schedules.evaluate(@weekday_schedule, ~U[2026-05-04 21:00:00Z], "Etc/UTC")
+
+      assert result.state == "outside_work_window"
+      assert result.next_transition.type == "work_window_start"
+      assert result.next_transition.at == "2026-05-05T09:00:00Z"
+      assert DateTime.compare(~U[2026-05-05 09:00:00Z], ~U[2026-05-04 21:00:00Z]) == :gt
+    end
+
+    test "after-end near-boundary next transition does not report the past work end" do
+      assert {:ok, result} =
+               Schedules.evaluate(@weekday_schedule, ~U[2026-05-04 17:10:00Z], "Etc/UTC")
+
+      assert result.state == "near_work_boundary"
+      assert "after_work_window_end" in result.reason_codes
+      assert result.next_transition.type == "work_window_start"
+      assert result.next_transition.at == "2026-05-05T09:00:00Z"
+      refute result.next_transition.at == "2026-05-04T17:00:00Z"
+      assert DateTime.compare(~U[2026-05-05 09:00:00Z], ~U[2026-05-04 17:10:00Z]) == :gt
+    end
+
     test "classifies configured non-working days without inventing default hours" do
       assert {:ok, result} =
                Schedules.evaluate(@weekday_schedule, ~U[2026-05-09 10:30:00Z], "Etc/UTC")

@@ -448,10 +448,10 @@ defmodule Zonely.Schedules do
 
   defp next_transition_projection(
          %{window: window, next_transition_type: type},
-         _schedule,
+         schedule,
          local_date,
          timezone,
-         _effective_at
+         effective_at
        )
        when not is_nil(window) and not is_nil(type) do
     transition_time =
@@ -460,16 +460,18 @@ defmodule Zonely.Schedules do
         "work_window_end" -> window.end
       end
 
-    with {:ok, at} <- local_to_utc(local_date, transition_time, timezone),
-         {:ok, evidence} <- transition_evidence(type, at, local_date, transition_time) do
-      {:ok,
-       %{
-         type: type,
-         at: format_datetime(at),
-         local_date: Date.to_iso8601(local_date),
-         local_time: Time.to_iso8601(transition_time),
-         evidence: evidence
-       }}
+    with {:ok, at} <- local_to_utc(local_date, transition_time, timezone) do
+      if future_datetime?(at, effective_at) do
+        transition_projection(type, at, local_date, transition_time)
+      else
+        next_transition_projection(
+          %{next_transition: next_work_start(schedule, local_date, timezone, effective_at)},
+          schedule,
+          local_date,
+          timezone,
+          effective_at
+        )
+      end
     end
   end
 
@@ -487,18 +489,14 @@ defmodule Zonely.Schedules do
          _schedule,
          _local_date,
          timezone,
-         _effective_at
+         effective_at
        ) do
     with {:ok, at} <- local_to_utc(date, time, timezone),
-         {:ok, evidence} <- transition_evidence(type, at, date, time) do
-      {:ok,
-       %{
-         type: type,
-         at: format_datetime(at),
-         local_date: Date.to_iso8601(date),
-         local_time: Time.to_iso8601(time),
-         evidence: evidence
-       }}
+         true <- future_datetime?(at, effective_at) do
+      transition_projection(type, at, date, time)
+    else
+      false -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -531,7 +529,20 @@ defmodule Zonely.Schedules do
     })
   end
 
-  defp next_work_start(schedule, local_date, _timezone, _effective_at) do
+  defp transition_projection(type, at, local_date, local_time) do
+    with {:ok, evidence} <- transition_evidence(type, at, local_date, local_time) do
+      {:ok,
+       %{
+         type: type,
+         at: format_datetime(at),
+         local_date: Date.to_iso8601(local_date),
+         local_time: Time.to_iso8601(local_time),
+         evidence: evidence
+       }}
+    end
+  end
+
+  defp next_work_start(schedule, local_date, timezone, effective_at) do
     first_window = List.first(schedule.windows)
 
     0..14
@@ -539,10 +550,18 @@ defmodule Zonely.Schedules do
       candidate = Date.add(local_date, offset)
 
       if MapSet.member?(schedule.working_days, weekday(candidate)) do
-        %{type: "work_window_start", date: candidate, time: first_window.start}
+        with {:ok, starts_at} <- local_to_utc(candidate, first_window.start, timezone),
+             true <- future_datetime?(starts_at, effective_at) do
+          %{type: "work_window_start", date: candidate, time: first_window.start}
+        else
+          _not_future_or_invalid -> nil
+        end
       end
     end)
   end
+
+  defp future_datetime?(candidate, effective_at),
+    do: DateTime.compare(candidate, effective_at) == :gt
 
   defp local_to_utc(date, time, timezone) do
     case DateTime.new(date, time, timezone) do
