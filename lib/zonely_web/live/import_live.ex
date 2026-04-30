@@ -17,11 +17,11 @@ defmodule ZonelyWeb.ImportLive do
   alias Zonely.Repo
   alias ZonelyWeb.Layouts
 
-  @owner_session_key "zonely_import_owner_token"
+  @owner_session_key "zonely_import_owner_tokens_by_draft"
 
   @impl true
   def mount(%{"id" => id}, session, socket) do
-    owner_token = Map.get(session, @owner_session_key)
+    owner_token = get_import_owner_token(session, id)
 
     case load_authorized_import(id, owner_token) do
       {:ok, draft, member} ->
@@ -478,6 +478,19 @@ defmodule ZonelyWeb.ImportLive do
   end
 
   defp load_authorized_import(_id, _owner_token), do: :error
+
+  defp get_import_owner_token(session, draft_id) do
+    session
+    |> Map.get(@owner_session_key, %{})
+    |> normalize_owner_tokens()
+    |> Map.get(to_string(draft_id))
+  end
+
+  defp normalize_owner_tokens(tokens) when is_map(tokens) do
+    Map.new(tokens, fn {draft_id, token} -> {to_string(draft_id), token} end)
+  end
+
+  defp normalize_owner_tokens(_tokens), do: %{}
 
   defp assign_form(socket, %TeamDraftMember{} = member) do
     assign(socket, :form, to_form(Drafts.change_draft_member_completion(member), as: :import))

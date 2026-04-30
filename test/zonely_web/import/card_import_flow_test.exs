@@ -86,6 +86,45 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
       assert Repo.aggregate(TeamDraft, :count) == 0
       assert Repo.aggregate(TeamDraftMember, :count) == 0
     end
+
+    test "keeps session authority for multiple incomplete drafts independently", %{conn: conn} do
+      Application.put_env(:zonely, :say_my_name_card_resolver_fun, fn
+        "https://saymyname.localhost/card/card-token" ->
+          {:ok, card_payload()}
+
+        "https://saymyname.localhost/card/second-token" ->
+          {:ok, second_card_payload()}
+      end)
+
+      first_conn =
+        get(conn, ~p"/imports/saymyname/card?url=https://saymyname.localhost/card/card-token")
+
+      first_redirect = redirected_to(first_conn)
+      refute first_redirect =~ "owner_token"
+
+      second_conn =
+        first_conn
+        |> recycle()
+        |> get(~p"/imports/saymyname/card?url=https://saymyname.localhost/card/second-token")
+
+      second_redirect = redirected_to(second_conn)
+      refute second_redirect =~ "owner_token"
+
+      assert Repo.aggregate(TeamDraft, :count) == 2
+
+      first_draft = Repo.get_by!(TeamDraft, source_token: "card-token")
+      second_draft = Repo.get_by!(TeamDraft, source_token: "second-token")
+
+      {:ok, first_view, first_html} = live(recycle(second_conn), ~p"/imports/#{first_draft.id}")
+      assert first_html =~ "Rhea Patel"
+      assert has_element?(first_view, "#card-import-completion-form")
+
+      {:ok, second_view, second_html} =
+        live(recycle(second_conn), ~p"/imports/#{second_draft.id}")
+
+      assert second_html =~ "Mina Chen"
+      assert has_element?(second_view, "#card-import-completion-form")
+    end
   end
 
   describe "card import completion" do
@@ -94,7 +133,7 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
     } do
       %{draft: draft, owner_token: owner_token} = create_card_draft!(card_payload())
 
-      conn = init_test_session(conn, %{"zonely_import_owner_token" => owner_token})
+      conn = init_test_session(conn, import_owner_session(draft, owner_token))
       {:ok, view, _html} = live(conn, ~p"/imports/#{draft.id}")
 
       invalid_html =
@@ -156,7 +195,7 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
         })
 
       %{draft: draft, owner_token: owner_token} = create_card_draft!(payload)
-      conn = init_test_session(conn, %{"zonely_import_owner_token" => owner_token})
+      conn = init_test_session(conn, import_owner_session(draft, owner_token))
 
       {:ok, view, _html} = live(conn, ~p"/imports/#{draft.id}")
       assert has_element?(view, "#explicit-coordinates")
@@ -190,6 +229,16 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
       assert copied_html =~ "This import link is not available in this session"
       refute has_element?(copied_view, "#card-import-completion-form")
 
+      mismatched_conn =
+        init_test_session(conn, %{
+          "zonely_import_owner_tokens_by_draft" => %{to_string(draft.id) => "mismatched-token"}
+        })
+
+      {:ok, mismatched_view, mismatched_html} = live(mismatched_conn, ~p"/imports/#{draft.id}")
+
+      assert mismatched_html =~ "This import link is not available in this session"
+      refute has_element?(mismatched_view, "#card-import-completion-form")
+
       member = Repo.one!(TeamDraftMember)
       assert member.location_country == nil
       assert member.completion_status == :incomplete
@@ -206,7 +255,7 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
         })
 
       %{draft: draft, owner_token: owner_token} = create_card_draft!(payload)
-      conn = init_test_session(conn, %{"zonely_import_owner_token" => owner_token})
+      conn = init_test_session(conn, import_owner_session(draft, owner_token))
 
       {:ok, view, _html} = live(conn, ~p"/imports/#{draft.id}")
 
@@ -253,7 +302,7 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
         })
 
       %{draft: draft, owner_token: owner_token} = create_card_draft!(card_payload())
-      conn = init_test_session(conn, %{"zonely_import_owner_token" => owner_token})
+      conn = init_test_session(conn, import_owner_session(draft, owner_token))
 
       {:ok, _view, html} = live(conn, ~p"/imports/#{draft.id}")
 
@@ -274,6 +323,19 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
              })
 
     result
+  end
+
+  defp import_owner_session(draft, owner_token) do
+    %{"zonely_import_owner_tokens_by_draft" => %{to_string(draft.id) => owner_token}}
+  end
+
+  defp second_card_payload do
+    card_payload()
+    |> put_in(["person", "id"], "smn-mina")
+    |> put_in(["person", "display_name"], "Mina Chen")
+    |> put_in(["person", "pronouns"], "they/them")
+    |> put_in(["person", "name_variants"], [%{"lang" => "en-US", "text" => "Mina Chen"}])
+    |> put_in(["person", "pronunciation"], %{})
   end
 
   defp card_payload do

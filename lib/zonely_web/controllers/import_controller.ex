@@ -5,13 +5,13 @@ defmodule ZonelyWeb.ImportController do
   alias Zonely.Imports.SayMyNameCardImport
   alias Zonely.Imports.SayMyNameListImport
 
-  @owner_session_key "zonely_import_owner_token"
+  @owner_session_key "zonely_import_owner_tokens_by_draft"
 
   def say_my_name_card(conn, %{"url" => url}) do
     with {:ok, import} <- SayMyNameCardImport.resolve(url),
          {:ok, result} <- find_or_create_draft(conn, import) do
       conn
-      |> put_session(@owner_session_key, result.owner_token)
+      |> put_import_owner_token(result.draft, result.owner_token)
       |> redirect(to: ~p"/imports/#{result.draft.id}")
     else
       {:error, _reason} -> import_error(conn)
@@ -24,7 +24,7 @@ defmodule ZonelyWeb.ImportController do
     with {:ok, import} <- SayMyNameListImport.resolve(url),
          {:ok, result} <- find_or_create_draft(conn, import, "saymyname_list") do
       conn
-      |> put_session(@owner_session_key, result.owner_token)
+      |> put_import_owner_token(result.draft, result.owner_token)
       |> redirect(to: ~p"/imports/#{result.draft.id}")
     else
       {:error, _reason} -> list_import_error(conn)
@@ -44,7 +44,7 @@ defmodule ZonelyWeb.ImportController do
         })
 
       draft ->
-        owner_token = get_session(conn, @owner_session_key)
+        owner_token = get_import_owner_token(conn, draft)
 
         if Drafts.owner_token_matches?(draft, owner_token) do
           {:ok, %{draft: draft, owner_token: owner_token}}
@@ -53,6 +53,29 @@ defmodule ZonelyWeb.ImportController do
         end
     end
   end
+
+  defp put_import_owner_token(conn, draft, owner_token) do
+    tokens =
+      conn
+      |> get_session(@owner_session_key, %{})
+      |> normalize_owner_tokens()
+      |> Map.put(to_string(draft.id), owner_token)
+
+    put_session(conn, @owner_session_key, tokens)
+  end
+
+  defp get_import_owner_token(conn, draft) do
+    conn
+    |> get_session(@owner_session_key, %{})
+    |> normalize_owner_tokens()
+    |> Map.get(to_string(draft.id))
+  end
+
+  defp normalize_owner_tokens(tokens) when is_map(tokens) do
+    Map.new(tokens, fn {draft_id, token} -> {to_string(draft_id), token} end)
+  end
+
+  defp normalize_owner_tokens(_tokens), do: %{}
 
   defp import_error(conn) do
     conn
