@@ -44,6 +44,7 @@ defmodule ZonelyWeb.Router do
     pipe_through(:api)
 
     get("/countries/:country/holidays", PublicHolidaysController, :index)
+    get("/local-time", LocalTimeController, :show)
   end
 
   if Application.compile_env(:zonely, :dev_routes) do
