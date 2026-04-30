@@ -30,7 +30,9 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
       conn =
         get(conn, ~p"/imports/saymyname/card?url=https://saymyname.localhost/card/card-token")
 
-      assert redirected_to(conn) =~ "/imports/"
+      redirect_path = redirected_to(conn)
+      assert redirect_path =~ "/imports/"
+      refute redirect_path =~ "owner_token"
       assert Repo.aggregate(TeamDraft, :count) == 1
       assert Repo.aggregate(TeamDraftMember, :count) == 1
 
@@ -162,8 +164,6 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
       view
       |> form("#card-import-completion-form",
         import: %{
-          "location_country" => "JP",
-          "location_label" => "Tokyo",
           "timezone" => "Asia/Tokyo",
           "work_start" => "09:00",
           "work_end" => "18:00"
@@ -177,16 +177,67 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
     end
 
     test "blocks other sessions from mutating an import draft", %{conn: conn} do
-      %{draft: draft} = create_card_draft!(card_payload())
+      %{draft: draft, owner_token: owner_token} = create_card_draft!(card_payload())
 
       {:ok, view, html} = live(conn, ~p"/imports/#{draft.id}")
 
       assert html =~ "This import link is not available in this session"
       refute has_element?(view, "#card-import-completion-form")
 
+      {:ok, copied_view, copied_html} =
+        live(conn, ~p"/imports/#{draft.id}?owner_token=#{owner_token}")
+
+      assert copied_html =~ "This import link is not available in this session"
+      refute has_element?(copied_view, "#card-import-completion-form")
+
       member = Repo.one!(TeamDraftMember)
       assert member.location_country == nil
       assert member.completion_status == :incomplete
+    end
+
+    test "asks only for missing Zonely-owned fields and renders imported values as review context",
+         %{conn: conn} do
+      payload =
+        card_payload()
+        |> Map.put("location", %{"country" => "PT", "label" => "Lisbon"})
+        |> Map.put("availability", %{
+          "timezone" => "Europe/Lisbon",
+          "work_start" => "09:00"
+        })
+
+      %{draft: draft, owner_token: owner_token} = create_card_draft!(payload)
+      conn = init_test_session(conn, %{"zonely_import_owner_token" => owner_token})
+
+      {:ok, view, _html} = live(conn, ~p"/imports/#{draft.id}")
+
+      refute has_element?(view, "#incomplete-location-country")
+      refute has_element?(view, "#incomplete-location-label")
+      refute has_element?(view, "#incomplete-timezone")
+      refute has_element?(view, "#incomplete-work-start")
+      assert has_element?(view, "#incomplete-work-end")
+
+      assert has_element?(view, "#review-location-country", "PT")
+      assert has_element?(view, "#review-location-label", "Lisbon")
+      assert has_element?(view, "#review-timezone", "Europe/Lisbon")
+      assert has_element?(view, "#review-work-start", "09:00")
+
+      refute has_element?(view, "#card-import-completion-form_location_country")
+      refute has_element?(view, "#card-import-completion-form_location_label")
+      refute has_element?(view, "#card-import-completion-form_timezone")
+      refute has_element?(view, "#card-import-completion-form_work_start")
+      assert has_element?(view, "#card-import-completion-form_work_end")
+
+      view
+      |> form("#card-import-completion-form", import: %{"work_end" => "17:00"})
+      |> render_submit()
+
+      member = Repo.one!(TeamDraftMember)
+      assert member.location_country == "PT"
+      assert member.location_label == "Lisbon"
+      assert member.timezone == "Europe/Lisbon"
+      assert member.work_start == ~T[09:00:00]
+      assert member.work_end == ~T[17:00:00]
+      assert member.completion_status == :complete
     end
 
     test "surfaces duplicate conflicts without silently overwriting existing local data", %{

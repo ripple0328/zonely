@@ -12,7 +12,7 @@ defmodule ZonelyWeb.ImportController do
          {:ok, result} <- find_or_create_draft(conn, import) do
       conn
       |> put_session(@owner_session_key, result.owner_token)
-      |> redirect(to: ~p"/imports/#{result.draft.id}?owner_token=#{result.owner_token}")
+      |> redirect(to: ~p"/imports/#{result.draft.id}")
     else
       {:error, _reason} -> import_error(conn)
     end
@@ -25,7 +25,7 @@ defmodule ZonelyWeb.ImportController do
          {:ok, result} <- find_or_create_draft(conn, import, "saymyname_list") do
       conn
       |> put_session(@owner_session_key, result.owner_token)
-      |> redirect(to: ~p"/imports/#{result.draft.id}?owner_token=#{result.owner_token}")
+      |> redirect(to: ~p"/imports/#{result.draft.id}")
     else
       {:error, _reason} -> list_import_error(conn)
     end

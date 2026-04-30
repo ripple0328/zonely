@@ -20,8 +20,8 @@ defmodule ZonelyWeb.ImportLive do
   @owner_session_key "zonely_import_owner_token"
 
   @impl true
-  def mount(%{"id" => id} = params, session, socket) do
-    owner_token = Map.get(params, "owner_token") || Map.get(session, @owner_session_key)
+  def mount(%{"id" => id}, session, socket) do
+    owner_token = Map.get(session, @owner_session_key)
 
     case load_authorized_import(id, owner_token) do
       {:ok, draft, member} ->
@@ -182,6 +182,46 @@ defmodule ZonelyWeb.ImportLive do
                         {@member.latitude}, {@member.longitude}
                       </p>
                     </div>
+
+                    <div
+                      :if={has_zonely_review_context?(@member)}
+                      id="imported-zonely-review-context"
+                      class="rounded-xl border border-[rgba(22,26,29,0.10)] px-3 py-2"
+                    >
+                      <p class="font-medium">Imported Zonely context</p>
+                      <dl class="mt-2 grid gap-2 text-xs text-[#5F6B73]">
+                        <div :if={present?(@member.location_country)}>
+                          <dt>Country</dt>
+                          <dd id="review-location-country" class="font-mono text-[#161A1D]">
+                            {@member.location_country}
+                          </dd>
+                        </div>
+                        <div :if={present?(@member.location_label)}>
+                          <dt>Location</dt>
+                          <dd id="review-location-label" class="font-medium text-[#161A1D]">
+                            {@member.location_label}
+                          </dd>
+                        </div>
+                        <div :if={present?(@member.timezone)}>
+                          <dt>Timezone</dt>
+                          <dd id="review-timezone" class="font-mono text-[#161A1D]">
+                            {@member.timezone}
+                          </dd>
+                        </div>
+                        <div :if={not is_nil(@member.work_start)}>
+                          <dt>Work start</dt>
+                          <dd id="review-work-start" class="font-mono text-[#161A1D]">
+                            {time_value(@member.work_start)}
+                          </dd>
+                        </div>
+                        <div :if={not is_nil(@member.work_end)}>
+                          <dt>Work end</dt>
+                          <dd id="review-work-end" class="font-mono text-[#161A1D]">
+                            {time_value(@member.work_end)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
                   </div>
                 </section>
 
@@ -214,12 +254,42 @@ defmodule ZonelyWeb.ImportLive do
                   </div>
 
                   <.form for={@form} id="card-import-completion-form" phx-submit="save" class="mt-5 space-y-4">
-                    <.input field={@form[:location_country]} type="text" label="Country code" />
-                    <.input field={@form[:location_label]} type="text" label="City or location label" />
-                    <.input field={@form[:timezone]} type="text" label="IANA timezone" />
+                    <.input
+                      :if={!present?(@member.location_country)}
+                      field={@form[:location_country]}
+                      id="card-import-completion-form_location_country"
+                      type="text"
+                      label="Country code"
+                    />
+                    <.input
+                      :if={!present?(@member.location_label)}
+                      field={@form[:location_label]}
+                      id="card-import-completion-form_location_label"
+                      type="text"
+                      label="City or location label"
+                    />
+                    <.input
+                      :if={!present?(@member.timezone)}
+                      field={@form[:timezone]}
+                      id="card-import-completion-form_timezone"
+                      type="text"
+                      label="IANA timezone"
+                    />
                     <div class="grid gap-4 sm:grid-cols-2">
-                      <.input field={@form[:work_start]} type="time" label="Work start" />
-                      <.input field={@form[:work_end]} type="time" label="Work end" />
+                      <.input
+                        :if={is_nil(@member.work_start)}
+                        field={@form[:work_start]}
+                        id="card-import-completion-form_work_start"
+                        type="time"
+                        label="Work start"
+                      />
+                      <.input
+                        :if={is_nil(@member.work_end)}
+                        field={@form[:work_end]}
+                        id="card-import-completion-form_work_end"
+                        type="time"
+                        label="Work end"
+                      />
                     </div>
                     <button
                       id="save-card-import"
@@ -469,6 +539,11 @@ defmodule ZonelyWeb.ImportLive do
   defp time_value(%Time{} = time), do: Calendar.strftime(time, "%H:%M")
   defp time_value(value) when is_binary(value), do: value
   defp time_value(_value), do: nil
+
+  defp has_zonely_review_context?(member) do
+    present?(member.location_country) or present?(member.location_label) or
+      present?(member.timezone) or not is_nil(member.work_start) or not is_nil(member.work_end)
+  end
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false

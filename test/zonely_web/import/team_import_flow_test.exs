@@ -30,7 +30,9 @@ defmodule ZonelyWeb.Import.TeamImportFlowTest do
       conn =
         get(conn, ~p"/imports/saymyname/list?url=https://saymyname.localhost/list/team-token")
 
-      assert redirected_to(conn) =~ "/imports/"
+      redirect_path = redirected_to(conn)
+      assert redirect_path =~ "/imports/"
+      refute redirect_path =~ "owner_token"
       assert Repo.aggregate(TeamDraft, :count) == 1
       assert Repo.aggregate(TeamDraftMember, :count) == 2
       assert Repo.aggregate(Accounts.Team, :count) == 0
