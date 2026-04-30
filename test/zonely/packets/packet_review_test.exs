@@ -55,6 +55,44 @@ defmodule Zonely.Packets.PacketReviewTest do
       assert [%{review_status: :pending}] = Drafts.list_draft_members(draft)
     end
 
+    test "server rejects invalid owner lifecycle transitions without changing state" do
+      {:ok, %{draft: draft, owner_token: owner_token, invite_token: invite_token}} =
+        Drafts.create_team_draft(%{name: "Strict lifecycle team"})
+
+      {:ok, %{member: pending}} =
+        Drafts.create_packet_submission(invite_token, %{display_name: "Pending Recipient"})
+
+      {:ok, %{member: rejected}} =
+        Drafts.create_packet_submission(invite_token, %{display_name: "Rejected Recipient"})
+
+      {:ok, %{member: excluded}} =
+        Drafts.create_packet_submission(invite_token, %{display_name: "Excluded Recipient"})
+
+      assert {:error, :invalid_review_transition} =
+               Drafts.review_packet_member(draft, owner_token, pending.id, :excluded)
+
+      assert %{review_status: :pending} = Drafts.get_draft_member!(pending.id)
+
+      assert {:ok, rejected_member} =
+               Drafts.review_packet_member(draft, owner_token, rejected.id, :rejected)
+
+      assert {:error, :invalid_review_transition} =
+               Drafts.review_packet_member(draft, owner_token, rejected.id, :accepted)
+
+      assert %{review_status: :rejected} = Drafts.get_draft_member!(rejected_member.id)
+
+      assert {:ok, accepted_member} =
+               Drafts.review_packet_member(draft, owner_token, excluded.id, :accepted)
+
+      assert {:ok, excluded_member} =
+               Drafts.review_packet_member(draft, owner_token, accepted_member.id, :excluded)
+
+      assert {:error, :invalid_review_transition} =
+               Drafts.review_packet_member(draft, owner_token, excluded_member.id, :accepted)
+
+      assert %{review_status: :excluded} = Drafts.get_draft_member!(excluded_member.id)
+    end
+
     test "review summary groups pending, accepted, rejected, and excluded states" do
       {:ok, %{draft: draft, owner_token: owner_token, invite_token: invite_token}} =
         Drafts.create_team_draft(%{name: "Grouped review team"})
@@ -73,6 +111,7 @@ defmodule Zonely.Packets.PacketReviewTest do
 
       {:ok, _member} = Drafts.review_packet_member(draft, owner_token, accepted.id, :accepted)
       {:ok, _member} = Drafts.review_packet_member(draft, owner_token, rejected.id, :rejected)
+      {:ok, _member} = Drafts.review_packet_member(draft, owner_token, excluded.id, :accepted)
       {:ok, _member} = Drafts.review_packet_member(draft, owner_token, excluded.id, :excluded)
 
       assert %{

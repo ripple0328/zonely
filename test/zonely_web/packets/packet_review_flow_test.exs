@@ -98,6 +98,39 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
       refute rejected_html =~ ~s(id="review-exclude-#{member.id}")
     end
 
+    test "forged owner review posts cannot skip or revive lifecycle states", %{conn: conn} do
+      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Forged review team"}})
+      draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
+      created_conn = get(recycle(create_conn), redirected_to(create_conn))
+      invite_token = session_invite_token(created_conn, draft)
+
+      {:ok, %{member: pending}} =
+        Drafts.create_packet_submission(invite_token, %{display_name: "Forged Pending"})
+
+      direct_exclude_conn =
+        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+          "review" => %{"status" => "excluded"}
+        })
+
+      assert html_response(direct_exclude_conn, 404) =~ "Packet review unavailable"
+      assert [%{review_status: :pending}] = Drafts.list_draft_members(draft)
+
+      rejected_conn =
+        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+          "review" => %{"status" => "rejected"}
+        })
+
+      assert redirected_to(rejected_conn) == ~p"/packets/review/#{invite_token}"
+
+      direct_accept_conn =
+        post(recycle(rejected_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+          "review" => %{"status" => "accepted"}
+        })
+
+      assert html_response(direct_accept_conn, 404) =~ "Packet review unavailable"
+      assert [%{review_status: :rejected}] = Drafts.list_draft_members(draft)
+    end
+
     test "non-owner cannot see or use review controls", %{conn: conn} do
       {:ok, %{draft: draft, invite_token: invite_token}} =
         Drafts.create_team_draft(%{name: "Non-owner review team"})

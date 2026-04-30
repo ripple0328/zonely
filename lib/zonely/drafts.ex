@@ -260,7 +260,7 @@ defmodule Zonely.Drafts do
       when review_status in [:pending, :accepted, :rejected, :excluded] do
     if owner_token_matches?(draft, owner_token) do
       case Repo.get_by(TeamDraftMember, id: member_id, team_draft_id: draft.id) do
-        %TeamDraftMember{} = member -> update_member_review_status(member, review_status)
+        %TeamDraftMember{} = member -> review_packet_member_transition(member, review_status)
         nil -> {:error, :not_found}
       end
     else
@@ -277,6 +277,21 @@ defmodule Zonely.Drafts do
     |> TeamDraftMember.changeset(%{review_status: review_status})
     |> Repo.update()
   end
+
+  defp review_packet_member_transition(%TeamDraftMember{} = member, review_status) do
+    if valid_packet_review_transition?(member.review_status, review_status) do
+      update_member_review_status(member, review_status)
+    else
+      {:error, :invalid_review_transition}
+    end
+  end
+
+  defp valid_packet_review_transition?(:pending, target)
+       when target in [:pending, :accepted, :rejected],
+       do: true
+
+  defp valid_packet_review_transition?(:accepted, :excluded), do: true
+  defp valid_packet_review_transition?(_current, _target), do: false
 
   def put_published_references(%TeamDraft{} = draft, published_team_id) do
     draft
