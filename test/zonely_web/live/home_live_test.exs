@@ -39,6 +39,8 @@ defmodule ZonelyWeb.HomeLiveTest do
 
     assert html =~ "maplibre-gl@5.7.1/dist/maplibre-gl.css"
     assert html =~ "maplibre-gl@5.7.1/dist/maplibre-gl.js"
+    assert html =~ ~s(rel="icon" href="/favicon.ico")
+    assert html =~ ~s(type="image/svg+xml" href="/favicon.svg")
   end
 
   test "renders global map with teammate location payload", %{conn: conn} do

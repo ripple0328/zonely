@@ -1,4 +1,5 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <title>Zonely</title>
   <defs>
     <linearGradient id="bg" x1="180" y1="80" x2="850" y2="940" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0B1830"/>
