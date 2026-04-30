@@ -244,6 +244,33 @@ defmodule Zonely.Drafts do
     hash in [draft.owner_token_hash, draft.invite_token_hash]
   end
 
+  def packet_review_summary(%TeamDraft{} = draft) do
+    members = list_draft_members(draft)
+
+    %{
+      pending: filter_review_status(members, :pending),
+      accepted: filter_review_status(members, :accepted),
+      rejected: filter_review_status(members, :rejected),
+      excluded: filter_review_status(members, :excluded),
+      published: filter_review_status(members, :published)
+    }
+  end
+
+  def review_packet_member(%TeamDraft{} = draft, owner_token, member_id, review_status)
+      when review_status in [:pending, :accepted, :rejected, :excluded] do
+    if owner_token_matches?(draft, owner_token) do
+      case Repo.get_by(TeamDraftMember, id: member_id, team_draft_id: draft.id) do
+        %TeamDraftMember{} = member -> update_member_review_status(member, review_status)
+        nil -> {:error, :not_found}
+      end
+    else
+      {:error, :unauthorized}
+    end
+  end
+
+  def review_packet_member(%TeamDraft{}, _owner_token, _member_id, _review_status),
+    do: {:error, :invalid_review_status}
+
   def update_member_review_status(%TeamDraftMember{} = member, review_status)
       when review_status in [:pending, :accepted, :rejected, :excluded, :published] do
     member
@@ -433,4 +460,8 @@ defmodule Zonely.Drafts do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp filter_review_status(members, review_status) do
+    Enum.filter(members, &(&1.review_status == review_status))
+  end
 end

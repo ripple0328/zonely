@@ -38,11 +38,41 @@ defmodule ZonelyWeb.PacketController do
       invite_path = ~p"/packets/invite/#{invite_token}"
       invite_url = url(~p"/packets/invite/#{invite_token}")
 
-      html(conn, created_packet_html(draft, invite_path, invite_url))
+      html(conn, created_packet_html(draft, invite_token, invite_path, invite_url))
     else
       _error -> packet_unavailable(conn)
     end
   end
+
+  def review(conn, %{"invite_token" => invite_token}) do
+    with %TeamDraft{} = draft <- Drafts.get_open_packet_by_invite_token(invite_token),
+         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, draft),
+         true <- Drafts.owner_token_matches?(draft, owner_token) do
+      html(conn, owner_review_html(draft, invite_token, Drafts.packet_review_summary(draft)))
+    else
+      _error -> review_unavailable(conn)
+    end
+  end
+
+  def review_member(conn, %{
+        "invite_token" => invite_token,
+        "member_id" => member_id,
+        "review" => review_params
+      }) do
+    with %TeamDraft{} = draft <- Drafts.get_open_packet_by_invite_token(invite_token),
+         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, draft),
+         {:ok, review_status} <- review_status(Map.get(review_params, "status")),
+         {:ok, _member} <-
+           Drafts.review_packet_member(draft, owner_token, member_id, review_status) do
+      conn
+      |> put_flash(:info, review_flash(review_status))
+      |> redirect(to: ~p"/packets/review/#{invite_token}")
+    else
+      _error -> review_unavailable(conn)
+    end
+  end
+
+  def review_member(conn, _params), do: review_unavailable(conn)
 
   def invite(conn, %{"invite_token" => invite_token}) do
     case Drafts.get_open_packet_by_invite_token(invite_token) do
@@ -179,6 +209,17 @@ defmodule ZonelyWeb.PacketController do
     """)
   end
 
+  defp review_unavailable(conn) do
+    conn
+    |> put_status(:not_found)
+    |> html("""
+    <main id="packet-review-unavailable">
+      <h1>Packet review unavailable</h1>
+      <p>The owner review link is unavailable from this browser session.</p>
+    </main>
+    """)
+  end
+
   defp new_packet_html(error \\ nil) do
     """
     <main id="packet-create" class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
@@ -197,7 +238,7 @@ defmodule ZonelyWeb.PacketController do
     """
   end
 
-  defp created_packet_html(%TeamDraft{} = draft, invite_path, invite_url) do
+  defp created_packet_html(%TeamDraft{} = draft, invite_token, invite_path, invite_url) do
     """
     <main id="packet-created" class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
       <section class="mx-auto max-w-2xl rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6">
@@ -205,10 +246,84 @@ defmodule ZonelyWeb.PacketController do
         <h1>#{escape(draft.name)}</h1>
         <p>Share this append-self packet link with teammates. The link uses an opaque invite token.</p>
         <p id="packet-invite-link" data-invite-path="#{escape(invite_path)}">#{escape(invite_url)}</p>
+        <p><a id="packet-owner-review-link" href="/packets/review/#{escape(invite_token)}">Review pending submissions</a></p>
       </section>
     </main>
     """
   end
+
+  defp owner_review_html(%TeamDraft{} = draft, invite_token, summary) do
+    """
+    <main id="packet-owner-review" class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
+      <section class="mx-auto max-w-4xl rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6">
+        <p class="text-sm font-medium uppercase tracking-[0.18em] text-[#1F8A70]">Owner packet review</p>
+        <h1>#{escape(draft.name)}</h1>
+        <p id="packet-owner-review-context">Review each teammate submission before publish. Accepted entries stay in the draft roster; pending, rejected, and excluded entries are visibly separate.</p>
+        #{review_section_html(invite_token, "owner-review-pending", "Pending submissions", Map.fetch!(summary, :pending))}
+        #{review_section_html(invite_token, "owner-review-accepted", "Accepted draft roster", Map.fetch!(summary, :accepted))}
+        #{review_section_html(invite_token, "owner-review-rejected", "Rejected submissions", Map.fetch!(summary, :rejected))}
+        #{review_section_html(invite_token, "owner-review-excluded", "Excluded before publish", Map.fetch!(summary, :excluded))}
+      </section>
+    </main>
+    """
+  end
+
+  defp review_section_html(invite_token, id, title, members) do
+    """
+    <section id="#{id}" class="mt-6 border-t border-[rgba(22,26,29,0.10)] pt-4">
+      <h2>#{title}</h2>
+      #{review_members_html(invite_token, members)}
+    </section>
+    """
+  end
+
+  defp review_members_html(_invite_token, []),
+    do: ~s(<p class="review-empty">No entries in this state.</p>)
+
+  defp review_members_html(invite_token, members) do
+    members
+    |> Enum.map(&review_member_html(invite_token, &1))
+    |> Enum.join("")
+  end
+
+  defp review_member_html(invite_token, %TeamDraftMember{} = member) do
+    """
+    <article id="review-member-#{escape(member.id)}" data-review-status="#{member.review_status}" class="py-4">
+      <h3>#{escape(member.display_name)}</h3>
+      <p>#{escape(member.role)}</p>
+      <dl>
+        <dt>Location</dt><dd>#{escape(member.location_label)} #{escape(member.location_country)}</dd>
+        <dt>Timezone</dt><dd>#{escape(member.timezone)}</dd>
+        <dt>Work hours</dt><dd>#{escape(time_value(member, :work_start))}–#{escape(time_value(member, :work_end))}</dd>
+        <dt>Completion</dt><dd>#{escape(member.completion_status)}</dd>
+        <dt>Review state</dt><dd>#{escape(member.review_status)}</dd>
+      </dl>
+      #{review_actions_html(invite_token, member)}
+    </article>
+    """
+  end
+
+  defp review_actions_html(invite_token, %TeamDraftMember{review_status: :pending} = member) do
+    """
+    <form id="review-actions-#{escape(member.id)}" action="/packets/review/#{escape(invite_token)}/#{escape(member.id)}" method="post">
+      <input type="hidden" name="_csrf_token" value="#{csrf_token()}" />
+      <button id="review-accept-#{escape(member.id)}" name="review[status]" value="accepted" type="submit">Accept into draft</button>
+      <button id="review-reject-#{escape(member.id)}" name="review[status]" value="rejected" type="submit">Reject submission</button>
+      <button id="review-pending-#{escape(member.id)}" name="review[status]" value="pending" type="submit">Leave pending</button>
+    </form>
+    """
+  end
+
+  defp review_actions_html(invite_token, %TeamDraftMember{review_status: :accepted} = member) do
+    """
+    <form id="review-actions-#{escape(member.id)}" action="/packets/review/#{escape(invite_token)}/#{escape(member.id)}" method="post">
+      <input type="hidden" name="_csrf_token" value="#{csrf_token()}" />
+      <button id="review-exclude-#{escape(member.id)}" name="review[status]" value="excluded" type="submit">Exclude before publish</button>
+    </form>
+    """
+  end
+
+  defp review_actions_html(_invite_token, _member), do: ""
 
   defp invite_html(%TeamDraft{} = draft, invite_token, submission) do
     """
@@ -283,4 +398,15 @@ defmodule ZonelyWeb.PacketController do
     do: value |> to_string() |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
 
   defp csrf_token, do: Plug.CSRFProtection.get_csrf_token()
+
+  defp review_status("pending"), do: {:ok, :pending}
+  defp review_status("accepted"), do: {:ok, :accepted}
+  defp review_status("rejected"), do: {:ok, :rejected}
+  defp review_status("excluded"), do: {:ok, :excluded}
+  defp review_status(_status), do: {:error, :invalid_review_status}
+
+  defp review_flash(:pending), do: "Submission left pending."
+  defp review_flash(:accepted), do: "Submission accepted into the draft."
+  defp review_flash(:rejected), do: "Submission rejected."
+  defp review_flash(:excluded), do: "Accepted draft entry excluded from publish."
 end
