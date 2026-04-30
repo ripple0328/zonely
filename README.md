@@ -2,7 +2,7 @@
 
 Zonely helps distributed teams understand where teammates are, when work hours overlap, and which local context matters before reaching out.
 
-The canonical mission, product boundaries, and roadmap live in [docs/mission.md](docs/mission.md). The Stitch-ready product design direction lives in [design.md](design.md). The current stack recommendation lives in [docs/tech-stack-review.md](docs/tech-stack-review.md). In short: Zonely is a team coordination app, not a pronunciation product. Pronunciation is profile context only and always calls the production pronunciation API at `https://saymyname.qingbo.us`.
+The canonical mission, product boundaries, and roadmap live in [docs/mission.md](docs/mission.md). The Stitch-ready product design direction lives in [design.md](design.md). The current stack recommendation lives in [docs/tech-stack-review.md](docs/tech-stack-review.md). Shared profile/team import-export principles live in [docs/shared-profile-contract.md](docs/shared-profile-contract.md). In short: Zonely is a team coordination app, not a pronunciation product. Pronunciation is profile context only and always calls the production pronunciation API at `https://saymyname.qingbo.us`.
 
 Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 
@@ -33,6 +33,13 @@ Pronunciation boundary:
 - `PRONUNCIATION_API_KEY` is required for authenticated production SayMyName API access.
 
 Zonely does not own pronunciation providers, pronunciation caches, or SayMyName snapshot storage. It only renders team/profile context and sends portable share payloads to production SayMyName.
+
+Shared profile boundary:
+
+- Zonely and SayMyName should use one compatible person/profile vocabulary even when each app owns different fields.
+- Use JSContact as the modern JSON contact reference and keep a clear long-term projection to vCard 4.0 export.
+- Zonely owns location, timezone, work hours, team membership, and reachability.
+- SayMyName owns name variants, per-variant pronunciation, and name-card/list rendering.
 
 ## Development
 

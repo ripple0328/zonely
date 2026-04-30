@@ -7,6 +7,7 @@ This is a web application written using the Phoenix web framework.
 - `just dev` is the golden-path local server command. It starts Phoenix through Portless and keeps the browser URL stable at `https://zonely.localhost`.
 - Do not start the app with a bare `mix phx.server` unless you are explicitly diagnosing Portless or Phoenix startup. Bypassing `mise`/`just dev` can miss local env such as `PRONUNCIATION_API_KEY`, `MAPTILER_API_KEY`, or `POSTGRES_PORT`.
 - This is a map-centric, context-aware UI. Do not repeat the same information in multiple page regions or in multiple visual forms unless there is a strong product reason. Each piece of information should have one consistent display form and one clear home; the map workspace cannot afford duplicated or overly dense supporting UI.
+- Before changing onboarding, profiles, teams, import/export, or SayMyName integration, read `docs/shared-profile-contract.md`. Zonely and SayMyName must share the same person/profile/name_variant/team/membership/location/availability vocabulary and keep a clear long-term projection to JSContact and vCard.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 ### Phoenix v1.8 guidelines
 
