@@ -4,8 +4,9 @@ defmodule ZonelyWeb.PacketController do
   alias Zonely.Drafts
   alias Zonely.Drafts.{TeamDraft, TeamDraftMember}
 
-  @owner_session_key "zonely_packet_owner_tokens_by_draft"
-  @invite_session_key "zonely_packet_invite_tokens_by_draft"
+  @created_owner_session_key "zonely_packet_created_owner_token"
+  @created_invite_session_key "zonely_packet_created_invite_token"
+  @owner_session_key "zonely_packet_owner_tokens_by_invite"
   @submission_session_key "zonely_packet_submission_tokens_by_invite"
 
   def new(conn, _params) do
@@ -17,11 +18,11 @@ defmodule ZonelyWeb.PacketController do
            name: Map.get(packet_params, "name"),
            source_kind: "zonely_packet"
          }) do
-      {:ok, %{draft: draft, owner_token: owner_token, invite_token: invite_token}} ->
+      {:ok, %{owner_token: owner_token, invite_token: invite_token}} ->
         conn
-        |> put_packet_owner_token(draft, owner_token)
-        |> put_packet_invite_token(draft, invite_token)
-        |> redirect(to: ~p"/packets/#{draft.id}/created")
+        |> put_packet_owner_token(invite_token, owner_token)
+        |> put_latest_packet_tokens(owner_token, invite_token)
+        |> redirect(to: ~p"/packets/created")
 
       {:error, _changeset} ->
         conn
@@ -30,11 +31,12 @@ defmodule ZonelyWeb.PacketController do
     end
   end
 
-  def created(conn, %{"id" => id}) do
-    with %TeamDraft{} = draft <- Zonely.Repo.get(TeamDraft, id),
-         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, draft),
+  def created(conn, _params) do
+    with owner_token when is_binary(owner_token) <- get_latest_packet_owner_token(conn),
+         invite_token when is_binary(invite_token) <- get_latest_packet_invite_token(conn),
+         %TeamDraft{} = draft <- Drafts.get_draft_by_owner_token(owner_token),
          true <- Drafts.owner_token_matches?(draft, owner_token),
-         invite_token when is_binary(invite_token) <- get_packet_invite_token(conn, draft) do
+         true <- Drafts.get_draft_by_invite_token(invite_token) == draft do
       invite_path = ~p"/packets/invite/#{invite_token}"
       invite_url = url(~p"/packets/invite/#{invite_token}")
 
@@ -46,7 +48,7 @@ defmodule ZonelyWeb.PacketController do
 
   def review(conn, %{"invite_token" => invite_token}) do
     with %TeamDraft{} = draft <- Drafts.get_open_packet_by_invite_token(invite_token),
-         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, draft),
+         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, invite_token),
          true <- Drafts.owner_token_matches?(draft, owner_token) do
       html(conn, owner_review_html(draft, invite_token, Drafts.packet_review_summary(draft)))
     else
@@ -60,7 +62,7 @@ defmodule ZonelyWeb.PacketController do
         "review" => review_params
       }) do
     with %TeamDraft{} = draft <- Drafts.get_open_packet_by_invite_token(invite_token),
-         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, draft),
+         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, invite_token),
          {:ok, review_status} <- review_status(Map.get(review_params, "status")),
          {:ok, _member} <-
            Drafts.review_packet_member(draft, owner_token, member_id, review_status) do
@@ -141,38 +143,35 @@ defmodule ZonelyWeb.PacketController do
     end
   end
 
-  defp put_packet_owner_token(conn, draft, owner_token) do
+  defp put_latest_packet_tokens(conn, owner_token, invite_token) do
+    conn
+    |> put_session(@created_owner_session_key, owner_token)
+    |> put_session(@created_invite_session_key, invite_token)
+  end
+
+  defp get_latest_packet_owner_token(conn) do
+    get_session(conn, @created_owner_session_key)
+  end
+
+  defp get_latest_packet_invite_token(conn) do
+    get_session(conn, @created_invite_session_key)
+  end
+
+  defp put_packet_owner_token(conn, invite_token, owner_token) do
     tokens =
       conn
       |> get_session(@owner_session_key, %{})
       |> normalize_tokens()
-      |> Map.put(to_string(draft.id), owner_token)
+      |> Map.put(invite_token, owner_token)
 
     put_session(conn, @owner_session_key, tokens)
   end
 
-  defp put_packet_invite_token(conn, draft, invite_token) do
-    tokens =
-      conn
-      |> get_session(@invite_session_key, %{})
-      |> normalize_tokens()
-      |> Map.put(to_string(draft.id), invite_token)
-
-    put_session(conn, @invite_session_key, tokens)
-  end
-
-  defp get_packet_invite_token(conn, draft) do
-    conn
-    |> get_session(@invite_session_key, %{})
-    |> normalize_tokens()
-    |> Map.get(to_string(draft.id))
-  end
-
-  defp get_packet_owner_token(conn, draft) do
+  defp get_packet_owner_token(conn, invite_token) do
     conn
     |> get_session(@owner_session_key, %{})
     |> normalize_tokens()
-    |> Map.get(to_string(draft.id))
+    |> Map.get(invite_token)
   end
 
   defp put_submission_token(conn, invite_token, submission_token) do

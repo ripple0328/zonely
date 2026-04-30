@@ -39,7 +39,7 @@ defmodule ZonelyWeb.Router do
     live("/imports/:id", ImportLive, :show)
     get("/packets/new", PacketController, :new)
     post("/packets", PacketController, :create)
-    get("/packets/:id/created", PacketController, :created)
+    get("/packets/created", PacketController, :created)
     get("/packets/review/:invite_token", PacketController, :review)
     post("/packets/review/:invite_token/:member_id", PacketController, :review_member)
     get("/packets/invite/:invite_token", PacketController, :invite)

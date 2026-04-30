@@ -12,9 +12,11 @@ defmodule ZonelyWeb.Packets.PacketFlowTest do
           "packet" => %{"name" => "Lisbon launch team"}
         })
 
-      assert redirected_to(conn) =~ ~r"/packets/.+/created"
+      assert redirected_to(conn) == ~p"/packets/created"
 
       draft = Repo.one!(TeamDraft)
+      refute redirected_to(conn) =~ draft.id
+
       created_conn = get(recycle(conn), redirected_to(conn))
       html = html_response(created_conn, 200)
 
@@ -24,6 +26,37 @@ defmodule ZonelyWeb.Packets.PacketFlowTest do
       refute html =~ draft.owner_token_hash
       refute html =~ draft.invite_token_hash
       assert html =~ "/packets/invite/"
+    end
+
+    test "raw draft id created URLs cannot expose owner packet details", %{conn: conn} do
+      create_conn =
+        post(conn, ~p"/packets", %{
+          "packet" => %{"name" => "Hidden continuation team"}
+        })
+
+      draft = Repo.one!(TeamDraft)
+
+      assert redirected_to(create_conn) == ~p"/packets/created"
+
+      raw_id_conn = get(recycle(create_conn), "/packets/#{draft.id}/created")
+
+      assert response(raw_id_conn, 404)
+    end
+
+    test "created continuation is bound to originating browser session", %{conn: conn} do
+      create_conn =
+        post(conn, ~p"/packets", %{
+          "packet" => %{"name" => "Session-bound packet"}
+        })
+
+      assert create_conn
+             |> recycle()
+             |> get(~p"/packets/created")
+             |> html_response(200) =~ ~s(id="packet-created")
+
+      copied_url_conn = get(build_conn(), ~p"/packets/created")
+
+      assert html_response(copied_url_conn, 404) =~ "Packet invite unavailable"
     end
   end
 

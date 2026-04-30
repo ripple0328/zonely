@@ -127,8 +127,10 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
   end
 
   defp session_invite_token(conn, draft) do
-    conn
-    |> Plug.Conn.get_session("zonely_packet_invite_tokens_by_draft")
-    |> Map.fetch!(to_string(draft.id))
+    invite_token = Plug.Conn.get_session(conn, "zonely_packet_created_invite_token")
+
+    assert Drafts.get_draft_by_invite_token(invite_token).id == draft.id
+
+    invite_token
   end
 end
