@@ -6,7 +6,7 @@ defmodule Zonely.Reachability do
   "Who can I reasonably reach right now?"
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.Geography
   alias Zonely.WorkingHours
 
@@ -22,14 +22,14 @@ defmodule Zonely.Reachability do
   def effective_at(%DateTime{} = preview_at, %DateTime{}), do: preview_at
   def effective_at(nil, %DateTime{} = live_now), do: live_now
 
-  @spec status(User.t(), DateTime.t()) :: status()
-  def status(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
+  @spec status(Person.t(), DateTime.t()) :: status()
+  def status(%Person{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     user
     |> local_time(now)
     |> then(&WorkingHours.classify_status(user, &1))
   end
 
-  @spec summary([User.t()], DateTime.t()) :: %{
+  @spec summary([Person.t()], DateTime.t()) :: %{
           working: non_neg_integer(),
           edge: non_neg_integer(),
           off: non_neg_integer(),
@@ -47,7 +47,7 @@ defmodule Zonely.Reachability do
     }
   end
 
-  @spec group_summary([User.t()], DateTime.t()) :: %{
+  @spec group_summary([Person.t()], DateTime.t()) :: %{
           selected_count: non_neg_integer(),
           working: non_neg_integer(),
           edge: non_neg_integer(),
@@ -67,20 +67,20 @@ defmodule Zonely.Reachability do
     }
   end
 
-  @spec sort_by_availability([User.t()], DateTime.t()) :: [User.t()]
+  @spec sort_by_availability([Person.t()], DateTime.t()) :: [Person.t()]
   def sort_by_availability(users, %DateTime{} = now) when is_list(users) do
     Enum.sort_by(users, &availability_sort_key(&1, now))
   end
 
-  @spec marker_state(User.t(), DateTime.t()) :: String.t()
-  def marker_state(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
+  @spec marker_state(Person.t(), DateTime.t()) :: String.t()
+  def marker_state(%Person{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     user
     |> status(now)
     |> Atom.to_string()
   end
 
-  @spec orbit_status_class(User.t(), DateTime.t()) :: String.t()
-  def orbit_status_class(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
+  @spec orbit_status_class(Person.t(), DateTime.t()) :: String.t()
+  def orbit_status_class(%Person{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     case status(user, now) do
       :working -> "is-working"
       :edge -> "is-edge"
@@ -88,8 +88,8 @@ defmodule Zonely.Reachability do
     end
   end
 
-  @spec status_label(User.t(), DateTime.t()) :: String.t()
-  def status_label(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
+  @spec status_label(Person.t(), DateTime.t()) :: String.t()
+  def status_label(%Person{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     case status(user, now) do
       :working -> "Reachable now"
       :edge -> "Ask carefully"
@@ -117,8 +117,8 @@ defmodule Zonely.Reachability do
 
   def local_time_label(_timezone, _now), do: "--:--"
 
-  @spec local_date_label(User.t(), DateTime.t()) :: String.t()
-  def local_date_label(%User{} = user, %DateTime{} = now) do
+  @spec local_date_label(Person.t(), DateTime.t()) :: String.t()
+  def local_date_label(%Person{} = user, %DateTime{} = now) do
     user
     |> local_datetime(now)
     |> case do
@@ -138,8 +138,8 @@ defmodule Zonely.Reachability do
 
   def offset_label(_timezone, _now), do: "UTC"
 
-  @spec daylight_context_label(User.t(), DateTime.t()) :: String.t()
-  def daylight_context_label(%User{} = user, %DateTime{} = now) do
+  @spec daylight_context_label(Person.t(), DateTime.t()) :: String.t()
+  def daylight_context_label(%Person{} = user, %DateTime{} = now) do
     case local_datetime(user, now) do
       %DateTime{hour: hour} when hour in 5..7 -> "sunrise"
       %DateTime{hour: hour} when hour in 8..16 -> "daylight"
@@ -148,8 +148,8 @@ defmodule Zonely.Reachability do
     end
   end
 
-  @spec decision_sentence(User.t(), DateTime.t()) :: String.t()
-  def decision_sentence(%User{} = user, %DateTime{} = now) do
+  @spec decision_sentence(Person.t(), DateTime.t()) :: String.t()
+  def decision_sentence(%Person{} = user, %DateTime{} = now) do
     local_time = local_time_label(user.timezone, now)
 
     case status(user, now) do
@@ -169,8 +169,8 @@ defmodule Zonely.Reachability do
     end
   end
 
-  @spec context_sentence(User.t(), DateTime.t()) :: String.t()
-  def context_sentence(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
+  @spec context_sentence(Person.t(), DateTime.t()) :: String.t()
+  def context_sentence(%Person{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     country = Geography.country_name(user.country)
     local_time = local_time_label(user.timezone, now)
 
@@ -186,8 +186,8 @@ defmodule Zonely.Reachability do
     end
   end
 
-  @spec next_transition(User.t(), DateTime.t()) :: transition()
-  def next_transition(%User{work_start: %Time{}, work_end: %Time{}} = user, %DateTime{} = now) do
+  @spec next_transition(Person.t(), DateTime.t()) :: transition()
+  def next_transition(%Person{work_start: %Time{}, work_end: %Time{}} = user, %DateTime{} = now) do
     with %DateTime{} = local_now <- local_datetime(user, now),
          {:ok, transition_local} <- next_transition_local(user, local_now),
          {:ok, transition_utc} <- DateTime.shift_zone(transition_local, "Etc/UTC") do
@@ -220,7 +220,10 @@ defmodule Zonely.Reachability do
     }
   end
 
-  defp next_transition_local(%User{work_start: work_start, work_end: work_end} = user, local_now) do
+  defp next_transition_local(
+         %Person{work_start: work_start, work_end: work_end} = user,
+         local_now
+       ) do
     local_date = DateTime.to_date(local_now)
     local_time = DateTime.to_time(local_now)
 
@@ -238,7 +241,7 @@ defmodule Zonely.Reachability do
     end
   end
 
-  defp transition_type(%User{work_end: work_end}, local_now, transition_local) do
+  defp transition_type(%Person{work_end: work_end}, local_now, transition_local) do
     cond do
       DateTime.to_date(transition_local) != DateTime.to_date(local_now) -> :back_tomorrow
       Time.compare(DateTime.to_time(transition_local), work_end) == :eq -> :workday_end
@@ -273,7 +276,7 @@ defmodule Zonely.Reachability do
   defp count_phrase(1, label), do: "1 #{label}"
   defp count_phrase(count, label), do: "#{count} #{label}"
 
-  defp availability_sort_key(%User{} = user, %DateTime{} = now) do
+  defp availability_sort_key(%Person{} = user, %DateTime{} = now) do
     status = status(user, now)
     available_at = available_at(user, status, now)
 
@@ -286,7 +289,7 @@ defmodule Zonely.Reachability do
 
   defp available_at(_user, :working, %DateTime{} = now), do: DateTime.to_unix(now, :second)
 
-  defp available_at(%User{} = user, _status, %DateTime{} = now) do
+  defp available_at(%Person{} = user, _status, %DateTime{} = now) do
     case next_transition(user, now) do
       %{instant: %DateTime{} = instant} -> DateTime.to_unix(instant, :second)
       _transition -> :infinity
@@ -296,7 +299,7 @@ defmodule Zonely.Reachability do
   defp normalized_name(name) when is_binary(name), do: String.downcase(name)
   defp normalized_name(_name), do: ""
 
-  defp local_time(%User{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
+  defp local_time(%Person{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
     case DateTime.shift_zone(now, timezone) do
       {:ok, datetime} -> DateTime.to_time(datetime)
       _error -> DateTime.to_time(now)
@@ -305,7 +308,7 @@ defmodule Zonely.Reachability do
 
   defp local_time(_user, %DateTime{} = now), do: DateTime.to_time(now)
 
-  defp local_datetime(%User{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
+  defp local_datetime(%Person{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
     case DateTime.shift_zone(now, timezone) do
       {:ok, datetime} -> datetime
       _error -> now

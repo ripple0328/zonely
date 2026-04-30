@@ -5,67 +5,85 @@ defmodule Zonely.Accounts do
 
   import Ecto.Query, warn: false
   alias Zonely.Repo
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.{Membership, Person, Team}
 
   @doc """
-  Returns the list of users.
+  Returns the list of people.
   """
-  def list_users do
-    Repo.all(User)
+  def list_people do
+    Repo.all(Person)
   end
 
   @doc """
-  Gets a single user.
+  Gets a single person.
   """
-  def get_user!(id), do: Repo.get!(User, id)
+  def get_person!(id), do: Repo.get!(Person, id)
 
   @doc """
-  Creates a user.
+  Creates a person.
   """
-  def create_user(attrs \\ %{}) do
-    %User{}
-    |> User.changeset(attrs)
+  def create_person(attrs \\ %{}) do
+    %Person{}
+    |> Person.changeset(attrs)
     |> Repo.insert()
   end
 
   @doc """
-  Updates a user.
+  Updates a person.
   """
-  def update_user(%User{} = user, attrs) do
-    user
-    |> User.changeset(attrs)
+  def update_person(%Person{} = person, attrs) do
+    person
+    |> Person.changeset(attrs)
     |> Repo.update()
   end
 
   @doc """
-  Deletes a user.
+  Deletes a person.
   """
-  def delete_user(%User{} = user) do
-    Repo.delete(user)
+  def delete_person(%Person{} = person) do
+    Repo.delete(person)
   end
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking user changes.
   """
-  def change_user(%User{} = user, attrs \\ %{}) do
-    User.changeset(user, attrs)
+  def change_person(%Person{} = person, attrs \\ %{}) do
+    Person.changeset(person, attrs)
   end
 
   @doc """
-  Gets users by timezone for work hour calculations.
+  Creates a team.
   """
-  def get_users_by_timezone(timezone) do
-    User
-    |> where([u], u.timezone == ^timezone)
+  def create_team(attrs \\ %{}) do
+    %Team{}
+    |> Team.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Creates a team membership.
+  """
+  def create_membership(attrs \\ %{}) do
+    %Membership{}
+    |> Membership.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Gets people by timezone for work hour calculations.
+  """
+  def get_people_by_timezone(timezone) do
+    Person
+    |> where([p], p.timezone == ^timezone)
     |> Repo.all()
   end
 
   @doc """
-  Gets users by country for holiday calculations.
+  Gets people by country for holiday calculations.
   """
-  def get_users_by_country(country) do
-    User
-    |> where([u], u.country == ^country)
+  def get_people_by_country(country) do
+    Person
+    |> where([p], p.country == ^country)
     |> Repo.all()
   end
 end

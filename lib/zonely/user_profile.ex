@@ -10,7 +10,7 @@ defmodule Zonely.UserProfile do
   - User status and availability display
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.AvatarService
   alias Zonely.Geography
   alias Zonely.WorkingHours
@@ -20,15 +20,15 @@ defmodule Zonely.UserProfile do
 
   ## Examples
 
-      iex> user = %User{name: "John Doe"}
+      iex> user = %Person{name: "John Doe"}
       iex> Zonely.UserProfile.avatar_data(user, 64)
       %{
         url: "https://api.dicebear.com/...",
         fallback: %{initials: "JD", class: "bg-gradient-..."}
       }
   """
-  @spec avatar_data(User.t(), pos_integer()) :: %{url: String.t(), fallback: map()}
-  def avatar_data(%User{name: name}, size \\ 64) do
+  @spec avatar_data(Person.t(), pos_integer()) :: %{url: String.t(), fallback: map()}
+  def avatar_data(%Person{name: name}, size \\ 64) do
     AvatarService.generate_complete_avatar(name, size)
   end
 
@@ -39,38 +39,38 @@ defmodule Zonely.UserProfile do
 
   ## Examples
 
-      iex> user = %User{name: "Jose Garcia", name_native: "José García"}
+      iex> user = %Person{name: "Jose Garcia", name_native: "José García"}
       iex> Zonely.UserProfile.display_name(user)
       "Jose Garcia"
       
       iex> Zonely.UserProfile.display_name(user, :native)
       "José García"
   """
-  @spec display_name(User.t(), :regular | :native) :: String.t()
-  def display_name(%User{name: name}), do: name
-  def display_name(%User{name: name}, :regular), do: name
-  def display_name(%User{name_native: nil, name: name}, :native), do: name
+  @spec display_name(Person.t(), :regular | :native) :: String.t()
+  def display_name(%Person{name: name}), do: name
+  def display_name(%Person{name: name}, :regular), do: name
+  def display_name(%Person{name_native: nil, name: name}, :native), do: name
 
-  def display_name(%User{name_native: native_name}, :native) when is_binary(native_name),
+  def display_name(%Person{name_native: native_name}, :native) when is_binary(native_name),
     do: native_name
 
-  def display_name(%User{name: name}, _), do: name
+  def display_name(%Person{name: name}, _), do: name
 
   @doc """
   Checks if a user has a native name that differs from their regular name.
 
   ## Examples
 
-      iex> user = %User{name: "Jose Garcia", name_native: "José García"}
+      iex> user = %Person{name: "Jose Garcia", name_native: "José García"}
       iex> Zonely.UserProfile.has_different_native_name?(user)
       true
       
-      iex> user = %User{name: "John Doe", name_native: "John Doe"}
+      iex> user = %Person{name: "John Doe", name_native: "John Doe"}
       iex> Zonely.UserProfile.has_different_native_name?(user)
       false
   """
-  @spec has_different_native_name?(User.t()) :: boolean()
-  def has_different_native_name?(%User{name: name, name_native: native_name})
+  @spec has_different_native_name?(Person.t()) :: boolean()
+  def has_different_native_name?(%Person{name: name, name_native: native_name})
       when is_binary(native_name) and native_name != name do
     true
   end
@@ -84,12 +84,12 @@ defmodule Zonely.UserProfile do
 
   ## Examples
 
-      iex> user = %User{name: "John", role: "Engineer", timezone: "UTC", country: "US"}
+      iex> user = %Person{name: "John", role: "Engineer", timezone: "UTC", country: "US"}
       iex> Zonely.UserProfile.completeness_percentage(user)
       80
   """
-  @spec completeness_percentage(User.t()) :: non_neg_integer()
-  def completeness_percentage(%User{} = user) do
+  @spec completeness_percentage(Person.t()) :: non_neg_integer()
+  def completeness_percentage(%Person{} = user) do
     required_fields = [:name, :role, :timezone, :country, :work_start, :work_end]
     optional_fields = [:name_native, :pronouns, :latitude, :longitude]
 
@@ -102,7 +102,7 @@ defmodule Zonely.UserProfile do
     round(filled_fields / total_fields * 100)
   end
 
-  defp field_filled?(%User{} = user, field) do
+  defp field_filled?(%Person{} = user, field) do
     case Map.get(user, field) do
       nil -> false
       "" -> false
@@ -124,14 +124,14 @@ defmodule Zonely.UserProfile do
         completeness: 85
       }
   """
-  @spec summary(User.t()) :: %{
+  @spec summary(Person.t()) :: %{
           name: String.t(),
           role: String.t() | nil,
           location: String.t(),
           status: atom(),
           completeness: non_neg_integer()
         }
-  def summary(%User{} = user) do
+  def summary(%Person{} = user) do
     %{
       name: display_name(user, :regular),
       role: user.role,
@@ -150,12 +150,12 @@ defmodule Zonely.UserProfile do
 
       iex> users = [user1, user2, user3]
       iex> Zonely.UserProfile.search(users, "john")
-      [%User{name: "John Doe"}]
+      [%Person{name: "John Doe"}]
       
       iex> Zonely.UserProfile.search(users, "engineer")
-      [%User{role: "Software Engineer"}]
+      [%Person{role: "Software Engineer"}]
   """
-  @spec search([User.t()], String.t()) :: [User.t()]
+  @spec search([Person.t()], String.t()) :: [Person.t()]
   def search(users, query) when is_list(users) and is_binary(query) do
     if query == "" or String.trim(query) == "" do
       []
@@ -178,9 +178,9 @@ defmodule Zonely.UserProfile do
   ## Examples
 
       iex> Zonely.UserProfile.filter_by_completeness(users, 80)
-      [%User{}, %User{}]  # Users with >= 80% profile completion
+      [%Person{}, %Person{}]  # Users with >= 80% profile completion
   """
-  @spec filter_by_completeness([User.t()], non_neg_integer()) :: [User.t()]
+  @spec filter_by_completeness([Person.t()], non_neg_integer()) :: [Person.t()]
   def filter_by_completeness(users, min_percentage)
       when is_list(users) and is_integer(min_percentage) do
     Enum.filter(users, fn user ->
@@ -200,10 +200,10 @@ defmodule Zonely.UserProfile do
         incomplete: [user3]     # <70%
       }
   """
-  @spec group_by_completeness([User.t()]) :: %{
-          complete: [User.t()],
-          mostly_complete: [User.t()],
-          incomplete: [User.t()]
+  @spec group_by_completeness([Person.t()]) :: %{
+          complete: [Person.t()],
+          mostly_complete: [Person.t()],
+          incomplete: [Person.t()]
         }
   def group_by_completeness(users) when is_list(users) do
     grouped =
@@ -228,9 +228,9 @@ defmodule Zonely.UserProfile do
   ## Examples
 
       iex> Zonely.UserProfile.needs_profile_completion(users)
-      [%User{name: "Incomplete User"}]
+      [%Person{name: "Incomplete User"}]
   """
-  @spec needs_profile_completion([User.t()]) :: [User.t()]
+  @spec needs_profile_completion([Person.t()]) :: [Person.t()]
   def needs_profile_completion(users) when is_list(users) do
     filter_by_completeness(users, 0)
     |> Enum.filter(fn user -> completeness_percentage(user) < 70 end)
@@ -250,7 +250,7 @@ defmodule Zonely.UserProfile do
         has_native_names: 4
       }
   """
-  @spec get_statistics([User.t()]) :: %{
+  @spec get_statistics([Person.t()]) :: %{
           total_users: non_neg_integer(),
           avg_completeness: non_neg_integer(),
           complete_profiles: non_neg_integer(),
@@ -281,12 +281,12 @@ defmodule Zonely.UserProfile do
 
   ## Examples
 
-      iex> user = %User{name: "John Doe"}
+      iex> user = %Person{name: "John Doe"}
       iex> Zonely.UserProfile.initials(user)
       "JD"
   """
-  @spec initials(User.t()) :: String.t()
-  def initials(%User{name: name}) do
+  @spec initials(Person.t()) :: String.t()
+  def initials(%Person{name: name}) do
     AvatarService.generate_initials_avatar(name).initials
   end
 
@@ -298,8 +298,8 @@ defmodule Zonely.UserProfile do
       iex> Zonely.UserProfile.profile_complete?(user)
       true
   """
-  @spec profile_complete?(User.t()) :: boolean()
-  def profile_complete?(%User{} = user) do
+  @spec profile_complete?(Person.t()) :: boolean()
+  def profile_complete?(%Person{} = user) do
     completeness_percentage(user) >= 90
   end
 
@@ -311,8 +311,8 @@ defmodule Zonely.UserProfile do
       iex> Zonely.UserProfile.validation_errors(user)
       ["Missing work hours", "Invalid timezone"]
   """
-  @spec validation_errors(User.t()) :: [String.t()]
-  def validation_errors(%User{} = user) do
+  @spec validation_errors(Person.t()) :: [String.t()]
+  def validation_errors(%Person{} = user) do
     errors = []
 
     errors = if !field_filled?(user, :name), do: ["Name is required" | errors], else: errors

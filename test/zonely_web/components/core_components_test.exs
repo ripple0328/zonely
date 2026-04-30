@@ -3,11 +3,11 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   import ZonelyWeb.CoreComponents
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
 
   describe "user_avatar/1" do
     test "renders avatar with proper attributes" do
-      user = %User{name: "John Doe"}
+      user = %Person{name: "John Doe"}
 
       html =
         render_component_test(&user_avatar/1, %{user: user, size: 48})
@@ -19,7 +19,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "applies custom CSS classes" do
-      user = %User{name: "Test User"}
+      user = %Person{name: "Test User"}
 
       html = render_component_test(&user_avatar/1, %{user: user, class: "custom-class"})
 
@@ -29,7 +29,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "pronunciation_buttons/1" do
     test "renders English pronunciation button" do
-      user = %User{id: 1, name: "John Doe", country: "US"}
+      user = %Person{id: 1, name: "John Doe", country: "US"}
 
       html = render_component_test(&pronunciation_buttons/1, %{user: user})
 
@@ -39,7 +39,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "renders native pronunciation button when name differs" do
-      user = %User{
+      user = %Person{
         id: 2,
         name: "Jose Garcia",
         name_native: "José García",
@@ -54,7 +54,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "does not render native button when names are the same" do
-      user = %User{
+      user = %Person{
         id: 3,
         name: "John Doe",
         name_native: "John Doe",
@@ -68,7 +68,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "applies different sizes correctly" do
-      user = %User{id: 1, name: "Test", country: "US"}
+      user = %Person{id: 1, name: "Test", country: "US"}
 
       small_html = render_component_test(&pronunciation_buttons/1, %{user: user, size: :small})
       large_html = render_component_test(&pronunciation_buttons/1, %{user: user, size: :large})
@@ -78,7 +78,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "can hide labels" do
-      user = %User{id: 1, name: "Test", country: "US"}
+      user = %Person{id: 1, name: "Test", country: "US"}
 
       html = render_component_test(&pronunciation_buttons/1, %{user: user, show_labels: false})
 
@@ -86,7 +86,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows loading state with spinner" do
-      user = %User{id: 1, name: "Test", country: "US"}
+      user = %Person{id: 1, name: "Test", country: "US"}
 
       html =
         render_component_test(&pronunciation_buttons/1, %{
@@ -101,7 +101,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows playing state for real person audio" do
-      user = %User{id: 1, name: "Test", country: "US"}
+      user = %Person{id: 1, name: "Test", country: "US"}
 
       html =
         render_component_test(&pronunciation_buttons/1, %{
@@ -116,7 +116,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows playing state for AI generated audio" do
-      user = %User{id: 1, name: "Test", country: "US"}
+      user = %Person{id: 1, name: "Test", country: "US"}
 
       html =
         render_component_test(&pronunciation_buttons/1, %{
@@ -131,7 +131,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows native playing state when available" do
-      user = %User{
+      user = %Person{
         id: 1,
         name: "Jose Garcia",
         name_native: "José García",
@@ -154,7 +154,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "timezone_display/1" do
     test "renders timezone and country information" do
-      user = %User{timezone: "America/New_York", country: "US"}
+      user = %Person{timezone: "America/New_York", country: "US"}
 
       html = render_component_test(&timezone_display/1, %{user: user})
 
@@ -163,7 +163,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows local time when requested" do
-      user = %User{timezone: "Europe/London", country: "GB"}
+      user = %Person{timezone: "Europe/London", country: "GB"}
 
       html = render_component_test(&timezone_display/1, %{user: user, show_local_time: true})
 
@@ -171,7 +171,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "applies vertical layout" do
-      user = %User{timezone: "Asia/Tokyo", country: "JP"}
+      user = %Person{timezone: "Asia/Tokyo", country: "JP"}
 
       html = render_component_test(&timezone_display/1, %{user: user, layout: :vertical})
 
@@ -182,7 +182,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "working_hours/1" do
     test "renders working hours correctly" do
-      user = %User{
+      user = %Person{
         work_start: ~T[09:00:00],
         work_end: ~T[17:00:00]
       }
@@ -195,7 +195,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows status indicator when requested" do
-      user = %User{
+      user = %Person{
         work_start: ~T[09:00:00],
         work_end: ~T[17:00:00]
       }
@@ -207,7 +207,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "applies compact styling" do
-      user = %User{
+      user = %Person{
         work_start: ~T[10:00:00],
         work_end: ~T[18:00:00]
       }
@@ -220,7 +220,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "profile_card/1" do
     test "renders comprehensive user profile" do
-      user = %User{
+      user = %Person{
         id: 1,
         name: "Alice Johnson",
         role: "Software Engineer",
@@ -240,7 +240,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows action buttons when requested" do
-      user = %User{
+      user = %Person{
         id: 2,
         name: "Bob Smith",
         work_start: ~T[08:00:00],
@@ -256,7 +256,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows native name as a compact pronunciation chip" do
-      user = %User{
+      user = %Person{
         id: 3,
         name: "Maria Garcia",
         name_native: "María García",
@@ -276,7 +276,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "renders SayMyName variants as compact playable name chips" do
-      user = %User{
+      user = %Person{
         id: 9,
         name: "Yuki Tanaka",
         name_native: "田中雪",
@@ -305,7 +305,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "renders decision sheet fields from explicit effective time" do
-      user = %User{
+      user = %Person{
         id: 11,
         name: "Mara Okafor",
         role: "Product Lead",
@@ -353,7 +353,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "applies custom CSS classes" do
-      user = %User{
+      user = %Person{
         id: 4,
         name: "Test User",
         work_start: ~T[09:00:00],
@@ -368,7 +368,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "user_card/1" do
     test "renders compact user row for map-native teammate lists" do
-      user = %User{
+      user = %Person{
         id: 5,
         name: "Charlie Brown",
         role: "Designer",
@@ -385,7 +385,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "makes card clickable by default" do
-      user = %User{id: 6, name: "David Wilson"}
+      user = %Person{id: 6, name: "David Wilson"}
 
       html = render_component_test(&user_card/1, %{user: user})
 
@@ -395,7 +395,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "can disable clickable behavior" do
-      user = %User{id: 7, name: "Eve Adams"}
+      user = %Person{id: 7, name: "Eve Adams"}
 
       html = render_component_test(&user_card/1, %{user: user, clickable: false})
 
@@ -404,7 +404,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "shows native name information when available" do
-      user = %User{
+      user = %Person{
         id: 8,
         name: "Hiroshi Tanaka",
         name_native: "田中 寛",
@@ -516,7 +516,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
   describe "quick_actions_bar/1" do
     test "renders quick actions for user" do
-      user = %User{id: 1, name: "John Doe"}
+      user = %Person{id: 1, name: "John Doe"}
 
       html = render_component_test(&quick_actions_bar/1, %{user: user})
 
@@ -529,7 +529,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "applies custom CSS classes" do
-      user = %User{id: 1, name: "Test User"}
+      user = %Person{id: 1, name: "Test User"}
 
       html = render_component_test(&quick_actions_bar/1, %{user: user, class: "custom-actions"})
 
@@ -537,7 +537,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
     end
 
     test "includes action icons and labels" do
-      user = %User{id: 1, name: "Test User"}
+      user = %Person{id: 1, name: "Test User"}
 
       html = render_component_test(&quick_actions_bar/1, %{user: user})
 

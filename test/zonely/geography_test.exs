@@ -2,7 +2,7 @@ defmodule Zonely.GeographyTest do
   use ExUnit.Case, async: true
 
   alias Zonely.Geography
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
 
   describe "country_name/1" do
     test "returns correct country names" do
@@ -68,9 +68,9 @@ defmodule Zonely.GeographyTest do
   describe "users_by_country/2" do
     setup do
       users = [
-        %User{id: 1, country: "US", name: "John"},
-        %User{id: 2, country: "ES", name: "Maria"},
-        %User{id: 3, country: "US", name: "Bob"}
+        %Person{id: 1, country: "US", name: "John"},
+        %Person{id: 2, country: "ES", name: "Maria"},
+        %Person{id: 3, country: "US", name: "Bob"}
       ]
 
       {:ok, users: users}
@@ -95,9 +95,9 @@ defmodule Zonely.GeographyTest do
   describe "group_users_by_country/1" do
     setup do
       users = [
-        %User{id: 1, country: "US", name: "John"},
-        %User{id: 2, country: "ES", name: "Maria"},
-        %User{id: 3, country: "US", name: "Bob"}
+        %Person{id: 1, country: "US", name: "John"},
+        %Person{id: 2, country: "ES", name: "Maria"},
+        %Person{id: 3, country: "US", name: "Bob"}
       ]
 
       {:ok, users: users}
@@ -116,9 +116,9 @@ defmodule Zonely.GeographyTest do
   describe "users_by_timezone/2" do
     setup do
       users = [
-        %User{id: 1, timezone: "America/New_York", name: "John"},
-        %User{id: 2, timezone: "Europe/London", name: "Alice"},
-        %User{id: 3, timezone: "America/New_York", name: "Bob"}
+        %Person{id: 1, timezone: "America/New_York", name: "John"},
+        %Person{id: 2, timezone: "Europe/London", name: "Alice"},
+        %Person{id: 3, timezone: "America/New_York", name: "Bob"}
       ]
 
       {:ok, users: users}
@@ -136,8 +136,8 @@ defmodule Zonely.GeographyTest do
   describe "group_users_by_timezone/1" do
     setup do
       users = [
-        %User{id: 1, timezone: "America/New_York", name: "John"},
-        %User{id: 2, timezone: "Europe/London", name: "Alice"}
+        %Person{id: 1, timezone: "America/New_York", name: "John"},
+        %Person{id: 2, timezone: "Europe/London", name: "Alice"}
       ]
 
       {:ok, users: users}
@@ -156,10 +156,10 @@ defmodule Zonely.GeographyTest do
   describe "unique_countries/1" do
     setup do
       users = [
-        %User{country: "US", name: "John"},
-        %User{country: "ES", name: "Maria"},
-        %User{country: "US", name: "Bob"},
-        %User{country: "FR", name: "Pierre"}
+        %Person{country: "US", name: "John"},
+        %Person{country: "ES", name: "Maria"},
+        %Person{country: "US", name: "Bob"},
+        %Person{country: "FR", name: "Pierre"}
       ]
 
       {:ok, users: users}
@@ -181,9 +181,9 @@ defmodule Zonely.GeographyTest do
   describe "unique_timezones/1" do
     setup do
       users = [
-        %User{timezone: "America/New_York", name: "John"},
-        %User{timezone: "Europe/London", name: "Alice"},
-        %User{timezone: "America/New_York", name: "Bob"}
+        %Person{timezone: "America/New_York", name: "John"},
+        %Person{timezone: "Europe/London", name: "Alice"},
+        %Person{timezone: "America/New_York", name: "Bob"}
       ]
 
       {:ok, users: users}
@@ -200,9 +200,9 @@ defmodule Zonely.GeographyTest do
   describe "get_statistics/1" do
     setup do
       users = [
-        %User{country: "US", timezone: "America/New_York", name: "John"},
-        %User{country: "US", timezone: "America/Los_Angeles", name: "Alice"},
-        %User{country: "ES", timezone: "Europe/Madrid", name: "Maria"}
+        %Person{country: "US", timezone: "America/New_York", name: "John"},
+        %Person{country: "US", timezone: "America/Los_Angeles", name: "Alice"},
+        %Person{country: "ES", timezone: "Europe/Madrid", name: "Maria"}
       ]
 
       {:ok, users: users}
@@ -257,8 +257,8 @@ defmodule Zonely.GeographyTest do
 
   describe "user_in_region?/2" do
     setup do
-      user_us = %User{country: "US", name: "John"}
-      user_es = %User{country: "ES", name: "Maria"}
+      user_us = %Person{country: "US", name: "John"}
+      user_es = %Person{country: "ES", name: "Maria"}
       {:ok, user_us: user_us, user_es: user_es}
     end
 

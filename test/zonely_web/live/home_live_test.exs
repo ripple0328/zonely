@@ -45,7 +45,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "renders global map with teammate location payload", %{conn: conn} do
     {:ok, _user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -85,7 +85,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "people control toggles the team orbit panel", %{conn: conn} do
     {:ok, _user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -117,7 +117,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "team orbit sorts reachable people first then by next reachable time", %{conn: conn} do
     {:ok, available} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Available Person",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -129,7 +129,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, soon} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Soon Person",
         role: "Product Manager",
         timezone: "America/Los_Angeles",
@@ -141,7 +141,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, later} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Later Person",
         role: "UX Designer",
         timezone: "Asia/Tokyo",
@@ -167,7 +167,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "preview rail exposes accessible bounded topology and live labels", %{conn: conn} do
     {:ok, _user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -202,7 +202,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "preview rail renders computed context segments from teammate windows", %{conn: conn} do
     {:ok, new_york_user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -214,7 +214,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, tokyo_user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Yuki Tanaka",
         role: "Engineering Manager",
         timezone: "Asia/Tokyo",
@@ -274,7 +274,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     conn: conn
   } do
     {:ok, alice} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -286,7 +286,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, mara} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -337,7 +337,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     conn: conn
   } do
     {:ok, user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -376,7 +376,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     Application.put_env(:zonely, :home_live_now, fn -> Agent.get(now_agent, & &1) end)
 
     {:ok, user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -423,7 +423,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     conn: conn
   } do
     {:ok, _user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -456,7 +456,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     conn: conn
   } do
     {:ok, new_york_user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -468,7 +468,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, lisbon_user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -538,7 +538,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       ]
       |> Enum.map(fn {name, role, timezone, country, latitude, longitude} ->
         {:ok, user} =
-          Accounts.create_user(%{
+          Accounts.create_person(%{
             name: name,
             role: role,
             timezone: timezone,
@@ -705,7 +705,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "selected group leaves membership management to people panel", %{conn: conn} do
     {:ok, alice} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -717,7 +717,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, mara} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -756,7 +756,7 @@ defmodule ZonelyWeb.HomeLiveTest do
   test "single decision sheet leaves multi-select to the people panel",
        %{conn: conn} do
     {:ok, alice} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -768,7 +768,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, mara} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -817,7 +817,7 @@ defmodule ZonelyWeb.HomeLiveTest do
          conn: conn
        } do
     {:ok, tokyo_user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Yuki Tanaka",
         role: "Engineering Manager",
         timezone: "Asia/Tokyo",
@@ -829,7 +829,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, _lisbon_user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -933,7 +933,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "team orbit opens selected teammate context on the map", %{conn: conn} do
     {:ok, user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -964,7 +964,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
   test "selected teammate decision sheet follows preview effective time and reset", %{conn: conn} do
     {:ok, user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Mara Okafor",
         role: "Product Lead",
         timezone: "Europe/Lisbon",
@@ -1063,7 +1063,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     System.put_env("PRONUNCIATION_API_KEY", "test-share-key")
 
     {:ok, user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Qingbo",
         role: "Founder",
         timezone: "America/Los_Angeles",
@@ -1078,9 +1078,10 @@ defmodule ZonelyWeb.HomeLiveTest do
       assert opts[:method] == :post
       assert opts[:url] == "https://saymyname.qingbo.us/api/v1/name-card-shares"
       assert opts[:headers] == [{"authorization", "Bearer test-share-key"}]
-      assert opts[:json]["id"] == user.id
-      assert opts[:json]["display_name"] == "Qingbo"
-      assert opts[:json]["variants"] == [%{"lang" => "en-US", "text" => "Qingbo"}]
+      assert opts[:json]["version"] == "shared_profile_v1"
+      assert opts[:json]["person"]["id"] == user.id
+      assert opts[:json]["person"]["display_name"] == "Qingbo"
+      assert opts[:json]["person"]["name_variants"] == [%{"lang" => "en-US", "text" => "Qingbo"}]
 
       {:ok,
        %{
@@ -1130,7 +1131,7 @@ defmodule ZonelyWeb.HomeLiveTest do
     System.put_env("PRONUNCIATION_API_KEY", "test-share-key")
 
     {:ok, _user} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
         timezone: "America/New_York",
@@ -1142,7 +1143,7 @@ defmodule ZonelyWeb.HomeLiveTest do
       })
 
     {:ok, _ahmed} =
-      Accounts.create_user(%{
+      Accounts.create_person(%{
         name: "Ahmed Hassan",
         name_native: "أحمد حسن",
         native_language: "ar-EG",
@@ -1159,18 +1160,21 @@ defmodule ZonelyWeb.HomeLiveTest do
       assert opts[:method] == :post
       assert opts[:url] == "https://saymyname.qingbo.us/api/v1/name-list-shares"
       assert opts[:headers] == [{"authorization", "Bearer test-share-key"}]
-      assert opts[:json]["name"] == "Zonely Team"
+      assert opts[:json]["version"] == "shared_profile_v1"
+      assert opts[:json]["team"] == %{"name" => "Zonely Team"}
 
       assert [
-               %{"display_name" => "Alice Remote"},
+               %{"person" => %{"display_name" => "Alice Remote"}},
                %{
-                 "display_name" => "Ahmed Hassan",
-                 "variants" => [
-                   %{"lang" => "en-US", "text" => "Ahmed Hassan"},
-                   %{"lang" => "ar-SA", "text" => "أحمد حسن"}
-                 ]
+                 "person" => %{
+                   "display_name" => "Ahmed Hassan",
+                   "name_variants" => [
+                     %{"lang" => "en-US", "text" => "Ahmed Hassan"},
+                     %{"lang" => "ar-SA", "text" => "أحمد حسن"}
+                   ]
+                 }
                }
-             ] = opts[:json]["entries"]
+             ] = opts[:json]["memberships"]
 
       {:ok,
        %{
@@ -1191,7 +1195,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
     assert has_element?(view, "#share-preview-modal")
     assert has_element?(view, "#share-preview-modal", "Name list preview")
-    assert has_element?(view, "#share-preview-modal", "2 names")
+    assert has_element?(view, "#share-preview-modal", "2 people")
 
     assert has_element?(
              view,

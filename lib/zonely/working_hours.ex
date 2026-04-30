@@ -9,7 +9,7 @@ defmodule Zonely.WorkingHours do
   - Time-based user classification (working, edge, off)
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.DateUtils
 
   @doc """
@@ -20,18 +20,18 @@ defmodule Zonely.WorkingHours do
 
   ## Examples
 
-      iex> users = [%User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}]
+      iex> users = [%Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}]
       iex> Zonely.WorkingHours.calculate_overlap_hours(users)
       "Select at least 2 users to see overlaps"
       
       iex> users = [
-      ...>   %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
-      ...>   %User{work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
+      ...>   %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
+      ...>   %Person{work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
       ...> ]
       iex> Zonely.WorkingHours.calculate_overlap_hours(users)
       "09:00 - 17:00 UTC (overlap detected)"
   """
-  @spec calculate_overlap_hours([User.t()]) :: String.t()
+  @spec calculate_overlap_hours([Person.t()]) :: String.t()
   def calculate_overlap_hours(users) when length(users) >= 2 do
     # Simplified overlap calculation - would need proper timezone math
     "09:00 - 17:00 UTC (overlap detected)"
@@ -50,17 +50,17 @@ defmodule Zonely.WorkingHours do
 
   ## Examples
 
-      iex> user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      iex> user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       iex> Zonely.WorkingHours.is_working?(user, ~T[14:00:00])
       true
       
       iex> Zonely.WorkingHours.is_working?(user, ~T[20:00:00])
       false
   """
-  @spec is_working?(User.t(), Time.t() | nil) :: boolean()
+  @spec is_working?(Person.t(), Time.t() | nil) :: boolean()
   def is_working?(user, current_time \\ nil)
 
-  def is_working?(%User{work_start: work_start, work_end: work_end}, current_time)
+  def is_working?(%Person{work_start: work_start, work_end: work_end}, current_time)
       when not is_nil(work_start) and not is_nil(work_end) do
     time = current_time || Time.utc_now()
     Time.compare(time, work_start) != :lt && Time.compare(time, work_end) == :lt
@@ -77,17 +77,17 @@ defmodule Zonely.WorkingHours do
 
   ## Examples
 
-      iex> user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      iex> user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       iex> Zonely.WorkingHours.classify_status(user, ~T[14:00:00])
       :working
       
       iex> Zonely.WorkingHours.classify_status(user, ~T[08:30:00])
       :edge
   """
-  @spec classify_status(User.t(), Time.t() | nil) :: :working | :edge | :off
+  @spec classify_status(Person.t(), Time.t() | nil) :: :working | :edge | :off
   def classify_status(user, current_time \\ nil)
 
-  def classify_status(%User{work_start: work_start, work_end: work_end} = user, current_time)
+  def classify_status(%Person{work_start: work_start, work_end: work_end} = user, current_time)
       when not is_nil(work_start) and not is_nil(work_end) do
     time = current_time || Time.utc_now()
 
@@ -117,7 +117,7 @@ defmodule Zonely.WorkingHours do
       iex> Zonely.WorkingHours.filter_by_status(users, :working)
       [user2]
   """
-  @spec filter_by_status([User.t()], :working | :edge | :off) :: [User.t()]
+  @spec filter_by_status([Person.t()], :working | :edge | :off) :: [Person.t()]
   def filter_by_status(users, status) when is_list(users) do
     Enum.filter(users, fn user ->
       classify_status(user) == status
@@ -139,7 +139,7 @@ defmodule Zonely.WorkingHours do
         timezones: %{"America/New_York" => 2, "Europe/London" => 1}
       }
   """
-  @spec get_statistics([User.t()]) :: %{
+  @spec get_statistics([Person.t()]) :: %{
           working: non_neg_integer(),
           edge: non_neg_integer(),
           off: non_neg_integer(),
@@ -163,7 +163,7 @@ defmodule Zonely.WorkingHours do
   Returns a list of time windows when most users are available.
   This is currently a simplified implementation.
   """
-  @spec suggest_meeting_times([User.t()]) :: [
+  @spec suggest_meeting_times([Person.t()]) :: [
           %{time: String.t(), description: String.t(), quality: atom()}
         ]
   def suggest_meeting_times(users) when length(users) >= 2 do
@@ -188,12 +188,12 @@ defmodule Zonely.WorkingHours do
 
   ## Examples
 
-      iex> user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      iex> user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       iex> Zonely.WorkingHours.format_hours(user)
       "09:00 AM - 05:00 PM"
   """
-  @spec format_hours(User.t()) :: String.t()
-  def format_hours(%User{work_start: work_start, work_end: work_end})
+  @spec format_hours(Person.t()) :: String.t()
+  def format_hours(%Person{work_start: work_start, work_end: work_end})
       when not is_nil(work_start) and not is_nil(work_end) do
     DateUtils.format_working_hours(work_start, work_end)
   end
@@ -247,10 +247,10 @@ defmodule Zonely.WorkingHours do
         off: [user3]
       }
   """
-  @spec group_by_status([User.t()]) :: %{
-          working: [User.t()],
-          edge: [User.t()],
-          off: [User.t()]
+  @spec group_by_status([Person.t()]) :: %{
+          working: [Person.t()],
+          edge: [Person.t()],
+          off: [Person.t()]
         }
   def group_by_status(users) when is_list(users) do
     grouped = Enum.group_by(users, &classify_status/1)

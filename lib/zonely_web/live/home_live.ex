@@ -11,7 +11,7 @@ defmodule ZonelyWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    users = Accounts.list_users()
+    users = Accounts.list_people()
     live_now = live_now()
 
     {:ok,
@@ -135,7 +135,7 @@ defmodule ZonelyWeb.HomeLive do
         {:noreply, assign(socket, :name_card_share_error, "Could not find teammate.")}
 
       user ->
-        payload = NameProfileContract.from_user(user)
+        payload = NameProfileContract.from_person(user)
 
         socket =
           socket
@@ -169,7 +169,7 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   def handle_event("share_team_names", _params, socket) do
-    payload = NameProfileContract.from_users("Zonely Team", socket.assigns.users)
+    payload = NameProfileContract.from_team("Zonely Team", socket.assigns.users)
 
     socket =
       socket
@@ -1206,7 +1206,7 @@ defmodule ZonelyWeb.HomeLive do
   defp share_preview_for_card(payload, share_url, response) do
     %{
       kind: :card,
-      title: Map.get(payload, "display_name"),
+      title: get_in(payload, ["person", "display_name"]),
       subtitle: "Name card",
       url: share_url,
       preview_image_url: share_preview_image_url(response, share_url)
@@ -1214,12 +1214,12 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   defp share_preview_for_list(payload, share_url, response) do
-    entries = Map.get(payload, "entries", [])
+    memberships = Map.get(payload, "memberships", [])
 
     %{
       kind: :list,
-      title: Map.get(payload, "name", "Zonely Team"),
-      subtitle: "#{length(entries)} names",
+      title: get_in(payload, ["team", "name"]) || "Zonely Team",
+      subtitle: "#{length(memberships)} people",
       url: share_url,
       preview_image_url: share_preview_image_url(response, share_url)
     }

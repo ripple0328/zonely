@@ -9,7 +9,7 @@ defmodule Zonely.Geography do
   - Location-based user grouping and filtering
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.LanguageService
 
   @doc """
@@ -94,11 +94,11 @@ defmodule Zonely.Geography do
 
   ## Examples
 
-      iex> users = [%User{country: "US"}, %User{country: "ES"}]
+      iex> users = [%Person{country: "US"}, %Person{country: "ES"}]
       iex> Zonely.Geography.users_by_country(users, "US")
-      [%User{country: "US"}]
+      [%Person{country: "US"}]
   """
-  @spec users_by_country([User.t()], String.t()) :: [User.t()]
+  @spec users_by_country([Person.t()], String.t()) :: [Person.t()]
   def users_by_country(users, country) when is_list(users) and is_binary(country) do
     Enum.filter(users, fn user -> user.country == country end)
   end
@@ -108,11 +108,11 @@ defmodule Zonely.Geography do
 
   ## Examples
 
-      iex> users = [%User{country: "US"}, %User{country: "ES"}, %User{country: "US"}]
+      iex> users = [%Person{country: "US"}, %Person{country: "ES"}, %Person{country: "US"}]
       iex> Zonely.Geography.group_users_by_country(users)
-      %{"US" => [%User{}, %User{}], "ES" => [%User{}]}
+      %{"US" => [%Person{}, %Person{}], "ES" => [%Person{}]}
   """
-  @spec group_users_by_country([User.t()]) :: %{String.t() => [User.t()]}
+  @spec group_users_by_country([Person.t()]) :: %{String.t() => [Person.t()]}
   def group_users_by_country(users) when is_list(users) do
     Enum.group_by(users, & &1.country)
   end
@@ -122,11 +122,11 @@ defmodule Zonely.Geography do
 
   ## Examples
 
-      iex> users = [%User{timezone: "America/New_York"}, %User{timezone: "Europe/London"}]
+      iex> users = [%Person{timezone: "America/New_York"}, %Person{timezone: "Europe/London"}]
       iex> Zonely.Geography.users_by_timezone(users, "America/New_York")
-      [%User{timezone: "America/New_York"}]
+      [%Person{timezone: "America/New_York"}]
   """
-  @spec users_by_timezone([User.t()], String.t()) :: [User.t()]
+  @spec users_by_timezone([Person.t()], String.t()) :: [Person.t()]
   def users_by_timezone(users, timezone) when is_list(users) and is_binary(timezone) do
     Enum.filter(users, fn user -> user.timezone == timezone end)
   end
@@ -136,11 +136,11 @@ defmodule Zonely.Geography do
 
   ## Examples
 
-      iex> users = [%User{timezone: "America/New_York"}, %User{timezone: "Europe/London"}]
+      iex> users = [%Person{timezone: "America/New_York"}, %Person{timezone: "Europe/London"}]
       iex> Zonely.Geography.group_users_by_timezone(users)
-      %{"America/New_York" => [%User{}], "Europe/London" => [%User{}]}
+      %{"America/New_York" => [%Person{}], "Europe/London" => [%Person{}]}
   """
-  @spec group_users_by_timezone([User.t()]) :: %{String.t() => [User.t()]}
+  @spec group_users_by_timezone([Person.t()]) :: %{String.t() => [Person.t()]}
   def group_users_by_timezone(users) when is_list(users) do
     Enum.group_by(users, & &1.timezone)
   end
@@ -150,11 +150,11 @@ defmodule Zonely.Geography do
 
   ## Examples
 
-      iex> users = [%User{country: "US"}, %User{country: "ES"}, %User{country: "US"}]
+      iex> users = [%Person{country: "US"}, %Person{country: "ES"}, %Person{country: "US"}]
       iex> Zonely.Geography.unique_countries(users)
       ["ES", "US"]
   """
-  @spec unique_countries([User.t()]) :: [String.t()]
+  @spec unique_countries([Person.t()]) :: [String.t()]
   def unique_countries(users) when is_list(users) do
     users
     |> Enum.map(& &1.country)
@@ -167,11 +167,11 @@ defmodule Zonely.Geography do
 
   ## Examples
 
-      iex> users = [%User{timezone: "America/New_York"}, %User{timezone: "Europe/London"}]
+      iex> users = [%Person{timezone: "America/New_York"}, %Person{timezone: "Europe/London"}]
       iex> Zonely.Geography.unique_timezones(users)
       ["America/New_York", "Europe/London"]
   """
-  @spec unique_timezones([User.t()]) :: [String.t()]
+  @spec unique_timezones([Person.t()]) :: [String.t()]
   def unique_timezones(users) when is_list(users) do
     users
     |> Enum.map(& &1.timezone)
@@ -194,7 +194,7 @@ defmodule Zonely.Geography do
         total_timezones: 2
       }
   """
-  @spec get_statistics([User.t()]) :: %{
+  @spec get_statistics([Person.t()]) :: %{
           countries: %{String.t() => non_neg_integer()},
           timezones: %{String.t() => non_neg_integer()},
           total_countries: non_neg_integer(),
@@ -282,12 +282,12 @@ defmodule Zonely.Geography do
 
   Currently uses simple country matching but could be extended for regions.
   """
-  @spec user_in_region?(User.t(), String.t() | [String.t()]) :: boolean()
-  def user_in_region?(%User{country: country}, region) when is_binary(region) do
+  @spec user_in_region?(Person.t(), String.t() | [String.t()]) :: boolean()
+  def user_in_region?(%Person{country: country}, region) when is_binary(region) do
     country == region
   end
 
-  def user_in_region?(%User{country: country}, regions) when is_list(regions) do
+  def user_in_region?(%Person{country: country}, regions) when is_list(regions) do
     country in regions
   end
 end

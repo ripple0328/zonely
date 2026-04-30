@@ -1,12 +1,14 @@
 defmodule Zonely.NameProfileContract do
   @moduledoc """
-  Converts Zonely users into the portable SayMyName profile contract.
+  Converts Zonely people into the shared profile contract.
 
-  Zonely owns the team/profile context. SayMyName owns immutable pronunciation
-  share snapshots and playback semantics.
+  Zonely owns team location and availability context. SayMyName owns
+  pronunciation snapshots and playback semantics. The shared contract uses
+  `person`, `team`, `membership`, `location`, and `availability` terms so either
+  app can import/export a subset cleanly.
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.Geography
 
   @default_english_locale "en-US"
@@ -37,44 +39,88 @@ defmodule Zonely.NameProfileContract do
     "zh-tw" => "zh-CN"
   }
 
-  @spec from_user(User.t()) :: map()
-  def from_user(%User{} = user) do
+  @spec from_person(Person.t()) :: map()
+  def from_person(%Person{} = person) do
     %{
-      "id" => user.id && to_string(user.id),
-      "display_name" => normalize_text(user.name),
-      "variants" => variants_for(user)
+      "version" => "shared_profile_v1",
+      "person" => person_map(person),
+      "location" => location_map(person),
+      "availability" => availability_map(person)
     }
   end
 
-  @spec from_users(String.t() | nil, [User.t()]) :: map()
-  def from_users(name, users) when is_list(users) do
+  @spec from_team(String.t() | nil, [Person.t()]) :: map()
+  def from_team(name, people) when is_list(people) do
     %{
-      "name" => normalize_text(name) || @default_list_name,
-      "entries" => Enum.map(users, &from_user/1)
+      "version" => "shared_profile_v1",
+      "team" => %{"name" => normalize_text(name) || @default_list_name},
+      "memberships" => Enum.map(people, &membership_map/1)
     }
   end
 
-  @spec variants_for(User.t()) :: [map()]
-  def variants_for(%User{} = user) do
-    [
-      variant(@default_english_locale, user.name),
-      native_variant(user)
-    ]
+  @spec variants_for(Person.t()) :: [map()]
+  def variants_for(%Person{name_variants: variants}) when is_list(variants) and variants != [] do
+    variants
+    |> Enum.map(&normalize_variant/1)
     |> Enum.reject(&is_nil/1)
   end
 
-  defp native_variant(%User{name_native: native_name} = user) do
+  def variants_for(%Person{} = person) do
+    [variant(@default_english_locale, person.name), native_variant(person)]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp person_map(%Person{} = person) do
+    %{
+      "id" => person.id && to_string(person.id),
+      "display_name" => normalize_text(person.name),
+      "pronouns" => normalize_text(person.pronouns),
+      "role" => normalize_text(person.role),
+      "name_variants" => variants_for(person)
+    }
+    |> reject_nil_values()
+  end
+
+  defp location_map(%Person{} = person) do
+    %{
+      "country" => normalize_text(person.country),
+      "latitude" => decimal_to_float(person.latitude),
+      "longitude" => decimal_to_float(person.longitude)
+    }
+    |> reject_nil_values()
+  end
+
+  defp availability_map(%Person{} = person) do
+    %{
+      "timezone" => normalize_text(person.timezone),
+      "work_start" => time_to_iso8601(person.work_start),
+      "work_end" => time_to_iso8601(person.work_end)
+    }
+    |> reject_nil_values()
+  end
+
+  defp membership_map(%Person{} = person) do
+    %{
+      "person" => person_map(person),
+      "location" => location_map(person),
+      "availability" => availability_map(person),
+      "role" => normalize_text(person.role)
+    }
+    |> reject_nil_values()
+  end
+
+  defp native_variant(%Person{name_native: native_name} = person) do
     native_name = normalize_text(native_name)
 
     cond do
       is_nil(native_name) ->
         nil
 
-      native_name == normalize_text(user.name) ->
+      native_name == normalize_text(person.name) ->
         nil
 
       true ->
-        variant(normalize_language(user.native_language, user.country), native_name)
+        variant(normalize_language(person.native_language, person.country), native_name)
     end
   end
 
@@ -86,6 +132,26 @@ defmodule Zonely.NameProfileContract do
       text -> %{"lang" => language, "text" => text}
     end
   end
+
+  defp normalize_variant(%{"lang" => lang, "text" => text}),
+    do: variant(canonical_share_language(lang), text)
+
+  defp normalize_variant(%{lang: lang, text: text}),
+    do: variant(canonical_share_language(lang), text)
+
+  defp normalize_variant(_variant), do: nil
+
+  defp reject_nil_values(map) do
+    Map.reject(map, fn {_key, value} -> is_nil(value) or value == %{} or value == [] end)
+  end
+
+  defp decimal_to_float(%Decimal{} = decimal), do: Decimal.to_float(decimal)
+  defp decimal_to_float(value) when is_float(value) or is_integer(value), do: value
+  defp decimal_to_float(_value), do: nil
+
+  defp time_to_iso8601(%Time{} = time), do: Time.to_iso8601(time)
+  defp time_to_iso8601(value) when is_binary(value), do: value
+  defp time_to_iso8601(_value), do: nil
 
   defp normalize_text(value) when is_binary(value) do
     case String.trim(value) do

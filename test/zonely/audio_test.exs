@@ -1,7 +1,7 @@
 defmodule Zonely.AudioTest do
   use ExUnit.Case, async: false
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.Audio
 
   setup do
@@ -37,7 +37,7 @@ defmodule Zonely.AudioTest do
       end)
 
       assert {:play_audio, %{url: "https://cdn.example.com/john.mp3", provider: "production_api"}} =
-               Audio.play_english_pronunciation(%User{name: "John Doe", country: "US"})
+               Audio.play_english_pronunciation(%Person{name: "John Doe", country: "US"})
     end
 
     test "falls back to device TTS metadata if the production API misses" do
@@ -46,7 +46,7 @@ defmodule Zonely.AudioTest do
       end)
 
       assert {:play_tts, %{text: "John Doe", lang: "en-US", provider: "device"}} =
-               Audio.play_english_pronunciation(%User{name: "John Doe", country: "US"})
+               Audio.play_english_pronunciation(%Person{name: "John Doe", country: "US"})
     end
   end
 
@@ -69,7 +69,7 @@ defmodule Zonely.AudioTest do
       end)
 
       assert {:play_tts_audio, %{url: "https://cdn.example.com/jose.mp3"}} =
-               Audio.play_native_pronunciation(%User{
+               Audio.play_native_pronunciation(%Person{
                  name: "Jose Garcia",
                  name_native: "José García",
                  country: "ES"
@@ -93,7 +93,7 @@ defmodule Zonely.AudioTest do
       end)
 
       assert {:play_tts, %{text: "John Doe", lang: "en-US"}} =
-               Audio.play_native_pronunciation(%User{name: "John Doe", country: "US"})
+               Audio.play_native_pronunciation(%Person{name: "John Doe", country: "US"})
     end
   end
 

@@ -2,11 +2,11 @@ defmodule Zonely.WorkingHoursTest do
   use ExUnit.Case, async: true
 
   alias Zonely.WorkingHours
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
 
   describe "calculate_overlap_hours/1" do
     test "returns message for single user" do
-      user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       result = WorkingHours.calculate_overlap_hours([user])
 
       assert result == "Select at least 2 users to see overlaps"
@@ -14,8 +14,8 @@ defmodule Zonely.WorkingHoursTest do
 
     test "returns overlap for multiple users" do
       users = [
-        %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
-        %User{work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
+        %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
+        %Person{work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
       ]
 
       result = WorkingHours.calculate_overlap_hours(users)
@@ -32,7 +32,7 @@ defmodule Zonely.WorkingHoursTest do
 
   describe "is_working?/2" do
     setup do
-      user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       {:ok, user: user}
     end
 
@@ -57,7 +57,7 @@ defmodule Zonely.WorkingHoursTest do
 
   describe "classify_status/2" do
     setup do
-      user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       {:ok, user: user}
     end
 
@@ -80,9 +80,9 @@ defmodule Zonely.WorkingHoursTest do
   describe "filter_by_status/2" do
     setup do
       users = [
-        %User{id: 1, work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
-        %User{id: 2, work_start: ~T[10:00:00], work_end: ~T[18:00:00]},
-        %User{id: 3, work_start: ~T[08:00:00], work_end: ~T[16:00:00]}
+        %Person{id: 1, work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
+        %Person{id: 2, work_start: ~T[10:00:00], work_end: ~T[18:00:00]},
+        %Person{id: 3, work_start: ~T[08:00:00], work_end: ~T[16:00:00]}
       ]
 
       {:ok, users: users}
@@ -103,19 +103,24 @@ defmodule Zonely.WorkingHoursTest do
   describe "get_statistics/1" do
     setup do
       users = [
-        %User{
+        %Person{
           id: 1,
           timezone: "America/New_York",
           work_start: ~T[09:00:00],
           work_end: ~T[17:00:00]
         },
-        %User{
+        %Person{
           id: 2,
           timezone: "America/New_York",
           work_start: ~T[10:00:00],
           work_end: ~T[18:00:00]
         },
-        %User{id: 3, timezone: "Europe/London", work_start: ~T[08:00:00], work_end: ~T[16:00:00]}
+        %Person{
+          id: 3,
+          timezone: "Europe/London",
+          work_start: ~T[08:00:00],
+          work_end: ~T[16:00:00]
+        }
       ]
 
       {:ok, users: users}
@@ -153,8 +158,8 @@ defmodule Zonely.WorkingHoursTest do
   describe "suggest_meeting_times/1" do
     test "returns suggestions for multiple users" do
       users = [
-        %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
-        %User{work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
+        %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
+        %Person{work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
       ]
 
       suggestions = WorkingHours.suggest_meeting_times(users)
@@ -166,7 +171,7 @@ defmodule Zonely.WorkingHoursTest do
     end
 
     test "returns empty list for single user" do
-      user = %User{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
+      user = %Person{work_start: ~T[09:00:00], work_end: ~T[17:00:00]}
       suggestions = WorkingHours.suggest_meeting_times([user])
 
       assert suggestions == []
@@ -237,8 +242,8 @@ defmodule Zonely.WorkingHoursTest do
   describe "group_by_status/1" do
     setup do
       users = [
-        %User{id: 1, work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
-        %User{id: 2, work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
+        %Person{id: 1, work_start: ~T[09:00:00], work_end: ~T[17:00:00]},
+        %Person{id: 2, work_start: ~T[10:00:00], work_end: ~T[18:00:00]}
       ]
 
       {:ok, users: users}

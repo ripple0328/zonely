@@ -1,7 +1,7 @@
 defmodule Zonely.ReachabilityTest do
   use ExUnit.Case, async: true
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.Reachability
 
   @now ~U[2026-01-15 14:30:00Z]
@@ -233,7 +233,7 @@ defmodule Zonely.ReachabilityTest do
   end
 
   defp user(timezone, country, name \\ "Test Teammate") do
-    %User{
+    %Person{
       name: name,
       timezone: timezone,
       country: country,

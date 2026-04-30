@@ -6,7 +6,7 @@ defmodule Zonely.SayMyNameShareClient do
   snapshot storage to the production SayMyName API.
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.NameProfileContract
 
   require Logger
@@ -37,10 +37,10 @@ defmodule Zonely.SayMyNameShareClient do
 
   def preview_image_url_from_share_url(_share_url), do: nil
 
-  @spec create_card_share(User.t() | map()) :: {:ok, map()} | {:error, term()}
-  def create_card_share(%User{} = user) do
-    user
-    |> NameProfileContract.from_user()
+  @spec create_card_share(Person.t() | map()) :: {:ok, map()} | {:error, term()}
+  def create_card_share(%Person{} = person) do
+    person
+    |> NameProfileContract.from_person()
     |> create_card_share()
   end
 
@@ -48,9 +48,10 @@ defmodule Zonely.SayMyNameShareClient do
     request(:post, @card_path, payload)
   end
 
-  @spec create_list_share(String.t() | nil, [User.t()] | map()) :: {:ok, map()} | {:error, term()}
-  def create_list_share(name, users) when is_list(users) do
-    payload = NameProfileContract.from_users(name, users)
+  @spec create_list_share(String.t() | nil, [Person.t()] | map()) ::
+          {:ok, map()} | {:error, term()}
+  def create_list_share(name, people) when is_list(people) do
+    payload = NameProfileContract.from_team(name, people)
     create_list_share(name, payload)
   end
 

@@ -2,11 +2,11 @@ defmodule Zonely.UserProfileTest do
   use ExUnit.Case, async: true
 
   alias Zonely.UserProfile
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
 
   describe "avatar_data/2" do
     test "generates complete avatar data" do
-      user = %User{name: "John Doe"}
+      user = %Person{name: "John Doe"}
       result = UserProfile.avatar_data(user, 64)
 
       assert Map.has_key?(result, :url)
@@ -16,7 +16,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "uses default size when not specified" do
-      user = %User{name: "Test User"}
+      user = %Person{name: "Test User"}
       result = UserProfile.avatar_data(user)
 
       assert result.url =~ "size=64"
@@ -25,20 +25,20 @@ defmodule Zonely.UserProfileTest do
 
   describe "display_name/2" do
     test "returns regular name by default" do
-      user = %User{name: "John Doe", name_native: "João Silva"}
+      user = %Person{name: "John Doe", name_native: "João Silva"}
 
       assert UserProfile.display_name(user) == "John Doe"
       assert UserProfile.display_name(user, :regular) == "John Doe"
     end
 
     test "returns native name when requested" do
-      user = %User{name: "John Doe", name_native: "João Silva"}
+      user = %Person{name: "John Doe", name_native: "João Silva"}
 
       assert UserProfile.display_name(user, :native) == "João Silva"
     end
 
     test "falls back to regular name when no native name" do
-      user = %User{name: "John Doe", name_native: nil}
+      user = %Person{name: "John Doe", name_native: nil}
 
       assert UserProfile.display_name(user, :native) == "John Doe"
     end
@@ -46,19 +46,19 @@ defmodule Zonely.UserProfileTest do
 
   describe "has_different_native_name?/1" do
     test "returns true when native name differs" do
-      user = %User{name: "Jose Garcia", name_native: "José García"}
+      user = %Person{name: "Jose Garcia", name_native: "José García"}
 
       assert UserProfile.has_different_native_name?(user) == true
     end
 
     test "returns false when names are the same" do
-      user = %User{name: "John Doe", name_native: "John Doe"}
+      user = %Person{name: "John Doe", name_native: "John Doe"}
 
       assert UserProfile.has_different_native_name?(user) == false
     end
 
     test "returns false when no native name" do
-      user = %User{name: "John Doe", name_native: nil}
+      user = %Person{name: "John Doe", name_native: nil}
 
       assert UserProfile.has_different_native_name?(user) == false
     end
@@ -66,7 +66,7 @@ defmodule Zonely.UserProfileTest do
 
   describe "completeness_percentage/1" do
     test "calculates completeness for fully filled profile" do
-      user = %User{
+      user = %Person{
         name: "John Doe",
         role: "Engineer",
         timezone: "America/New_York",
@@ -84,7 +84,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "calculates completeness for minimal profile" do
-      user = %User{
+      user = %Person{
         name: "John Doe",
         role: nil,
         timezone: nil,
@@ -98,7 +98,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "handles empty strings as unfilled fields" do
-      user = %User{
+      user = %Person{
         name: "John Doe",
         role: "",
         timezone: "America/New_York",
@@ -115,7 +115,7 @@ defmodule Zonely.UserProfileTest do
 
   describe "summary/1" do
     test "returns comprehensive user summary" do
-      user = %User{
+      user = %Person{
         name: "John Doe",
         role: "Software Engineer",
         country: "US",
@@ -136,9 +136,9 @@ defmodule Zonely.UserProfileTest do
   describe "search/2" do
     setup do
       users = [
-        %User{name: "John Doe", role: "Software Engineer", country: "US"},
-        %User{name: "Jane Smith", role: "Designer", country: "CA"},
-        %User{
+        %Person{name: "John Doe", role: "Software Engineer", country: "US"},
+        %Person{name: "Jane Smith", role: "Designer", country: "CA"},
+        %Person{
           name: "José García",
           role: "Product Manager",
           country: "ES",
@@ -194,7 +194,7 @@ defmodule Zonely.UserProfileTest do
   describe "filter_by_completeness/2" do
     setup do
       users = [
-        %User{
+        %Person{
           name: "Complete User",
           role: "Engineer",
           timezone: "UTC",
@@ -204,7 +204,7 @@ defmodule Zonely.UserProfileTest do
           name_native: "Complete",
           pronouns: "they/them"
         },
-        %User{
+        %Person{
           name: "Incomplete User",
           role: nil,
           timezone: nil,
@@ -227,7 +227,7 @@ defmodule Zonely.UserProfileTest do
   describe "group_by_completeness/1" do
     setup do
       users = [
-        %User{
+        %Person{
           name: "Complete User",
           role: "Engineer",
           timezone: "UTC",
@@ -239,7 +239,7 @@ defmodule Zonely.UserProfileTest do
           latitude: 40.0,
           longitude: -74.0
         },
-        %User{
+        %Person{
           name: "Mostly Complete User",
           role: "Designer",
           timezone: "UTC",
@@ -247,7 +247,7 @@ defmodule Zonely.UserProfileTest do
           work_start: ~T[09:00:00],
           work_end: ~T[17:00:00]
         },
-        %User{
+        %Person{
           name: "Incomplete User",
           role: nil,
           timezone: nil
@@ -278,7 +278,7 @@ defmodule Zonely.UserProfileTest do
   describe "get_statistics/1" do
     setup do
       users = [
-        %User{
+        %Person{
           name: "User 1",
           role: "Engineer",
           timezone: "UTC",
@@ -287,7 +287,7 @@ defmodule Zonely.UserProfileTest do
           work_end: ~T[17:00:00],
           name_native: "Usuario 1"
         },
-        %User{
+        %Person{
           name: "User 2",
           role: "Designer",
           timezone: "UTC",
@@ -323,13 +323,13 @@ defmodule Zonely.UserProfileTest do
 
   describe "initials/1" do
     test "extracts user initials" do
-      user = %User{name: "John Doe"}
+      user = %Person{name: "John Doe"}
 
       assert UserProfile.initials(user) == "JD"
     end
 
     test "handles single name" do
-      user = %User{name: "Madonna"}
+      user = %Person{name: "Madonna"}
 
       assert UserProfile.initials(user) == "M"
     end
@@ -337,7 +337,7 @@ defmodule Zonely.UserProfileTest do
 
   describe "profile_complete?/1" do
     test "returns true for complete profile" do
-      user = %User{
+      user = %Person{
         name: "Complete User",
         role: "Engineer",
         timezone: "UTC",
@@ -354,7 +354,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "returns false for incomplete profile" do
-      user = %User{name: "Incomplete", role: nil}
+      user = %Person{name: "Incomplete", role: nil}
 
       assert UserProfile.profile_complete?(user) == false
     end
@@ -362,7 +362,7 @@ defmodule Zonely.UserProfileTest do
 
   describe "validation_errors/1" do
     test "returns errors for missing required fields" do
-      user = %User{name: nil, role: nil, timezone: nil, country: nil}
+      user = %Person{name: nil, role: nil, timezone: nil, country: nil}
       errors = UserProfile.validation_errors(user)
 
       assert "Name is required" in errors
@@ -372,7 +372,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "returns errors for invalid values" do
-      user = %User{
+      user = %Person{
         name: "Test",
         role: "Engineer",
         timezone: "Invalid/Timezone",
@@ -386,7 +386,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "returns empty list for valid profile" do
-      user = %User{
+      user = %Person{
         name: "Valid User",
         role: "Engineer",
         timezone: "America/New_York",
@@ -401,7 +401,7 @@ defmodule Zonely.UserProfileTest do
 
   describe "edge cases and robustness" do
     test "handles users with minimal data" do
-      user = %User{
+      user = %Person{
         name: "Minimal",
         country: "US",
         timezone: "America/New_York",
@@ -416,7 +416,7 @@ defmodule Zonely.UserProfileTest do
     end
 
     test "handles empty search queries" do
-      users = [%User{name: "Test User"}]
+      users = [%Person{name: "Test User"}]
       results = UserProfile.search(users, "")
 
       # Empty query should return no results

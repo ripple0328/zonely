@@ -1,7 +1,7 @@
 defmodule Zonely.SayMyNameShareClientTest do
   use ExUnit.Case, async: false
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.SayMyNameShareClient
 
   setup do
@@ -54,7 +54,7 @@ defmodule Zonely.SayMyNameShareClientTest do
   end
 
   test "create_card_share/1 posts a canonical card payload with bearer auth" do
-    user = %User{
+    user = %Person{
       id: "user-1",
       name: "Qingbo",
       name_native: "清波",
@@ -70,14 +70,14 @@ defmodule Zonely.SayMyNameShareClientTest do
       assert opts[:receive_timeout] == 3_000
       assert opts[:connect_options] == [timeout: 1_000]
 
-      assert opts[:json] == %{
-               "id" => "user-1",
-               "display_name" => "Qingbo",
-               "variants" => [
-                 %{"lang" => "en-US", "text" => "Qingbo"},
-                 %{"lang" => "zh-CN", "text" => "清波"}
-               ]
-             }
+      assert opts[:json]["version"] == "shared_profile_v1"
+      assert opts[:json]["person"]["id"] == "user-1"
+      assert opts[:json]["person"]["display_name"] == "Qingbo"
+
+      assert opts[:json]["person"]["name_variants"] == [
+               %{"lang" => "en-US", "text" => "Qingbo"},
+               %{"lang" => "zh-CN", "text" => "清波"}
+             ]
 
       {:ok,
        %{
@@ -99,13 +99,14 @@ defmodule Zonely.SayMyNameShareClientTest do
   end
 
   test "create_list_share/2 posts entries payload" do
-    users = [%User{id: "user-1", name: "Alice", country: "US"}]
+    users = [%Person{id: "user-1", name: "Alice", country: "US"}]
 
     Application.put_env(:zonely, :say_my_name_share_request_fun, fn opts ->
       assert opts[:method] == :post
       assert opts[:url] == "https://saymyname.qingbo.us/api/v1/name-list-shares"
-      assert opts[:json]["name"] == "Zonely Team"
-      assert hd(opts[:json]["entries"])["display_name"] == "Alice"
+      assert opts[:json]["version"] == "shared_profile_v1"
+      assert opts[:json]["team"] == %{"name" => "Zonely Team"}
+      assert get_in(hd(opts[:json]["memberships"]), ["person", "display_name"]) == "Alice"
 
       {:ok,
        %{

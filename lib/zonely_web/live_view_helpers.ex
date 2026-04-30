@@ -7,7 +7,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
-  alias Zonely.{Accounts, UserFetcher}
+  alias Zonely.{Accounts, PersonFetcher}
 
   @doc """
   Common mount setup for LiveViews that need user data.
@@ -15,7 +15,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   Returns the socket with users assigned and common initialization.
   """
   def mount_with_users(socket, additional_assigns \\ %{}) do
-    users = Accounts.list_users()
+    users = Accounts.list_people()
 
     default_assigns = %{
       users: users,
@@ -35,7 +35,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   Handles show_profile event common to many LiveViews.
   """
   def handle_show_profile(socket, %{"user_id" => user_id}) do
-    case UserFetcher.fetch_user(user_id) do
+    case PersonFetcher.fetch_person(user_id) do
       {:ok, user} ->
         {:noreply, assign(socket, selected_user: user)}
 
@@ -57,7 +57,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   Sets loading state and sends async message for processing.
   """
   def handle_pronunciation_event(socket, event_type, %{"user_id" => user_id}) do
-    case UserFetcher.fetch_user(user_id) do
+    case PersonFetcher.fetch_person(user_id) do
       {:ok, user} ->
         # Set loading state
         loading_key = "#{user_id}_#{event_type}"
@@ -109,7 +109,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   Validates user_id parameter and returns user or error.
   """
   def validate_user_param(%{"user_id" => user_id}) do
-    UserFetcher.fetch_user(user_id)
+    PersonFetcher.fetch_person(user_id)
   end
 
   def validate_user_param(_params) do
@@ -154,7 +154,7 @@ defmodule ZonelyWeb.LiveViewHelpers do
   def apply_profile_action(socket, action, params) when action in [:show, :profile] do
     case params do
       %{"id" => user_id} ->
-        case UserFetcher.fetch_user(user_id) do
+        case PersonFetcher.fetch_person(user_id) do
           {:ok, user} ->
             assign(socket, selected_user: user, page_title: "Profile - #{user.name}")
 

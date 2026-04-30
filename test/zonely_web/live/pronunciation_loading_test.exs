@@ -1,11 +1,11 @@
 defmodule ZonelyWeb.PronunciationLoadingTest do
   use ZonelyWeb.ComponentCase, async: true
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
 
   describe "pronunciation buttons loading states" do
     test "render with normal state" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         name_native: "جان دو",
@@ -29,7 +29,7 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
     end
 
     test "render English loading state" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         name_native: "جان دو",
@@ -49,7 +49,7 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
     end
 
     test "render native loading state" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         name_native: "جان دو",
@@ -71,7 +71,7 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
 
   describe "pronunciation buttons playing states" do
     test "render English playing state with real person audio" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         country: "US"
@@ -91,7 +91,7 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
     end
 
     test "render English playing state with AI generated audio" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         country: "US"
@@ -112,7 +112,7 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
     end
 
     test "render native playing state with AI generated audio" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         name_native: "جان دو",
@@ -131,7 +131,7 @@ defmodule ZonelyWeb.PronunciationLoadingTest do
     end
 
     test "render native playing state with real person audio" do
-      user = %User{
+      user = %Person{
         id: "1",
         name: "John Doe",
         name_native: "جان دو",

@@ -11,15 +11,15 @@
 # and so on) as they will fail if something goes wrong.
 
 alias Zonely.Repo
-alias Zonely.Accounts.User
+alias Zonely.Accounts.Person
 alias Zonely.Holidays.Holiday
 
 # Clear existing data
 Repo.delete_all(Holiday)
-Repo.delete_all(User)
+Repo.delete_all(Person)
 
-# Seed users from different countries and timezones
-users = [
+# Seed people from different countries and timezones
+people = [
   %{
     name: "Alice Chen",
     name_native: "Alice Chen",
@@ -165,15 +165,15 @@ users = [
   }
 ]
 
-IO.puts("Creating users...")
+IO.puts("Creating people...")
 
-for user_attrs <- users do
-  user =
-    %User{}
-    |> User.changeset(user_attrs)
+for person_attrs <- people do
+  person =
+    %Person{}
+    |> Person.changeset(person_attrs)
     |> Repo.insert!()
 
-  IO.puts("  ✓ Created user: #{user.name}")
+  IO.puts("  ✓ Created person: #{person.name}")
 end
 
 # Seed some sample holidays
@@ -252,4 +252,4 @@ for holiday_attrs <- holidays do
 end
 
 IO.puts("Seeding completed!")
-IO.puts("Created #{length(users)} users and #{length(holidays)} holidays.")
+IO.puts("Created #{length(people)} people and #{length(holidays)} holidays.")

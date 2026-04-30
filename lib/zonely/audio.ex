@@ -6,7 +6,7 @@ defmodule Zonely.Audio do
   pronunciation API and falls back only to client-side device TTS metadata.
   """
 
-  alias Zonely.Accounts.User
+  alias Zonely.Accounts.Person
   alias Zonely.Geography
   alias Zonely.PronunciationClient
 
@@ -19,19 +19,19 @@ defmodule Zonely.Audio do
           | {:play_tts, map()}
 
   @doc "Builds a playback event for a user's English name pronunciation."
-  @spec play_english_pronunciation(User.t()) :: playback_event()
-  def play_english_pronunciation(%User{name: name, country: country}) do
+  @spec play_english_pronunciation(Person.t()) :: playback_event()
+  def play_english_pronunciation(%Person{name: name, country: country}) do
     request_pronunciation(name, derive_english_locale(country))
   end
 
   @doc "Builds a playback event for a user's native-name pronunciation."
-  @spec play_native_pronunciation(User.t()) :: playback_event()
-  def play_native_pronunciation(%User{name_native: native_name, country: country})
+  @spec play_native_pronunciation(Person.t()) :: playback_event()
+  def play_native_pronunciation(%Person{name_native: native_name, country: country})
       when is_binary(native_name) do
     request_pronunciation(native_name, Geography.country_to_locale(country))
   end
 
-  def play_native_pronunciation(%User{} = user), do: play_english_pronunciation(user)
+  def play_native_pronunciation(%Person{} = user), do: play_english_pronunciation(user)
 
   @doc """
   Determines the appropriate English locale based on a user's country.
