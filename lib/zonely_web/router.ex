@@ -16,6 +16,10 @@ defmodule ZonelyWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
+  pipeline :api do
+    plug(:accepts, ["json"])
+  end
+
   scope "/", ZonelyWeb, host: "zonely.qingbo.us" do
     pipe_through(:health)
 
@@ -34,6 +38,12 @@ defmodule ZonelyWeb.Router do
     pipe_through(:browser)
 
     live("/", HomeLive, :map)
+  end
+
+  scope "/api/v1", ZonelyWeb.Api.V1 do
+    pipe_through(:api)
+
+    get("/countries/:country/holidays", PublicHolidaysController, :index)
   end
 
   if Application.compile_env(:zonely, :dev_routes) do
