@@ -99,6 +99,61 @@ defmodule ZonelyWeb.Packets.PacketFlowTest do
              |> Enum.sort() == ["Alice", "Bob"]
     end
 
+    test "pass-on invite accumulates Alice, Bob, and Carol while same-session replay updates only own submission",
+         %{conn: alice_conn} do
+      {:ok, %{draft: draft, invite_token: invite_token}} =
+        Drafts.create_team_draft(%{name: "Passed teammate packet"})
+
+      alice_submitted_conn =
+        post(alice_conn, ~p"/packets/invite/#{invite_token}/submission", %{
+          "submission" => packet_submission("Alice", "Lisbon")
+        })
+
+      bob_submitted_conn =
+        build_conn()
+        |> post(~p"/packets/invite/#{invite_token}/submission", %{
+          "submission" => packet_submission("Bob", "London")
+        })
+
+      carol_submitted_conn =
+        build_conn()
+        |> post(~p"/packets/invite/#{invite_token}/submission", %{
+          "submission" => packet_submission("Carol", "Toronto")
+        })
+
+      assert redirected_to(alice_submitted_conn) == ~p"/packets/invite/#{invite_token}"
+      assert redirected_to(bob_submitted_conn) == ~p"/packets/invite/#{invite_token}"
+      assert redirected_to(carol_submitted_conn) == ~p"/packets/invite/#{invite_token}"
+
+      assert ["Alice", "Bob", "Carol"] =
+               draft
+               |> Drafts.list_draft_members()
+               |> Enum.map(& &1.display_name)
+               |> Enum.sort()
+
+      alice_replayed_conn =
+        alice_submitted_conn
+        |> recycle()
+        |> post(~p"/packets/invite/#{invite_token}/submission", %{
+          "submission" => packet_submission("Alice Chen", "Porto")
+        })
+
+      assert redirected_to(alice_replayed_conn) == ~p"/packets/invite/#{invite_token}"
+
+      members = Drafts.list_draft_members(draft)
+
+      assert length(members) == 3
+
+      assert Enum.any?(
+               members,
+               &(&1.display_name == "Alice Chen" and &1.location_label == "Porto")
+             )
+
+      assert Enum.any?(members, &(&1.display_name == "Bob" and &1.location_label == "London"))
+      assert Enum.any?(members, &(&1.display_name == "Carol" and &1.location_label == "Toronto"))
+      refute Enum.any?(members, &(&1.display_name == "Alice" and &1.location_label == "Lisbon"))
+    end
+
     test "recipient invite page shows only own pending submission", %{conn: conn} do
       {:ok, %{draft: draft, invite_token: invite_token}} =
         Drafts.create_team_draft(%{name: "Private pending team"})
@@ -138,5 +193,16 @@ defmodule ZonelyWeb.Packets.PacketFlowTest do
 
       assert Repo.aggregate(TeamDraftMember, :count) == 0
     end
+  end
+
+  defp packet_submission(display_name, location_label) do
+    %{
+      "display_name" => display_name,
+      "location_country" => "PT",
+      "location_label" => location_label,
+      "timezone" => "Europe/Lisbon",
+      "work_start" => "09:00",
+      "work_end" => "17:00"
+    }
   end
 end
