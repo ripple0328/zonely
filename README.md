@@ -9,11 +9,11 @@ Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 ## Current Surface
 
 - Fullscreen team map with local work-hour, daylight, timezone, and location context
-- Map-native team orbit for scanning teammates without leaving the geographic surface
-- Reachability preview rail for simulating the next 24 hours, with one Reset to now action that restores live map, marker, orbit, context-strip, and selected-sheet state
+- Map-native team orbit for scanning teammates and managing selection without leaving the geographic surface
+- Context-aware reachability preview rail for simulating the next 24 hours across the full team, one teammate, or selected-group overlap
 - Selected teammate decision sheet with effective local time, work window, timezone offset, daylight, reachability guidance, and next transition context
-- Compact small-group comparison for two or three selected teammates, preserving map context while previewing or resetting shared reachability
-- Optional profile pronunciation playback through the production pronunciation API
+- Compact selected-group card that summarizes whether the selected teammates have a good moment now and who needs attention
+- Optional profile pronunciation playback and SayMyName share previews through the production pronunciation API
 
 ## Architecture
 

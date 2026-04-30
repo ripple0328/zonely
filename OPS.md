@@ -29,6 +29,11 @@ Runtime env file on Mini:
 
 Expected production values include `DATABASE_URL=postgresql://zonely:...@127.0.0.1:5432/zonely_prod`, `SECRET_KEY_BASE`, `PHX_HOST=zonely.qingbo.us`, `PORT=4020`, and optionally `PRONUNCIATION_API_KEY` for production pronunciation API access.
 
+The local `Justfile` intentionally sends `PORT=4020` to `../mini-infra` by
+default and ignores any ambient development `PORT`. Override the production
+operation port with `ZONELY_PROD_PORT` only when intentionally changing the
+service port.
+
 Optional observability values:
 
 ```sh

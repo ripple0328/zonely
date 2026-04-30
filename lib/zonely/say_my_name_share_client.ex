@@ -19,6 +19,24 @@ defmodule Zonely.SayMyNameShareClient do
   @spec production_base_url() :: String.t()
   def production_base_url, do: @production_base_url
 
+  @doc """
+  Builds the canonical SayMyName preview image URL for a returned share URL.
+
+  SayMyName owns the card/list renderer. Zonely uses this only as a fallback for
+  older API responses that do not yet include `preview_image_url`.
+  """
+  @spec preview_image_url_from_share_url(String.t() | nil) :: String.t() | nil
+  def preview_image_url_from_share_url(share_url) when is_binary(share_url) do
+    uri = URI.parse(share_url)
+
+    case preview_image_path(uri) do
+      nil -> nil
+      path -> preview_base_url(uri) <> with_modal_preview_query(path)
+    end
+  end
+
+  def preview_image_url_from_share_url(_share_url), do: nil
+
   @spec create_card_share(User.t() | map()) :: {:ok, map()} | {:error, term()}
   def create_card_share(%User{} = user) do
     user
@@ -104,4 +122,32 @@ defmodule Zonely.SayMyNameShareClient do
 
   defp normalize_success(body) when is_map(body), do: {:ok, body}
   defp normalize_success(body), do: {:error, {:unexpected_response, body}}
+
+  defp preview_image_path(%URI{path: "/list", query: query}) when is_binary(query),
+    do: "/og/list?" <> query
+
+  defp preview_image_path(%URI{path: "/list/" <> token}),
+    do: "/og/list/" <> URI.encode(String.trim(token), &URI.char_unreserved?/1)
+
+  defp preview_image_path(%URI{path: path, query: query})
+       when path in ["/card", "/share"] and is_binary(query),
+       do: "/og/card?" <> query
+
+  defp preview_image_path(%URI{path: "/card/" <> token}),
+    do: "/og/card/" <> URI.encode(String.trim(token), &URI.char_unreserved?/1)
+
+  defp preview_image_path(%URI{path: "/share/" <> token}),
+    do: "/og/card/" <> URI.encode(String.trim(token), &URI.char_unreserved?/1)
+
+  defp preview_image_path(_uri), do: nil
+
+  defp preview_base_url(%URI{scheme: scheme, host: host})
+       when is_binary(scheme) and is_binary(host),
+       do: scheme <> "://" <> host
+
+  defp preview_base_url(_uri), do: @production_base_url
+
+  defp with_modal_preview_query(path) when is_binary(path) do
+    if String.contains?(path, "?"), do: path <> "&smn_pv=1", else: path <> "?smn_pv=1"
+  end
 end

@@ -255,7 +255,7 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "propose_meeting"
     end
 
-    test "shows native name when different from regular name" do
+    test "shows native name as a compact pronunciation chip" do
       user = %User{
         id: 3,
         name: "Maria Garcia",
@@ -268,12 +268,14 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
       html = render_component_test(&profile_card/1, %{user: user})
 
-      assert html =~ "Native Name"
+      refute html =~ "Native Name"
       assert html =~ "María García"
-      assert html =~ "Spanish"
+      assert html =~ "title=\"Spanish\""
+      assert html =~ "name-language-icon"
+      assert html =~ "data-testid=\"pronunciation-native\""
     end
 
-    test "renders SayMyName variants as separate playable rows" do
+    test "renders SayMyName variants as compact playable name chips" do
       user = %User{
         id: 9,
         name: "Yuki Tanaka",
@@ -286,16 +288,20 @@ defmodule ZonelyWeb.CoreComponentsTest do
 
       html = render_component_test(&profile_card/1, %{user: user})
 
-      assert html =~ "SayMyName profile"
-      assert html =~ "English row"
-      assert html =~ "Native row"
+      refute html =~ "SayMyName profile"
+      refute html =~ "Portable pronunciation rows"
+      refute html =~ "English row"
+      refute html =~ "Native row"
+      assert html =~ "English pronunciation"
+      assert html =~ "Native pronunciation"
       assert html =~ "Yuki Tanaka"
       assert html =~ "田中雪"
-      assert html =~ "ja-JP"
+      assert html =~ "title=\"Japanese\""
       assert html =~ "play_english_pronunciation"
       assert html =~ "play_native_pronunciation"
       assert html =~ "data-testid=\"pronunciation-english\""
       assert html =~ "data-testid=\"pronunciation-native\""
+      assert html =~ "name-pronunciation-chip"
     end
 
     test "renders decision sheet fields from explicit effective time" do
@@ -325,23 +331,24 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "UTC+00:00"
     end
 
-    test "renders reusable name-card share result" do
-      user = %User{
-        id: 10,
-        name: "Share User",
-        country: "US",
-        work_start: ~T[09:00:00],
-        work_end: ~T[17:00:00]
-      }
-
+    test "renders reusable name-card share preview modal" do
       html =
-        render_component_test(&profile_card/1, %{
-          user: user,
-          name_share_url: "https://saymyname.qingbo.us/card/share-token"
+        render_component_test(&share_preview_modal/1, %{
+          preview: %{
+            kind: :card,
+            title: "Share User",
+            subtitle: "Name card",
+            url: "https://saymyname.qingbo.us/card/share-token",
+            preview_image_url: "https://saymyname.qingbo.us/og/card/share-token?smn_pv=1"
+          }
         })
 
+      assert html =~ "Name card preview"
+      assert html =~ "Share User"
+      assert html =~ "data-testid=\"share-preview-image\""
+      assert html =~ "https://saymyname.qingbo.us/og/card/share-token?smn_pv=1"
       assert html =~ "https://saymyname.qingbo.us/card/share-token"
-      assert html =~ "data-testid=\"copy-name-card-share\""
+      assert html =~ "data-testid=\"share-preview-copy\""
       assert html =~ "data-clipboard-text=\"https://saymyname.qingbo.us/card/share-token\""
     end
 

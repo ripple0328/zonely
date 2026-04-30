@@ -5,10 +5,9 @@ defmodule ZonelyWeb.HomeLive do
   alias Zonely.Audio
   alias Zonely.AvatarService
   alias Zonely.Geography
+  alias Zonely.NameProfileContract
   alias Zonely.Reachability
   alias Zonely.SayMyNameShareClient
-
-  @comparison_limit 3
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,7 +23,7 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:preview_at, nil)
      |> assign(:selected_user_ids, [])
      |> assign(:selected_user, nil)
-     |> assign(:selection_feedback, nil)
+     |> assign(:team_orbit_open, true)
      |> assign_effective_time()
      |> assign(:loading_pronunciation, nil)
      |> assign(:playing_pronunciation, %{})
@@ -33,7 +32,8 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:name_card_share_error, nil)
      |> assign(:team_name_list_share_url, nil)
      |> assign(:team_name_list_share_loading, false)
-     |> assign(:team_name_list_share_error, nil)}
+     |> assign(:team_name_list_share_error, nil)
+     |> assign(:share_preview, nil)}
   end
 
   @impl true
@@ -50,7 +50,6 @@ defmodule ZonelyWeb.HomeLive do
       socket
       |> assign(:selected_user_ids, selected_user_ids)
       |> assign(:selected_user, user)
-      |> assign(:selection_feedback, nil)
       |> assign_effective_time()
       |> push_event("focus_user", %{user_id: id})
       |> push_marker_state_update()
@@ -62,22 +61,14 @@ defmodule ZonelyWeb.HomeLive do
     {:noreply, clear_selection(socket)}
   end
 
-  def handle_event("toggle_compare_user", %{"user_id" => id}, socket) do
+  def handle_event("toggle_selected_user", %{"user_id" => id}, socket) do
     selected_user_ids =
       toggle_selected_user_id(socket.assigns.selected_user_ids, id, socket.assigns.users)
 
-    capped_user_ids = Enum.take(selected_user_ids, @comparison_limit)
-
-    feedback =
-      if length(selected_user_ids) > @comparison_limit,
-        do: "Compare up to three teammates.",
-        else: nil
-
     {:noreply,
      socket
-     |> assign(:selected_user_ids, capped_user_ids)
-     |> assign(:selection_feedback, feedback)
-     |> assign_selected_user_from_ids()
+     |> assign(:selected_user_ids, selected_user_ids)
+     |> assign(:selected_user, nil)
      |> assign_effective_time()
      |> push_marker_state_update()}
   end
@@ -89,14 +80,24 @@ defmodule ZonelyWeb.HomeLive do
     {:noreply,
      socket
      |> assign(:selected_user_ids, selected_user_ids)
-     |> assign(:selection_feedback, nil)
-     |> assign_selected_user_from_ids()
+     |> assign(:selected_user, nil)
      |> assign_effective_time()
      |> push_marker_state_update()}
   end
 
   def handle_event("clear_selected_users", _params, socket) do
     {:noreply, clear_selection(socket)}
+  end
+
+  def handle_event("toggle_team_orbit", _params, socket) do
+    team_orbit_open = !socket.assigns.team_orbit_open
+    socket = assign(socket, :team_orbit_open, team_orbit_open)
+
+    if team_orbit_open do
+      {:noreply, push_event(socket, "focus_team_orbit", %{})}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("preview_time", params, socket) do
@@ -120,17 +121,6 @@ defmodule ZonelyWeb.HomeLive do
     end
   end
 
-  def handle_event("reset_preview_time", _params, socket) do
-    current_live_now = live_now()
-
-    {:noreply,
-     socket
-     |> assign(:live_now, current_live_now)
-     |> assign(:preview_at, nil)
-     |> assign_effective_time()
-     |> push_marker_state_update()}
-  end
-
   def handle_event("play_english_pronunciation", %{"user_id" => id}, socket) do
     play_pronunciation(socket, id, :english)
   end
@@ -145,16 +135,19 @@ defmodule ZonelyWeb.HomeLive do
         {:noreply, assign(socket, :name_card_share_error, "Could not find teammate.")}
 
       user ->
+        payload = NameProfileContract.from_user(user)
+
         socket =
           socket
           |> assign(:name_card_share_loading, id)
           |> assign(:name_card_share_error, nil)
 
-        case SayMyNameShareClient.create_card_share(user) do
-          {:ok, %{"share_url" => share_url}} ->
+        case SayMyNameShareClient.create_card_share(payload) do
+          {:ok, %{"share_url" => share_url} = body} ->
             {:noreply,
              socket
              |> assign(:name_card_share_loading, nil)
+             |> assign(:share_preview, share_preview_for_card(payload, share_url, body))
              |> assign(
                :name_card_share_urls,
                Map.put(socket.assigns.name_card_share_urls, id, share_url)
@@ -176,16 +169,19 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   def handle_event("share_team_names", _params, socket) do
+    payload = NameProfileContract.from_users("Zonely Team", socket.assigns.users)
+
     socket =
       socket
       |> assign(:team_name_list_share_loading, true)
       |> assign(:team_name_list_share_error, nil)
 
-    case SayMyNameShareClient.create_list_share("Zonely Team", socket.assigns.users) do
-      {:ok, %{"share_url" => share_url}} ->
+    case SayMyNameShareClient.create_list_share("Zonely Team", payload) do
+      {:ok, %{"share_url" => share_url} = body} ->
         {:noreply,
          socket
          |> assign(:team_name_list_share_loading, false)
+         |> assign(:share_preview, share_preview_for_list(payload, share_url, body))
          |> assign(:team_name_list_share_url, share_url)}
 
       {:ok, _body} ->
@@ -202,133 +198,147 @@ defmodule ZonelyWeb.HomeLive do
     end
   end
 
+  def handle_event("close_share_preview", _params, socket) do
+    {:noreply, assign(socket, :share_preview, nil)}
+  end
+
+  def handle_event("copy_share_preview", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:share_preview, nil)
+     |> put_flash(:info, "Share link copied.")}
+  end
+
+  def handle_event("lv:clear-flash", %{"key" => "info"}, socket) do
+    {:noreply, clear_flash(socket, :info)}
+  end
+
+  def handle_event("lv:clear-flash", %{"key" => "error"}, socket) do
+    {:noreply, clear_flash(socket, :error)}
+  end
+
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div id="map-page" class="min-h-[100dvh]">
+    <div id="map-page" class="min-h-[100dvh]" phx-hook="FocusTeamOrbit">
       <section id="global-team-map" class="zonely-map-workspace" aria-label="Global team map">
         <nav class="map-nav-island" aria-label="Map workspace navigation">
-          <.link navigate={~p"/"} class="map-nav-brand" aria-current="page">
-            <.icon name="hero-globe-alt" class="h-4 w-4" />
-            <span>Zonely</span>
-          </.link>
-          <a href="#team-orbit-panel" class="map-nav-link">
+          <div class="map-nav-brand" aria-current="page" aria-label="Zonely">
+            <img class="map-nav-logo" src={~p"/favicon.svg"} alt="" aria-hidden="true" />
+          </div>
+          <button
+            type="button"
+            id="toggle-team-orbit"
+            class={["map-nav-link", @team_orbit_open && "is-active"]}
+            phx-click="toggle_team_orbit"
+            aria-controls="team-orbit-panel"
+            aria-expanded={to_string(@team_orbit_open)}
+          >
+            <.icon name="hero-users" class="h-4 w-4" />
             People
-          </a>
+          </button>
         </nav>
 
-        <aside id="now-context-strip" class="now-context-strip" aria-label={strip_aria_label(@preview_at)}>
-          <div>
-            <p class="context-eyebrow">{strip_mode_label(@preview_at)}</p>
-            <p class="context-title">{strip_reachable_label(@reachability.working, @preview_at)}</p>
-          </div>
-          <div class="context-meta">
-            <span>{map_size(@reachability.timezones)} zones</span>
-            <span>{Reachability.format_count(@reachability.edge, "near transition")}</span>
-            <span>{strip_time_label(@effective_at, @preview_at)}</span>
-          </div>
-        </aside>
-
-        <aside id="team-orbit-panel" class="team-orbit-panel" aria-label="Team orbit">
+        <aside
+          id="team-orbit-panel"
+          class="team-orbit-panel"
+          aria-label="Team orbit"
+          hidden={!@team_orbit_open}
+          aria-hidden={to_string(!@team_orbit_open)}
+          tabindex="-1"
+        >
           <div class="orbit-header">
-            <div>
-              <p class="context-eyebrow">Team orbit</p>
-              <h2>{length(@users)} teammates</h2>
+            <div class="orbit-title-block">
+              <h2>Team orbit</h2>
+              <p>
+                <span>{length(@users)} teammates</span>
+                <span aria-hidden="true">·</span>
+                <span>{Reachability.format_count(@reachability.working, orbit_pill_label(@preview_at))}</span>
+              </p>
             </div>
-            <div class="orbit-actions">
-              <span class="orbit-live-pill">{Reachability.format_count(@reachability.working, orbit_pill_label(@preview_at))}</span>
-              <button
-                type="button"
-                id="share-team-names"
-                class="orbit-share-button"
-                phx-click="share_team_names"
-                disabled={@team_name_list_share_loading}
-                data-testid="share-team-names"
-              >
-                <.icon
-                  name={if @team_name_list_share_loading, do: "hero-arrow-path", else: "hero-share"}
-                  class={if @team_name_list_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
-                />
-                <span>{if @team_name_list_share_loading, do: "Sharing", else: "Share"}</span>
-              </button>
-              <button
-                :if={@team_name_list_share_url}
-                type="button"
-                id="copy-team-name-list-share"
-                class="orbit-copy-button"
-                phx-hook="Clipboard"
-                data-clipboard-text={@team_name_list_share_url}
-                data-testid="copy-team-name-list-share"
-              >
-                <.icon name="hero-clipboard" class="h-4 w-4" />
-                <span>Copy</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              id="share-team-names"
+              class="orbit-share-button"
+              phx-click="share_team_names"
+              disabled={@team_name_list_share_loading}
+              data-testid="share-team-names"
+              title={if @team_name_list_share_loading, do: "Creating team name list", else: "Share team name list"}
+              aria-label={if @team_name_list_share_loading, do: "Creating team name list", else: "Share team name list"}
+            >
+              <.icon
+                name={if @team_name_list_share_loading, do: "hero-arrow-path", else: "hero-share"}
+                class={if @team_name_list_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
+              />
+            </button>
           </div>
 
           <p :if={@team_name_list_share_error} class="name-share-error px-4 pb-2">
             {@team_name_list_share_error}
           </p>
 
-          <div :if={@users == []} id="team-orbit-empty" class="orbit-empty">
+          <div :if={@orbit_users == []} id="team-orbit-empty" class="orbit-empty">
             Add teammates with location and work hours to place them on the map.
           </div>
 
           <div id="team-orbit-list" class="orbit-list">
-            <button
-              :for={user <- @users}
-              id={"team-orbit-user-#{user.id}"}
-              type="button"
-              class={["orbit-row", selected_user?(@selected_user_ids, user.id) && "is-selected"]}
-              phx-click="show_profile"
-              phx-value-user_id={user.id}
-              data-testid="team-orbit-row"
-              aria-pressed={@selected_user_ids == [user.id]}
+            <div
+              :for={user <- @orbit_users}
+              id={"team-orbit-item-#{user.id}"}
+              class="orbit-list-item"
             >
-              <span class={["orbit-status-dot", Reachability.orbit_status_class(user, @effective_at)]}></span>
-              <span class="orbit-copy">
-                <span class="orbit-name">{user.name}</span>
-                <span class="orbit-context">
-                  {Reachability.local_time_label(user.timezone, @effective_at)} · {Geography.country_name(user.country)} · {Reachability.status_label(user, @effective_at)}
+              <button
+                id={"team-orbit-user-#{user.id}"}
+                type="button"
+                class={["orbit-row", selected_user?(@selected_user_ids, user.id) && "is-selected"]}
+                phx-click="toggle_selected_user"
+                phx-value-user_id={user.id}
+                data-testid="team-orbit-row"
+                data-team-orbit-user-id={user.id}
+                aria-pressed={selected_user?(@selected_user_ids, user.id)}
+                aria-label={select_button_label(@selected_user_ids, user)}
+              >
+                <span class="orbit-select-box" aria-hidden="true">
+                  <.icon
+                    :if={selected_user?(@selected_user_ids, user.id)}
+                    name="hero-check"
+                    class="h-3.5 w-3.5"
+                  />
                 </span>
-              </span>
-              <span class="orbit-offset">{Reachability.offset_label(user.timezone, @effective_at)}</span>
-            </button>
-            <button
-              :for={user <- @users}
-              id={"team-orbit-add-#{user.id}"}
-              type="button"
-              class="orbit-compare-button"
-              phx-click="toggle_compare_user"
-              phx-value-user_id={user.id}
-              aria-pressed={selected_user?(@selected_user_ids, user.id)}
-              aria-label={compare_button_label(@selected_user_ids, user)}
-            >
-              {compare_button_text(@selected_user_ids, user)}
-            </button>
+                <span class={["orbit-status-dot", Reachability.orbit_status_class(user, @effective_at)]}></span>
+                <span class="orbit-copy">
+                  <span class="orbit-name">{user.name}</span>
+                  <span class="orbit-context">
+                    {Reachability.local_time_label(user.timezone, @effective_at)} · {Geography.country_name(user.country)} · {Reachability.status_label(user, @effective_at)}
+                  </span>
+                </span>
+                <span class="orbit-offset">{Reachability.offset_label(user.timezone, @effective_at)}</span>
+              </button>
+              <button
+                id={"team-orbit-view-#{user.id}"}
+                type="button"
+                class="orbit-view-button"
+                phx-click="show_profile"
+                phx-value-user_id={user.id}
+                title={"Open #{user.name} details"}
+                aria-label={"Open #{user.name} details"}
+              >
+                <.icon name="hero-chevron-right" class="h-4 w-4" />
+              </button>
+            </div>
           </div>
-
-          <p
-            :if={@selection_feedback}
-            id="selected-group-feedback"
-            class="selection-feedback"
-            role="status"
-            aria-live="polite"
-          >
-            {@selection_feedback}
-          </p>
 
           <section
             :if={length(@selected_user_ids) >= 2}
             id="selected-group-summary"
             class="selected-group-summary"
-            aria-label="Selected teammate comparison summary"
+            aria-label="Selected teammate group summary"
           >
             <div>
               <p class="context-eyebrow">{strip_mode_label(@preview_at)}</p>
-              <h3>Comparing {length(@selected_user_ids)} teammates</h3>
+              <h3>{length(@selected_user_ids)} selected teammates</h3>
               <p>{@selected_group_summary.text}</p>
             </div>
           </section>
@@ -348,10 +358,20 @@ defmodule ZonelyWeb.HomeLive do
           </div>
         </div>
 
-        <div id="map-time-rail" class="map-time-rail" aria-label="Time preview rail">
+        <div
+          id="map-time-rail"
+          class="map-time-rail"
+          aria-label="Time preview rail"
+          phx-hook="RailLocalTime"
+          data-window-start-at={@rail.window_start_at}
+          data-window-end-at={@rail.window_end_at}
+          data-effective-at={@rail.effective_at}
+          data-preview-active={if(@preview_at, do: "true", else: "false")}
+          data-rail-context-label={@rail.context_label}
+        >
           <div class="rail-header">
-            <span>Preview range</span>
-            <span>{@rail.window_label}</span>
+            <span>{@rail.context_label}</span>
+            <span data-rail-local-range>{@rail.window_label}</span>
           </div>
           <form
             id="map-time-rail-form"
@@ -363,7 +383,7 @@ defmodule ZonelyWeb.HomeLive do
               <div
                 id="map-time-rail-context"
                 class="rail-context-markers"
-                aria-label="Computed teammate daylight and work-window markers"
+                aria-label={@rail.context_description}
               >
                 <span
                   :for={segment <- @rail.segments}
@@ -375,6 +395,8 @@ defmodule ZonelyWeb.HomeLive do
                   data-end-at={segment.end_at}
                   data-left-percent={segment.left_percent}
                   data-width-percent={segment.width_percent}
+                  data-reachable-count={Map.get(segment, :reachable_count)}
+                  data-total-count={Map.get(segment, :total_count)}
                   role="img"
                   aria-label={segment.label}
                 >
@@ -396,23 +418,18 @@ defmodule ZonelyWeb.HomeLive do
               />
             </div>
           </form>
-          <div id="map-time-rail-status" class="rail-status" aria-live="polite">
+          <div id="map-time-rail-status" class="rail-status" aria-live="polite" data-rail-local-status>
             {@rail.status_text}
           </div>
           <div id="map-time-rail-ticks" class="rail-labels" aria-label={@rail.tick_description}>
-            <span :for={tick <- @rail.ticks} data-offset-minutes={tick.offset_minutes}>
+            <span
+              :for={tick <- @rail.ticks}
+              data-offset-minutes={tick.offset_minutes}
+              data-local-time-at={tick.at}
+            >
               {tick.label}
             </span>
           </div>
-          <button
-            :if={@preview_at}
-            type="button"
-            id="map-time-rail-reset"
-            class="rail-reset-button"
-            phx-click="reset_preview_time"
-          >
-            Reset to now
-          </button>
         </div>
       </section>
 
@@ -431,11 +448,9 @@ defmodule ZonelyWeb.HomeLive do
         <div class="profile-panel-position">
           <.profile_card
             user={@selected_user}
-            comparison_candidates={comparison_candidates(@users, @selected_user_ids)}
             effective_at={@effective_at}
             loading_pronunciation={@loading_pronunciation}
             playing_pronunciation={@playing_pronunciation}
-            name_share_url={Map.get(@name_card_share_urls, "#{@selected_user.id}")}
             name_share_loading={@name_card_share_loading == "#{@selected_user.id}"}
             name_share_error={@name_card_share_error}
           />
@@ -446,26 +461,18 @@ defmodule ZonelyWeb.HomeLive do
         :if={length(@selected_user_ids) >= 2}
         id="selected-group-panel"
         class="selected-group-panel-shell"
-        data-testid="selected-group-compare-panel"
+        data-testid="selected-group-panel-shell"
       >
-        <button
-          type="button"
-          class="selected-group-panel-backdrop"
-          phx-click="clear_selected_users"
-          aria-label="Close teammate comparison"
-        >
-        </button>
-
-        <section class="selected-group-panel" aria-label="Selected teammate comparison panel">
+        <section class="selected-group-panel" aria-label="Selected teammate group panel">
           <div class="selected-group-handle" data-testid="selected-group-sheet-handle" aria-hidden="true">
           </div>
 
           <header class="selected-group-panel-header">
-            <div>
-              <p class="context-eyebrow">{strip_mode_label(@preview_at)} comparison</p>
-              <h2>{length(@selected_user_ids)} teammate reachability</h2>
+            <div class="selected-group-verdict">
+              <p class="context-eyebrow">{strip_mode_label(@preview_at)} group availability</p>
+              <h2 class={"is-#{@selected_group_verdict.tone}"}>{@selected_group_verdict.label}</h2>
               <p class="selected-group-effective-time" data-testid="selected-group-effective-time">
-                Shared effective time: {strip_time_label(@effective_at, @preview_at)}
+                {length(@selected_user_ids)} selected · {strip_time_label(@effective_at, @preview_at)}
               </p>
             </div>
 
@@ -474,21 +481,39 @@ defmodule ZonelyWeb.HomeLive do
               id="selected-group-clear"
               class="decision-close-button"
               phx-click="clear_selected_users"
-              aria-label="Clear selected teammate comparison"
+              aria-label="Clear selected teammate group"
             >
               <.icon name="hero-x-mark" class="h-4 w-4" />
             </button>
           </header>
 
-          <p class="selected-group-decision" data-testid="selected-group-decision">
-            {@selected_group_summary.text}
-          </p>
+          <section class="selected-group-decision" data-testid="selected-group-decision">
+            <p>{@selected_group_summary.text}</p>
+            <div
+              :if={@selected_group_attention}
+              class={"selected-group-attention is-#{@selected_group_attention.tone}"}
+              data-testid="selected-group-attention"
+            >
+              <span>{@selected_group_attention.label}</span>
+              <strong>{@selected_group_attention.name}</strong>
+              <p>{@selected_group_attention.detail}</p>
+            </div>
+            <div
+              :if={@selected_group_next_best}
+              class="selected-group-next-best"
+              data-testid="selected-group-next-best"
+            >
+              <span>{@selected_group_next_best.label}</span>
+              <strong>{@selected_group_next_best.time_label}</strong>
+              <p>{@selected_group_next_best.text}</p>
+            </div>
+          </section>
 
           <div class="selected-group-rows" role="list" aria-label="Compared teammates">
             <article
               :for={user <- selected_users(@users, @selected_user_ids)}
               id={"selected-group-row-#{user.id}"}
-              class="selected-group-row"
+              class={["selected-group-row", decision_state_class(user, @effective_at)]}
               role="listitem"
               data-testid="selected-group-row"
             >
@@ -503,60 +528,21 @@ defmodule ZonelyWeb.HomeLive do
                 </time>
               </div>
 
-              <dl class="selected-group-row-facts">
-                <div>
-                  <dt>Reachability</dt>
-                  <dd data-testid="selected-group-reachability">
-                    {Reachability.status_label(user, @effective_at)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Work window</dt>
-                  <dd data-testid="selected-group-work-window">{format_user_time_range(user)}</dd>
-                </div>
-                <div>
-                  <dt>Daylight</dt>
-                  <dd data-testid="selected-group-daylight">
-                    {Reachability.daylight_context_label(user, @effective_at)}
-                  </dd>
-                </div>
-              </dl>
-
-              <div class="selected-group-row-actions">
-                <button
-                  type="button"
-                  id={"selected-group-focus-#{user.id}"}
-                  class="group-row-action"
-                  phx-click="show_profile"
-                  phx-value-user_id={user.id}
-                  aria-label={"View #{user.name} alone"}
-                >
-                  View one
-                </button>
-                <button
-                  type="button"
-                  id={"selected-group-remove-#{user.id}"}
-                  class="group-row-action"
-                  phx-click="remove_selected_user"
-                  phx-value-user_id={user.id}
-                  aria-label={"Remove #{user.name} from comparison"}
-                >
-                  Remove
-                </button>
-              </div>
+              <p class="selected-group-row-meta">
+                <span data-testid="selected-group-work-window">{format_user_time_range(user)}</span>
+                <span aria-hidden="true">·</span>
+                <span data-testid="selected-group-daylight">
+                  {Reachability.daylight_context_label(user, @effective_at)}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>{Reachability.next_transition(user, @effective_at).text}</span>
+              </p>
             </article>
           </div>
-
-          <button
-            type="button"
-            class="selected-group-clear-button"
-            phx-click="clear_selected_users"
-            aria-label="Clear all compared teammates"
-          >
-            Clear group
-          </button>
         </section>
       </div>
+
+      <.share_preview_modal preview={@share_preview} />
     </div>
     """
   end
@@ -569,11 +555,13 @@ defmodule ZonelyWeb.HomeLive do
 
   defp assign_effective_time(socket) do
     effective_at = Reachability.effective_at(socket.assigns.preview_at, socket.assigns.live_now)
+    orbit_users = Reachability.sort_by_availability(socket.assigns.users, effective_at)
     selected_user_ids = Map.get(socket.assigns, :selected_user_ids, [])
     selected_users = selected_users(socket.assigns.users, selected_user_ids)
 
     socket
     |> assign(:effective_at, effective_at)
+    |> assign(:orbit_users, orbit_users)
     |> assign(
       :map_users_json,
       marker_payload(socket.assigns.users, effective_at, selected_user_ids) |> Jason.encode!()
@@ -581,12 +569,24 @@ defmodule ZonelyWeb.HomeLive do
     |> assign(:reachability, Reachability.summary(socket.assigns.users, effective_at))
     |> assign(:selected_group_summary, Reachability.group_summary(selected_users, effective_at))
     |> assign(
+      :selected_group_verdict,
+      selected_group_verdict(Reachability.group_summary(selected_users, effective_at))
+    )
+    |> assign(
+      :selected_group_next_best,
+      selected_group_next_best(selected_users, effective_at)
+    )
+    |> assign(
+      :selected_group_attention,
+      selected_group_attention(selected_users, effective_at)
+    )
+    |> assign(
       :rail,
       rail_state(
         socket.assigns.live_now,
         socket.assigns.preview_at,
         effective_at,
-        socket.assigns.users
+        rail_context(socket.assigns.users, selected_user_ids)
       )
     )
   end
@@ -620,17 +620,8 @@ defmodule ZonelyWeb.HomeLive do
     socket
     |> assign(:selected_user_ids, [])
     |> assign(:selected_user, nil)
-    |> assign(:selection_feedback, nil)
     |> assign_effective_time()
     |> push_marker_state_update()
-  end
-
-  defp assign_selected_user_from_ids(socket) do
-    assign(
-      socket,
-      :selected_user,
-      selected_user(socket.assigns.users, socket.assigns.selected_user_ids)
-    )
   end
 
   defp selected_user(users, [id]), do: Enum.find(users, &(&1.id == id))
@@ -640,10 +631,6 @@ defmodule ZonelyWeb.HomeLive do
     selected_user_ids
     |> Enum.map(fn id -> Enum.find(users, &(&1.id == id)) end)
     |> Enum.reject(&is_nil/1)
-  end
-
-  defp comparison_candidates(users, selected_user_ids) when is_list(selected_user_ids) do
-    Enum.reject(users, &(&1.id in selected_user_ids))
   end
 
   defp selected_user?(selected_user_ids, user_id), do: user_id in selected_user_ids
@@ -671,14 +658,10 @@ defmodule ZonelyWeb.HomeLive do
     end
   end
 
-  defp compare_button_text(selected_user_ids, user) do
-    if selected_user?(selected_user_ids, user.id), do: "Remove", else: "Compare"
-  end
-
-  defp compare_button_label(selected_user_ids, user) do
+  defp select_button_label(selected_user_ids, user) do
     if selected_user?(selected_user_ids, user.id),
-      do: "Remove #{user.name} from comparison",
-      else: "Add #{user.name} to comparison"
+      do: "Remove #{user.name} from selection",
+      else: "Select #{user.name}"
   end
 
   defp decision_state_class(user, %DateTime{} = effective_at) do
@@ -694,6 +677,93 @@ defmodule ZonelyWeb.HomeLive do
   end
 
   defp format_user_time_range(_user), do: "Work window unavailable"
+
+  defp selected_group_verdict(%{selected_count: 0}) do
+    %{label: "No group selected", tone: "wait"}
+  end
+
+  defp selected_group_verdict(%{selected_count: count, working: count, edge: 0, off: 0}) do
+    %{label: "Good time now", tone: "good"}
+  end
+
+  defp selected_group_verdict(%{working: 0, edge: 0}) do
+    %{label: "Wait", tone: "wait"}
+  end
+
+  defp selected_group_verdict(_summary) do
+    %{label: "Partial overlap", tone: "partial"}
+  end
+
+  defp selected_group_next_best([], %DateTime{}), do: nil
+
+  defp selected_group_next_best(users, %DateTime{} = effective_at) do
+    current = Reachability.group_summary(users, effective_at)
+
+    15..1440//15
+    |> Enum.map(fn minutes ->
+      at = DateTime.add(effective_at, minutes * 60, :second)
+      summary = Reachability.group_summary(users, at)
+      %{at: at, minutes: minutes, summary: summary}
+    end)
+    |> Enum.max_by(&{&1.summary.working, &1.summary.edge, -&1.minutes}, fn -> nil end)
+    |> case do
+      nil ->
+        nil
+
+      %{summary: %{working: working}} when working <= current.working ->
+        nil
+
+      %{at: at, summary: summary} ->
+        %{
+          label: next_best_label(summary),
+          time_label: "#{format_rail_time(at)} UTC",
+          text: summary.text
+        }
+    end
+  end
+
+  defp next_best_label(%{selected_count: count, working: count}), do: "Next full overlap"
+  defp next_best_label(_summary), do: "Next better overlap"
+
+  defp selected_group_attention(users, %DateTime{} = effective_at) do
+    users
+    |> Enum.reject(&(Reachability.status(&1, effective_at) == :working))
+    |> Enum.sort_by(&group_attention_sort_key(&1, effective_at))
+    |> List.first()
+    |> case do
+      nil ->
+        nil
+
+      user ->
+        status = Reachability.status(user, effective_at)
+
+        %{
+          label: group_attention_label(status),
+          tone: group_attention_tone(status),
+          name: user.name,
+          detail:
+            "#{Reachability.status_label(user, effective_at)} · #{Reachability.next_transition(user, effective_at).text}"
+        }
+    end
+  end
+
+  defp group_attention_sort_key(user, %DateTime{} = effective_at) do
+    status = Reachability.status(user, effective_at)
+    transition = Reachability.next_transition(user, effective_at)
+    instant = transition.instant || DateTime.add(effective_at, 24 * 60 * 60, :second)
+
+    {group_attention_priority(status), DateTime.to_unix(instant, :second), user.name}
+  end
+
+  defp group_attention_priority(:off), do: 0
+  defp group_attention_priority(:edge), do: 1
+  defp group_attention_priority(:working), do: 2
+
+  defp group_attention_label(:edge), do: "Boundary"
+  defp group_attention_label(_status), do: "Waiting on"
+
+  defp group_attention_tone(:edge), do: "edge"
+  defp group_attention_tone(_status), do: "wait"
 
   defp live_now do
     case Application.get_env(:zonely, :home_live_now) do
@@ -759,7 +829,30 @@ defmodule ZonelyWeb.HomeLive do
   defp clamp(value, _min, max) when value > max, do: max
   defp clamp(value, _min, _max), do: value
 
-  defp rail_state(%DateTime{} = live_now, preview_at, %DateTime{} = effective_at, users) do
+  defp rail_context(users, []), do: %{kind: :team, users: users, label: "Team availability"}
+
+  defp rail_context(users, [selected_user_id]) do
+    selected = selected_users(users, [selected_user_id])
+    user = List.first(selected)
+
+    %{
+      kind: :single,
+      users: selected,
+      label: if(user, do: "#{user.name} availability", else: "Selected availability")
+    }
+  end
+
+  defp rail_context(users, selected_user_ids) do
+    selected = selected_users(users, selected_user_ids)
+
+    %{
+      kind: :group,
+      users: selected,
+      label: "#{length(selected)}-person overlap"
+    }
+  end
+
+  defp rail_state(%DateTime{} = live_now, preview_at, %DateTime{} = effective_at, rail_context) do
     offset_minutes =
       effective_at
       |> DateTime.diff(live_now, :second)
@@ -768,17 +861,27 @@ defmodule ZonelyWeb.HomeLive do
 
     %{
       offset_minutes: offset_minutes,
+      window_start_at: DateTime.to_iso8601(live_now),
+      window_end_at: DateTime.add(live_now, 24 * 60 * 60, :second) |> DateTime.to_iso8601(),
+      effective_at: DateTime.to_iso8601(effective_at),
       window_label:
         "#{format_rail_time(live_now)} to #{format_rail_time(DateTime.add(live_now, 24 * 60 * 60, :second))} tomorrow",
-      value_text: rail_value_text(effective_at, preview_at),
-      status_text: rail_status_text(effective_at, preview_at),
+      context_label: rail_context.label,
+      context_description: rail_context_description(rail_context),
+      value_text: rail_value_text(effective_at, preview_at, rail_context),
+      status_text: rail_status_text(effective_at, preview_at, rail_context),
       ticks: rail_ticks(live_now),
       tick_description: rail_tick_description(live_now),
-      segments: rail_segments(users, live_now)
+      segments: rail_segments(rail_context, live_now)
     }
   end
 
-  defp rail_segments(users, %DateTime{} = live_now) when is_list(users) do
+  defp rail_segments(%{kind: :group, users: users}, %DateTime{} = live_now)
+       when length(users) >= 2 do
+    group_overlap_segments(users, live_now)
+  end
+
+  defp rail_segments(%{users: users}, %DateTime{} = live_now) when is_list(users) do
     window_end = DateTime.add(live_now, 24 * 60 * 60, :second)
 
     users
@@ -788,6 +891,71 @@ defmodule ZonelyWeb.HomeLive do
     end)
     |> Enum.sort_by(&{&1.start_at, &1.kind, &1.user_id})
   end
+
+  defp group_overlap_segments(users, %DateTime{} = live_now) do
+    total = length(users)
+
+    users
+    |> group_overlap_buckets(live_now)
+    |> Enum.reject(&(&1.reachable_count == 0))
+    |> merge_group_overlap_buckets()
+    |> Enum.map(&group_overlap_segment(&1, live_now, total))
+  end
+
+  defp group_overlap_buckets(users, %DateTime{} = live_now) do
+    0..95
+    |> Enum.map(fn step ->
+      start_at = DateTime.add(live_now, step * 15 * 60, :second)
+      end_at = DateTime.add(start_at, 15 * 60, :second)
+      reachable_count = Enum.count(users, &(Reachability.status(&1, start_at) == :working))
+      kind = group_overlap_kind(reachable_count, length(users))
+
+      %{
+        start_at: start_at,
+        end_at: end_at,
+        kind: kind,
+        reachable_count: reachable_count
+      }
+    end)
+  end
+
+  defp merge_group_overlap_buckets([]), do: []
+
+  defp merge_group_overlap_buckets([first | rest]) do
+    rest
+    |> Enum.reduce([first], fn bucket, [current | merged] ->
+      if bucket.kind == current.kind and bucket.reachable_count == current.reachable_count and
+           DateTime.compare(bucket.start_at, current.end_at) == :eq do
+        [%{current | end_at: bucket.end_at} | merged]
+      else
+        [bucket, current | merged]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  defp group_overlap_segment(segment, %DateTime{} = live_now, total) do
+    left_percent = rail_percent(segment.start_at, live_now)
+    width_percent = rail_width_percent(segment.start_at, segment.end_at)
+
+    %{
+      kind: Atom.to_string(segment.kind),
+      class: rail_segment_class(Atom.to_string(segment.kind)),
+      user_id: "selected-group",
+      reachable_count: segment.reachable_count,
+      total_count: total,
+      start_at: DateTime.to_iso8601(segment.start_at),
+      end_at: DateTime.to_iso8601(segment.end_at),
+      left_percent: format_percent(left_percent),
+      width_percent: format_percent(width_percent),
+      style: "left: #{format_percent(left_percent)}%; width: #{format_percent(width_percent)}%;",
+      label:
+        "#{segment.reachable_count} of #{total} selected teammates reachable from #{format_rail_time(segment.start_at)} to #{format_rail_time(segment.end_at)} UTC"
+    }
+  end
+
+  defp group_overlap_kind(total, total), do: :group_full
+  defp group_overlap_kind(_reachable_count, _total), do: :group_partial
 
   defp work_window_segments(user, %DateTime{} = window_start, %DateTime{} = window_end) do
     build_local_time_segments(
@@ -903,6 +1071,8 @@ defmodule ZonelyWeb.HomeLive do
 
   defp rail_segment_class("daylight"), do: "rail-segment-daylight"
   defp rail_segment_class("work-window"), do: "rail-segment-overlap"
+  defp rail_segment_class("group_full"), do: "rail-segment-group-full"
+  defp rail_segment_class("group_partial"), do: "rail-segment-group-partial"
 
   defp rail_segment_label(user, "daylight", start_at, end_at) do
     "#{user.name} daylight from #{format_rail_time(start_at)} to #{format_rail_time(end_at)} UTC"
@@ -938,7 +1108,7 @@ defmodule ZonelyWeb.HomeLive do
           do: format_rail_time(tick_at),
           else: relative_tick_label(tick_at, live_now)
 
-      %{offset_minutes: offset, label: label}
+      %{offset_minutes: offset, label: label, at: DateTime.to_iso8601(tick_at)}
     end)
   end
 
@@ -957,29 +1127,31 @@ defmodule ZonelyWeb.HomeLive do
     "#{format_rail_time(tick_at)}#{suffix}"
   end
 
-  defp rail_status_text(%DateTime{} = effective_at, nil) do
-    "Live now at #{format_rail_time(effective_at)} UTC. Preview range runs through #{format_rail_time(DateTime.add(effective_at, 24 * 60 * 60, :second))} tomorrow."
+  defp rail_context_description(%{kind: :team}),
+    do: "All teammate daylight and work-window markers"
+
+  defp rail_context_description(%{kind: :single, label: label}),
+    do: "#{label} daylight and work-window markers"
+
+  defp rail_context_description(%{kind: :group, label: label}),
+    do: "#{label} reachable overlap markers"
+
+  defp rail_status_text(%DateTime{} = effective_at, nil, rail_context) do
+    "#{rail_context.label} live at #{format_rail_time(effective_at)} UTC. Explore the next 24 hours."
   end
 
-  defp rail_status_text(%DateTime{} = effective_at, %DateTime{}) do
-    "Simulated preview at #{format_utc_datetime(effective_at)}."
+  defp rail_status_text(%DateTime{} = effective_at, %DateTime{}, rail_context) do
+    "#{rail_context.label} preview at #{format_utc_datetime(effective_at)}."
   end
 
-  defp rail_value_text(%DateTime{} = effective_at, nil),
-    do: "Live now, #{format_rail_time(effective_at)} UTC"
+  defp rail_value_text(%DateTime{} = effective_at, nil, rail_context),
+    do: "#{rail_context.label} live now, #{format_rail_time(effective_at)} UTC"
 
-  defp rail_value_text(%DateTime{} = effective_at, %DateTime{}),
-    do: "Preview at #{format_utc_datetime(effective_at)}"
-
-  defp strip_aria_label(nil), do: "Current team context"
-  defp strip_aria_label(%DateTime{}), do: "Previewed team context"
+  defp rail_value_text(%DateTime{} = effective_at, %DateTime{}, rail_context),
+    do: "#{rail_context.label} preview at #{format_utc_datetime(effective_at)}"
 
   defp strip_mode_label(nil), do: "Now"
   defp strip_mode_label(%DateTime{}), do: "Preview"
-
-  defp strip_reachable_label(count, nil), do: Reachability.reachable_label(count)
-  defp strip_reachable_label(1, %DateTime{}), do: "1 teammate reachable in preview"
-  defp strip_reachable_label(count, %DateTime{}), do: "#{count} teammates reachable in preview"
 
   defp orbit_pill_label(nil), do: "reachable"
   defp orbit_pill_label(%DateTime{}), do: "preview reachable"
@@ -1030,6 +1202,33 @@ defmodule ZonelyWeb.HomeLive do
     do: "SayMyName could not validate this profile."
 
   defp share_error_message(_reason), do: "Could not create SayMyName share right now."
+
+  defp share_preview_for_card(payload, share_url, response) do
+    %{
+      kind: :card,
+      title: Map.get(payload, "display_name"),
+      subtitle: "Name card",
+      url: share_url,
+      preview_image_url: share_preview_image_url(response, share_url)
+    }
+  end
+
+  defp share_preview_for_list(payload, share_url, response) do
+    entries = Map.get(payload, "entries", [])
+
+    %{
+      kind: :list,
+      title: Map.get(payload, "name", "Zonely Team"),
+      subtitle: "#{length(entries)} names",
+      url: share_url,
+      preview_image_url: share_preview_image_url(response, share_url)
+    }
+  end
+
+  defp share_preview_image_url(response, share_url) do
+    Map.get(response, "preview_image_url") ||
+      SayMyNameShareClient.preview_image_url_from_share_url(share_url)
+  end
 
   defp marker_payload(users, %DateTime{} = effective_at, selected_user_ids) do
     users

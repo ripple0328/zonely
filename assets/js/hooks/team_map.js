@@ -18,6 +18,14 @@ const TeamMap = {
     this.markersById = {}
     this.selectedMarkerEl = null
     this.selectedMarkerEls = new Set()
+    this.hoveredMarkerEl = null
+    this.boundHandleTeamOrbitHover = this.handleTeamOrbitHover.bind(this)
+    this.boundHandleTeamOrbitHoverEnd = this.handleTeamOrbitHoverEnd.bind(this)
+
+    document.addEventListener('mouseover', this.boundHandleTeamOrbitHover)
+    document.addEventListener('focusin', this.boundHandleTeamOrbitHover)
+    document.addEventListener('mouseout', this.boundHandleTeamOrbitHoverEnd)
+    document.addEventListener('focusout', this.boundHandleTeamOrbitHoverEnd)
 
     this.handleEvent('focus_user', ({ user_id }) => {
       const marker = this.markersById && this.markersById[user_id]
@@ -107,8 +115,8 @@ const TeamMap = {
         markerEl.innerHTML = `
           <div class="relative flex flex-col items-center">
             <div class="relative">
-              <span class="marker-pulse" aria-hidden="true"></span>
-              <img src="${picture}" alt="${name}" class="h-12 w-12 rounded-full border-[3px] border-white object-cover shadow-lg cursor-pointer" />
+              <img src="${picture}" alt="${name}" class="team-marker-avatar h-12 w-12 rounded-full object-cover cursor-pointer" />
+              <span class="team-marker-availability-dot" aria-hidden="true"></span>
             </div>
           </div>
         `
@@ -128,6 +136,15 @@ const TeamMap = {
     })
   },
 
+  destroyed() {
+    document.removeEventListener('mouseover', this.boundHandleTeamOrbitHover)
+    document.removeEventListener('focusin', this.boundHandleTeamOrbitHover)
+    document.removeEventListener('mouseout', this.boundHandleTeamOrbitHoverEnd)
+    document.removeEventListener('focusout', this.boundHandleTeamOrbitHoverEnd)
+    if (this.sunlightInterval) clearInterval(this.sunlightInterval)
+    this.clearHoveredMarker()
+  },
+
   escapeHtml(value) {
     return String(value)
       .replaceAll('&', '&amp;')
@@ -135,6 +152,45 @@ const TeamMap = {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;')
+  },
+
+  handleTeamOrbitHover(event) {
+    const row = event.target && event.target.closest && event.target.closest('[data-team-orbit-user-id]')
+    if (!row) return
+
+    this.setHoveredMarker(row.dataset.teamOrbitUserId)
+  },
+
+  handleTeamOrbitHoverEnd(event) {
+    const row = event.target && event.target.closest && event.target.closest('[data-team-orbit-user-id]')
+    if (!row) return
+
+    if (event.relatedTarget && row.contains(event.relatedTarget)) return
+
+    this.clearHoveredMarker()
+  },
+
+  setHoveredMarker(userId) {
+    if (!userId || !this.markersById) return
+
+    const marker = this.markersById[String(userId)]
+    if (!marker) return
+
+    const markerEl = marker.getElement()
+    if (this.hoveredMarkerEl === markerEl) return
+
+    this.clearHoveredMarker()
+    markerEl.classList.add('is-hovered-from-list')
+    markerEl.dataset.hoveredFromList = 'true'
+    this.hoveredMarkerEl = markerEl
+  },
+
+  clearHoveredMarker() {
+    if (!this.hoveredMarkerEl) return
+
+    this.hoveredMarkerEl.classList.remove('is-hovered-from-list')
+    this.hoveredMarkerEl.dataset.hoveredFromList = 'false'
+    this.hoveredMarkerEl = null
   },
 
   applyMarkerStates(payload) {
@@ -768,10 +824,6 @@ const TeamMap = {
       .maplibregl-popup-close-button { display: none; }
     `
     document.head.appendChild(style)
-  },
-
-  destroyed() {
-    if (this.sunlightInterval) clearInterval(this.sunlightInterval)
   }
 }
 

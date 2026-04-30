@@ -3,8 +3,6 @@
 
 const TimeScrubber = {
   mounted() {
-    console.log('TimeScrubber hook mounted!')
-
     this.isDragging = false
     this.throttleTimeout = null
     this.dragMode = null // 'new', 'start-handle', 'end-handle', 'middle'
@@ -34,7 +32,6 @@ const TimeScrubber = {
 
     // Rehydrate selection when server instructs
     this.handleEvent("time_selection_set", (payload) => {
-      console.log('TimeScrubber: time_selection_set', payload)
       const selection = document.getElementById('scrubber-selection')
       const display = document.getElementById('time-display')
       const durationDisplay = document.getElementById('duration-display')
@@ -233,5 +230,4 @@ const TimeScrubber = {
 }
 
 export default TimeScrubber
-
 

@@ -40,6 +40,33 @@ defmodule Zonely.ReachabilityTest do
     end
   end
 
+  describe "sort_by_availability/2" do
+    test "puts reachable teammates first then orders by next available time" do
+      available = user("America/New_York", "US", "Available")
+      sooner = user("America/Los_Angeles", "US", "Sooner")
+      later = user("Asia/Tokyo", "JP", "Later")
+
+      assert Enum.map(
+               Reachability.sort_by_availability([later, sooner, available], @now),
+               & &1.name
+             ) == ["Available", "Sooner", "Later"]
+    end
+
+    test "keeps ask-carefully teammates ahead of wait teammates" do
+      wait_but_sooner = user("America/Los_Angeles", "US", "Alice")
+      ask_carefully_but_later = user("Australia/Sydney", "AU", "David")
+      now = ~U[2026-04-30 07:10:00Z]
+
+      assert Reachability.status(wait_but_sooner, now) == :off
+      assert Reachability.status(ask_carefully_but_later, now) == :edge
+
+      assert Enum.map(
+               Reachability.sort_by_availability([wait_but_sooner, ask_carefully_but_later], now),
+               & &1.name
+             ) == ["David", "Alice"]
+    end
+  end
+
   describe "group_summary/2" do
     test "summarizes selected teammates deterministically from the effective time" do
       users = [
@@ -205,9 +232,9 @@ defmodule Zonely.ReachabilityTest do
     end
   end
 
-  defp user(timezone, country) do
+  defp user(timezone, country, name \\ "Test Teammate") do
     %User{
-      name: "Test Teammate",
+      name: name,
       timezone: timezone,
       country: country,
       work_start: ~T[09:00:00],

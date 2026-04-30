@@ -25,7 +25,7 @@ defmodule Zonely.AvatarServiceTest do
       assert url =~ "avataaars"
       assert url =~ "seed=test-user"
       assert url =~ "size=48"
-      assert url =~ "backgroundColor=b6e3f4,c0aede,d1d4f9"
+      refute url =~ "backgroundColor="
     end
 
     test "accepts custom size parameter" do

@@ -27,9 +27,12 @@ import {setupSimpleAudio} from "./simple-audio"
 import TeamMap from "./hooks/team_map"
 import TimeScrubber from "./hooks/time_scrubber"
 import PreviewRail from "./hooks/preview_rail"
+import RailLocalTime from "./hooks/rail_local_time"
 import LiveClock from "./hooks/live_clock"
 import LocalTime from "./hooks/local_time"
 import Clipboard from "./hooks/clipboard"
+import FocusTeamOrbit from "./hooks/focus_team_orbit"
+import AutoDismissFlash from "./hooks/auto_dismiss_flash"
 
 initPostHog()
 
@@ -37,9 +40,18 @@ initPostHog()
 setupSimpleAudio()
 
 // Register hooks in a dedicated object to avoid the legacy inline Hooks
-const LV_HOOKS = { TeamMap, TimeScrubber, PreviewRail, LiveClock, LocalTime, Clipboard, AudioHook: window.AudioHook }
-
-// TimeScrubber handled via ./hooks/time_scrubber
+const LV_HOOKS = {
+  TeamMap,
+  TimeScrubber,
+  PreviewRail,
+  RailLocalTime,
+  LiveClock,
+  LocalTime,
+  Clipboard,
+  FocusTeamOrbit,
+  AutoDismissFlash,
+  AudioHook: window.AudioHook
+}
 
 // Setup topbar and connect LiveView
 initTopbar()

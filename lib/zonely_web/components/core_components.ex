@@ -85,6 +85,8 @@ defmodule ZonelyWeb.CoreComponents do
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
+      phx-hook={if @kind == :info, do: "AutoDismissFlash"}
+      data-flash-kind={@kind}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       class={[
@@ -1481,6 +1483,45 @@ defmodule ZonelyWeb.CoreComponents do
   defp badge_variant_classes(:yellow), do: "bg-yellow-100 text-yellow-800"
 
   @doc """
+  Renders a compact SayMyName-style language mark.
+  """
+  attr(:code, :string, required: true)
+  attr(:size, :atom, default: :sm, values: [:xs, :sm, :md])
+  attr(:variant, :atom, default: :soft, values: [:soft, :outline])
+  attr(:class, :string, default: "")
+  attr(:rest, :global)
+
+  def language_icon(assigns) do
+    icon = language_icon_data(assigns.code)
+
+    assigns =
+      assigns
+      |> assign(:icon, icon)
+      |> assign(:style, [
+        "--name-lang-icon-start: #{icon.start}",
+        "--name-lang-icon-end: #{icon.end}",
+        "--name-lang-icon-fg: #{icon.foreground}"
+      ])
+
+    ~H"""
+    <span
+      class={[
+        "name-language-icon",
+        "name-language-icon-#{@size}",
+        "name-language-icon-#{@variant}",
+        @class
+      ]}
+      style={Enum.join(@style, "; ")}
+      title={@icon.label}
+      aria-hidden="true"
+      {@rest}
+    >
+      <%= @icon.glyph %>
+    </span>
+    """
+  end
+
+  @doc """
   Renders a comprehensive user profile card with all key information.
 
   This is a composite component that uses other components for consistency.
@@ -1488,15 +1529,9 @@ defmodule ZonelyWeb.CoreComponents do
   attr(:user, :map, required: true, doc: "User struct with all user data")
   attr(:effective_at, :any, default: nil, doc: "Effective DateTime for decision context")
 
-  attr(:comparison_candidates, :list,
-    default: [],
-    doc: "Other teammates that can be added to the current comparison"
-  )
-
   attr(:show_actions, :boolean, default: false, doc: "Whether to show action buttons")
   attr(:show_local_time, :boolean, default: false, doc: "Whether to show calculated local time")
   attr(:class, :string, default: "", doc: "Additional CSS classes")
-  attr(:name_share_url, :string, default: nil, doc: "SayMyName reusable name-card share URL")
 
   attr(:name_share_loading, :boolean,
     default: false,
@@ -1548,13 +1583,75 @@ defmodule ZonelyWeb.CoreComponents do
 
         <div class="flex-1 min-w-0">
           <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--live-meridian)]">
-                Teammate context
-              </p>
-              <h3 class="mt-1 truncate text-xl font-semibold tracking-normal text-[var(--charcoal-ink)]">
-              <%= @user.name %>
-              </h3>
+            <div class="profile-name-cluster">
+              <div class="profile-name-line">
+                <h3 class="truncate text-xl font-semibold tracking-normal text-[var(--charcoal-ink)]">
+                  <%= @user.name %>
+                </h3>
+
+                <div class="profile-name-actions">
+                  <div
+                    id={"name-profile-rows-#{@user.id}"}
+                    class="name-pronunciation-chips"
+                    data-testid="selected-pronunciation-actions"
+                  >
+                    <button
+                      :for={row <- @name_rows}
+                      type="button"
+                      id={"name-profile-row-#{@user.id}-#{row.type}"}
+                      class={[
+                        "name-pronunciation-chip",
+                        row.type == "english" && "is-primary-name",
+                        row.state.state == :playing && "is-playing",
+                        row.state.state == :loading && "is-loading"
+                      ]}
+                      phx-click={row.event}
+                      phx-value-user_id={@user.id}
+                      data-testid={"pronunciation-#{row.type}"}
+                      title={"#{row.label}: #{row.text}. #{row.state.tooltip}"}
+                      aria-label={"#{row.label}: #{row.text}. #{row.state.tooltip}"}
+                      disabled={row.state.state == :loading}
+                    >
+                      <.language_icon code={row.lang} size={:xs} variant={:soft} />
+                      <span :if={row.type != "english"} class="name-pronunciation-text">
+                        <%= row.text %>
+                      </span>
+                      <span class={["name-pronunciation-eq", row.state.state == :playing && "is-playing"]} aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </span>
+                      <span class="name-pronunciation-play" aria-hidden="true">
+                        <.icon
+                          name={compact_pronunciation_icon(row.state)}
+                          class={if row.state.state == :loading, do: "h-3.5 w-3.5 animate-spin", else: "h-3.5 w-3.5"}
+                        />
+                      </span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    id={"share-name-card-#{@user.id}"}
+                    class="name-share-button name-share-button-compact"
+                    phx-click="share_name_card"
+                    phx-value-user_id={@user.id}
+                    disabled={@name_share_loading}
+                    data-testid="share-name-card"
+                    title={if @name_share_loading, do: "Creating share link", else: "Share name card"}
+                    aria-label={if @name_share_loading, do: "Creating share link", else: "Share name card"}
+                  >
+                    <.icon
+                      name={if @name_share_loading, do: "hero-arrow-path", else: "hero-share"}
+                      class={if @name_share_loading, do: "h-3.5 w-3.5 animate-spin", else: "h-3.5 w-3.5"}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <p :if={@name_share_error} class="name-share-error"><%= @name_share_error %></p>
             </div>
             <button type="button" class="decision-close-button" phx-click="hide_profile" aria-label="Close teammate context">
               <.icon name="hero-x-mark" class="h-4 w-4" />
@@ -1564,14 +1661,6 @@ defmodule ZonelyWeb.CoreComponents do
           <p class="mt-1 text-sm text-[var(--slate-signal)]" data-testid="selected-role">
             <%= @user.role || "Team Member" %>
           </p>
-
-          <!-- Native name display -->
-          <div :if={@user.name_native && @user.name_native != @user.name} class="mt-3">
-            <label class="block text-xs font-medium text-[var(--slate-signal)] mb-1">
-              Native Name (<%= Zonely.LanguageService.get_native_language_name(@user.country) %>)
-            </label>
-            <p class="text-base font-medium text-[var(--charcoal-ink)]"><%= @user.name_native %></p>
-          </div>
         </div>
       </div>
 
@@ -1586,37 +1675,6 @@ defmodule ZonelyWeb.CoreComponents do
           <%= @decision_sentence %>
         </p>
       </div>
-
-      <section
-        :if={@comparison_candidates != []}
-        id="profile-compare-actions"
-        class="profile-compare-actions"
-        aria-label="Add teammate to comparison"
-      >
-        <div>
-          <p class="context-eyebrow">Compare with teammate</p>
-          <p class="profile-compare-help">
-            Keep <%= @user.name %> selected and add one more teammate.
-          </p>
-        </div>
-
-        <div class="profile-compare-list">
-          <button
-            :for={candidate <- @comparison_candidates}
-            type="button"
-            id={"profile-compare-add-#{candidate.id}"}
-            class="profile-compare-button"
-            phx-click="toggle_compare_user"
-            phx-value-user_id={candidate.id}
-            aria-label={"Compare #{candidate.name} with #{@user.name}"}
-          >
-            <span>Compare with <%= candidate.name %></span>
-            <span class="profile-compare-meta">
-              <%= Reachability.local_time_label(candidate.timezone, @effective_at) %> · <%= Reachability.status_label(candidate, @effective_at) %>
-            </span>
-          </button>
-        </div>
-      </section>
 
       <dl class="decision-facts">
         <div data-testid="selected-location">
@@ -1654,80 +1712,6 @@ defmodule ZonelyWeb.CoreComponents do
           <dd data-testid="selected-daylight"><%= @daylight_context %></dd>
         </div>
       </dl>
-
-      <div class="name-profile-card decision-pronunciation" data-testid="name-profile-card">
-        <div class="name-profile-card-header">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--slate-signal)]">
-              SayMyName profile
-            </p>
-            <p class="mt-1 text-sm text-[var(--charcoal-ink)]">
-              Portable pronunciation rows
-            </p>
-          </div>
-
-          <button
-            type="button"
-            id={"share-name-card-#{@user.id}"}
-            class="name-share-button"
-            phx-click="share_name_card"
-            phx-value-user_id={@user.id}
-            disabled={@name_share_loading}
-            data-testid="share-name-card"
-          >
-            <.icon
-              name={if @name_share_loading, do: "hero-arrow-path", else: "hero-share"}
-              class={if @name_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
-            />
-            <span><%= if @name_share_loading, do: "Sharing", else: "Share" %></span>
-          </button>
-        </div>
-
-        <div id={"name-profile-rows-#{@user.id}"} class="name-profile-rows" data-testid="selected-pronunciation-actions">
-          <button
-            :for={row <- @name_rows}
-            type="button"
-            id={"name-profile-row-#{@user.id}-#{row.type}"}
-            class="name-profile-row"
-            phx-click={row.event}
-            phx-value-user_id={@user.id}
-            data-testid={"pronunciation-#{row.type}"}
-            title={row.state.tooltip}
-            disabled={row.state.state == :loading}
-          >
-            <span class="name-profile-row-icon">
-              <.icon
-                name={pronunciation_state_icon(row.state.icon)}
-                class={if row.state.icon == :spinner, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
-              />
-            </span>
-            <span class="name-profile-row-copy">
-              <span class="name-profile-row-label"><%= row.label %></span>
-              <span class="name-profile-row-text"><%= row.text %></span>
-            </span>
-            <span class="name-profile-row-lang"><%= row.lang %></span>
-          </button>
-        </div>
-
-        <div :if={@name_share_url} class="name-share-result">
-          <a href={@name_share_url} target="_blank" rel="noreferrer" class="name-share-url">
-            <%= @name_share_url %>
-          </a>
-          <button
-            type="button"
-            id={"copy-name-card-share-#{@user.id}"}
-            class="name-share-copy"
-            phx-hook="Clipboard"
-            data-clipboard-text={@name_share_url}
-            data-testid="copy-name-card-share"
-          >
-            <.icon name="hero-clipboard" class="h-4 w-4" />
-            <span>Copy</span>
-          </button>
-        </div>
-
-        <p :if={@name_share_error} class="name-share-error"><%= @name_share_error %></p>
-      </div>
 
       <!-- Actions -->
       <div :if={@show_actions} class="pt-4 border-t border-gray-100">
@@ -1886,14 +1870,211 @@ defmodule ZonelyWeb.CoreComponents do
 
   defp pronunciation_row_type(_user, _variant), do: "native"
 
-  defp pronunciation_row_label("english"), do: "English row"
-  defp pronunciation_row_label("native"), do: "Native row"
+  defp pronunciation_row_label("english"), do: "English pronunciation"
+  defp pronunciation_row_label("native"), do: "Native pronunciation"
 
-  defp pronunciation_state_icon(:spinner), do: "hero-arrow-path"
-  defp pronunciation_state_icon(:user), do: "hero-user"
-  defp pronunciation_state_icon(:robot), do: "hero-cpu-chip"
-  defp pronunciation_state_icon(:sound_waves), do: "hero-speaker-wave"
-  defp pronunciation_state_icon(_icon), do: "hero-play"
+  defp compact_pronunciation_icon(%{state: :loading}), do: "hero-arrow-path"
+  defp compact_pronunciation_icon(%{state: :playing}), do: "hero-pause"
+  defp compact_pronunciation_icon(_state), do: "hero-play"
+
+  @language_icon_fallback %{
+    glyph: "?",
+    label: "Unknown",
+    start: "#475569",
+    end: "#1E293B",
+    foreground: "#F8FAFC"
+  }
+
+  @language_icons %{
+    "ar" => %{
+      glyph: "ع",
+      label: "Arabic",
+      start: "#1B8A78",
+      end: "#0D4F49",
+      foreground: "#F2FFFC"
+    },
+    "de" => %{
+      glyph: "DE",
+      label: "German",
+      start: "#62534C",
+      end: "#2C231F",
+      foreground: "#FFF1D8"
+    },
+    "en" => %{
+      glyph: "EN",
+      label: "English",
+      start: "#536E88",
+      end: "#223448",
+      foreground: "#F7FBFF"
+    },
+    "es" => %{
+      glyph: "ES",
+      label: "Spanish",
+      start: "#D48A37",
+      end: "#B24E2F",
+      foreground: "#FFF7EC"
+    },
+    "fr" => %{
+      glyph: "FR",
+      label: "French",
+      start: "#4970CD",
+      end: "#27408B",
+      foreground: "#F6F8FF"
+    },
+    "hi" => %{
+      glyph: "हि",
+      label: "Hindi",
+      start: "#D07A26",
+      end: "#8E4314",
+      foreground: "#FFF6EA"
+    },
+    "ja" => %{
+      glyph: "あ",
+      label: "Japanese",
+      start: "#C35E56",
+      end: "#8A3651",
+      foreground: "#FFF6F4"
+    },
+    "ko" => %{
+      glyph: "한",
+      label: "Korean",
+      start: "#5D6BE1",
+      end: "#2C367D",
+      foreground: "#F4F6FF"
+    },
+    "pt" => %{
+      glyph: "PT",
+      label: "Portuguese",
+      start: "#2F8A67",
+      end: "#19513C",
+      foreground: "#F0FFF6"
+    },
+    "zh" => %{
+      glyph: "中",
+      label: "Chinese",
+      start: "#2D8A6F",
+      end: "#114E41",
+      foreground: "#F0FFF8"
+    }
+  }
+
+  defp language_icon_data(code) when is_binary(code) do
+    code
+    |> String.replace("_", "-")
+    |> String.split("-", parts: 2)
+    |> List.first()
+    |> String.downcase()
+    |> then(&Map.get(@language_icons, &1, @language_icon_fallback))
+  end
+
+  defp language_icon_data(_code), do: @language_icon_fallback
+
+  @doc """
+  Renders a compact SayMyName-style share preview with copy action.
+  """
+  attr(:id, :string, default: "share-preview-modal")
+  attr(:preview, :map, default: nil)
+
+  def share_preview_modal(assigns) do
+    assigns =
+      assigns
+      |> assign(:show_preview, is_map(assigns.preview))
+      |> assign(:title, share_preview_title(assigns.preview))
+      |> assign(:subtitle, share_preview_subtitle(assigns.preview))
+      |> assign(:url, share_preview_url(assigns.preview))
+      |> assign(:image_url, share_preview_image_url(assigns.preview))
+      |> assign(:kind, share_preview_kind(assigns.preview))
+
+    ~H"""
+    <div
+      :if={@show_preview}
+      id={@id}
+      class="share-preview-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={"#{@id}-title"}
+      phx-window-keydown={JS.push("close_share_preview")}
+      phx-key="Escape"
+      data-testid="share-preview-modal"
+    >
+      <button
+        type="button"
+        class="share-preview-backdrop"
+        aria-label="Close share preview"
+        phx-click="close_share_preview"
+      >
+      </button>
+
+      <section class="share-preview-panel">
+        <header class="share-preview-header">
+          <div>
+            <p class="context-eyebrow">
+              <%= if @kind == :list, do: "Name list preview", else: "Name card preview" %>
+            </p>
+            <h2 id={"#{@id}-title"}><%= @title %></h2>
+            <p><%= @subtitle %></p>
+          </div>
+
+          <button
+            type="button"
+            class="decision-close-button"
+            phx-click="close_share_preview"
+            aria-label="Close share preview"
+          >
+            <.icon name="hero-x-mark" class="h-4 w-4" />
+          </button>
+        </header>
+
+        <figure class="share-preview-image-frame">
+          <img
+            :if={@image_url}
+            class="share-preview-image"
+            src={@image_url}
+            alt={@title}
+            loading="eager"
+            data-testid="share-preview-image"
+          />
+          <figcaption :if={!@image_url} class="share-preview-image-fallback">
+            Preview unavailable
+          </figcaption>
+        </figure>
+
+        <div class="share-preview-copy-row">
+          <a href={@url} target="_blank" rel="noreferrer" class="share-preview-url">
+            <%= @url %>
+          </a>
+          <button
+            id="share-preview-copy"
+            type="button"
+            class="share-preview-copy-button"
+            phx-hook="Clipboard"
+            data-clipboard-text={@url}
+            phx-click="copy_share_preview"
+            data-testid="share-preview-copy"
+          >
+            <.icon name="hero-clipboard" class="h-4 w-4" />
+            <span>Copy</span>
+          </button>
+        </div>
+      </section>
+    </div>
+    """
+  end
+
+  defp share_preview_title(%{title: title}) when is_binary(title), do: title
+  defp share_preview_title(_preview), do: "Share preview"
+
+  defp share_preview_subtitle(%{subtitle: subtitle}) when is_binary(subtitle), do: subtitle
+  defp share_preview_subtitle(_preview), do: "SayMyName link"
+
+  defp share_preview_url(%{url: url}) when is_binary(url), do: url
+  defp share_preview_url(_preview), do: "#"
+
+  defp share_preview_image_url(%{preview_image_url: url}) when is_binary(url), do: url
+  defp share_preview_image_url(_preview), do: nil
+
+  defp share_preview_kind(%{kind: kind}) when kind in [:card, :list], do: kind
+  defp share_preview_kind(_preview), do: :card
 
   @doc """
   Renders a quick actions bar for user interactions.

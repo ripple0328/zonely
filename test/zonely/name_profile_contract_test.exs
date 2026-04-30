@@ -81,6 +81,50 @@ defmodule Zonely.NameProfileContractTest do
                %{"lang" => "es-ES", "text" => "María García"}
              ]
     end
+
+    test "canonicalizes regional native languages to SayMyName-supported catalog codes" do
+      user = %User{
+        id: "user-6",
+        name: "Ahmed Hassan",
+        name_native: "أحمد حسن",
+        native_language: "ar-EG",
+        country: "EG"
+      }
+
+      assert NameProfileContract.from_user(user)["variants"] == [
+               %{"lang" => "en-US", "text" => "Ahmed Hassan"},
+               %{"lang" => "ar-SA", "text" => "أحمد حسن"}
+             ]
+    end
+
+    test "canonicalizes country-derived native languages to SayMyName-supported catalog codes" do
+      user = %User{
+        id: "user-7",
+        name: "Ahmed Hassan",
+        name_native: "أحمد حسن",
+        native_language: nil,
+        country: "EG"
+      }
+
+      assert NameProfileContract.from_user(user)["variants"] == [
+               %{"lang" => "en-US", "text" => "Ahmed Hassan"},
+               %{"lang" => "ar-SA", "text" => "أحمد حسن"}
+             ]
+    end
+
+    test "omits native variants when SayMyName has no supported language match" do
+      user = %User{
+        id: "user-8",
+        name: "Bjorn Eriksson",
+        name_native: "Björn Eriksson",
+        native_language: "sv-SE",
+        country: "SE"
+      }
+
+      assert NameProfileContract.from_user(user)["variants"] == [
+               %{"lang" => "en-US", "text" => "Bjorn Eriksson"}
+             ]
+    end
   end
 
   describe "from_users/2" do

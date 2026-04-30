@@ -21,17 +21,16 @@ defmodule Zonely.AvatarService do
   ## Examples
 
       iex> AvatarService.generate_avatar_url("John Doe")
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=john-doe&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64"
+      "https://api.dicebear.com/7.x/avataaars/svg?seed=john-doe&size=64"
 
       iex> AvatarService.generate_avatar_url("María García", 32)
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=maria-garcia&backgroundColor=b6e3f4,c0aede,d1d4f9&size=32"
+      "https://api.dicebear.com/7.x/avataaars/svg?seed=maria-garcia&size=32"
   """
   @spec generate_avatar_url(String.t(), integer(), String.t()) :: String.t()
   def generate_avatar_url(name, size \\ 64, style \\ "avataaars") do
     seed = normalize_name_for_seed(name)
-    background_colors = "b6e3f4,c0aede,d1d4f9"
 
-    "https://api.dicebear.com/7.x/#{style}/svg?seed=#{seed}&backgroundColor=#{background_colors}&size=#{size}"
+    "https://api.dicebear.com/7.x/#{style}/svg?seed=#{seed}&size=#{size}"
   end
 
   @doc """
@@ -71,7 +70,7 @@ defmodule Zonely.AvatarService do
 
       iex> AvatarService.generate_complete_avatar("John Doe", 32)
       %{
-        url: "https://api.dicebear.com/7.x/avataaars/svg?seed=john-doe&backgroundColor=b6e3f4,c0aede,d1d4f9&size=32",
+        url: "https://api.dicebear.com/7.x/avataaars/svg?seed=john-doe&size=32",
         fallback: %{initials: "JD", class: "bg-gradient-to-br from-blue-500 to-purple-600"}
       }
   """

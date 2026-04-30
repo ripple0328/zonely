@@ -11,6 +11,31 @@ defmodule Zonely.NameProfileContract do
 
   @default_english_locale "en-US"
   @default_list_name "Zonely Team"
+  @say_my_name_language_aliases %{
+    "ar" => "ar-SA",
+    "ar-sa" => "ar-SA",
+    "de" => "de-DE",
+    "de-de" => "de-DE",
+    "en" => "en-US",
+    "en-us" => "en-US",
+    "es" => "es-ES",
+    "es-es" => "es-ES",
+    "fr" => "fr-FR",
+    "fr-fr" => "fr-FR",
+    "hi" => "hi-IN",
+    "hi-in" => "hi-IN",
+    "ja" => "ja-JP",
+    "ja-jp" => "ja-JP",
+    "ko" => "ko-KR",
+    "ko-kr" => "ko-KR",
+    "pt" => "pt-BR",
+    "pt-br" => "pt-BR",
+    "zh" => "zh-CN",
+    "zh-cn" => "zh-CN",
+    "zh-hans" => "zh-CN",
+    "zh-hant" => "zh-CN",
+    "zh-tw" => "zh-CN"
+  }
 
   @spec from_user(User.t()) :: map()
   def from_user(%User{} = user) do
@@ -79,13 +104,19 @@ defmodule Zonely.NameProfileContract do
     |> do_normalize_language(country_locale)
   end
 
-  defp do_normalize_language(nil, country_locale), do: country_locale
+  defp do_normalize_language(nil, country_locale), do: canonical_share_language(country_locale)
 
   defp do_normalize_language(language, country_locale) do
+    language
+    |> normalize_language_format(country_locale)
+    |> canonical_share_language()
+  end
+
+  defp normalize_language_format(language, country_locale) do
     cond do
-      Regex.match?(~r/^[A-Za-z]{2,3}-[A-Za-z]{2}$/, language) ->
+      Regex.match?(~r/^[A-Za-z]{2,3}-[A-Za-z]{2,4}$/, language) ->
         [lang, region] = String.split(language, "-", parts: 2)
-        "#{String.downcase(lang)}-#{String.upcase(region)}"
+        "#{String.downcase(lang)}-#{format_language_region(region)}"
 
       Regex.match?(~r/^[A-Za-z]{2,3}$/, language) ->
         normalize_short_language(language, country_locale)
@@ -103,4 +134,19 @@ defmodule Zonely.NameProfileContract do
       _ -> language
     end
   end
+
+  defp canonical_share_language(nil), do: nil
+
+  defp canonical_share_language(language) do
+    normalized = String.downcase(String.replace(language, "_", "-"))
+
+    Map.get(@say_my_name_language_aliases, normalized) ||
+      normalized
+      |> String.split("-", parts: 2)
+      |> List.first()
+      |> then(&Map.get(@say_my_name_language_aliases, &1))
+  end
+
+  defp format_language_region(region) when byte_size(region) == 4, do: String.capitalize(region)
+  defp format_language_region(region), do: String.upcase(region)
 end

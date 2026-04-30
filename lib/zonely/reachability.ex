@@ -67,6 +67,11 @@ defmodule Zonely.Reachability do
     }
   end
 
+  @spec sort_by_availability([User.t()], DateTime.t()) :: [User.t()]
+  def sort_by_availability(users, %DateTime{} = now) when is_list(users) do
+    Enum.sort_by(users, &availability_sort_key(&1, now))
+  end
+
   @spec marker_state(User.t(), DateTime.t()) :: String.t()
   def marker_state(%User{} = user, %DateTime{} = now \\ DateTime.utc_now()) do
     user
@@ -267,6 +272,29 @@ defmodule Zonely.Reachability do
   defp count_phrase(0, _label), do: ""
   defp count_phrase(1, label), do: "1 #{label}"
   defp count_phrase(count, label), do: "#{count} #{label}"
+
+  defp availability_sort_key(%User{} = user, %DateTime{} = now) do
+    status = status(user, now)
+    available_at = available_at(user, status, now)
+
+    {availability_status_priority(status), available_at, normalized_name(user.name)}
+  end
+
+  defp availability_status_priority(:working), do: 0
+  defp availability_status_priority(:edge), do: 1
+  defp availability_status_priority(:off), do: 2
+
+  defp available_at(_user, :working, %DateTime{} = now), do: DateTime.to_unix(now, :second)
+
+  defp available_at(%User{} = user, _status, %DateTime{} = now) do
+    case next_transition(user, now) do
+      %{instant: %DateTime{} = instant} -> DateTime.to_unix(instant, :second)
+      _transition -> :infinity
+    end
+  end
+
+  defp normalized_name(name) when is_binary(name), do: String.downcase(name)
+  defp normalized_name(_name), do: ""
 
   defp local_time(%User{timezone: timezone}, %DateTime{} = now) when is_binary(timezone) do
     case DateTime.shift_zone(now, timezone) do

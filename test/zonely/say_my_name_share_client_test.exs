@@ -31,6 +31,28 @@ defmodule Zonely.SayMyNameShareClientTest do
     assert SayMyNameShareClient.production_base_url() == "https://saymyname.qingbo.us"
   end
 
+  test "preview_image_url_from_share_url/1 maps share links to canonical SayMyName OG images" do
+    assert SayMyNameShareClient.preview_image_url_from_share_url(
+             "https://saymyname.qingbo.us/card/card-token"
+           ) ==
+             "https://saymyname.qingbo.us/og/card/card-token?smn_pv=1"
+
+    assert SayMyNameShareClient.preview_image_url_from_share_url(
+             "https://saymyname.qingbo.us/list/list-token"
+           ) ==
+             "https://saymyname.qingbo.us/og/list/list-token?smn_pv=1"
+
+    assert SayMyNameShareClient.preview_image_url_from_share_url(
+             "https://saymyname.qingbo.us/card?e=encoded"
+           ) ==
+             "https://saymyname.qingbo.us/og/card?e=encoded&smn_pv=1"
+
+    assert SayMyNameShareClient.preview_image_url_from_share_url("/share/legacy-token") ==
+             "https://saymyname.qingbo.us/og/card/legacy-token?smn_pv=1"
+
+    refute SayMyNameShareClient.preview_image_url_from_share_url("https://example.com/profile/1")
+  end
+
   test "create_card_share/1 posts a canonical card payload with bearer auth" do
     user = %User{
       id: "user-1",
@@ -62,12 +84,17 @@ defmodule Zonely.SayMyNameShareClientTest do
          status: 201,
          body: %{
            "share_token" => "card-token",
-           "share_url" => "https://saymyname.qingbo.us/card/card-token"
+           "share_url" => "https://saymyname.qingbo.us/card/card-token",
+           "preview_image_url" => "https://saymyname.qingbo.us/og/card/card-token?smn_pv=1"
          }
        }}
     end)
 
-    assert {:ok, %{"share_url" => "https://saymyname.qingbo.us/card/card-token"}} =
+    assert {:ok,
+            %{
+              "share_url" => "https://saymyname.qingbo.us/card/card-token",
+              "preview_image_url" => "https://saymyname.qingbo.us/og/card/card-token?smn_pv=1"
+            }} =
              SayMyNameShareClient.create_card_share(user)
   end
 
