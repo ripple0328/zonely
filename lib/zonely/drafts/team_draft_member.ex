@@ -25,6 +25,7 @@ defmodule Zonely.Drafts.TeamDraftMember do
     field(:work_end, :time)
     field(:completion_status, Ecto.Enum, values: @completion_statuses, default: :incomplete)
     field(:review_status, Ecto.Enum, values: @review_statuses, default: :pending)
+    field(:sort_order, :integer, default: 0)
     field(:submission_owner_token_hash, :string)
     field(:source_kind, :string)
     field(:source_reference, :string)
@@ -59,6 +60,7 @@ defmodule Zonely.Drafts.TeamDraftMember do
       :work_end,
       :completion_status,
       :review_status,
+      :sort_order,
       :submission_owner_token_hash,
       :source_kind,
       :source_reference,
@@ -81,6 +83,7 @@ defmodule Zonely.Drafts.TeamDraftMember do
     |> put_computed_completion_status()
     |> validate_required([:team_draft_id, :display_name, :completion_status, :review_status])
     |> validate_length(:display_name, min: 1, max: 255)
+    |> validate_number(:sort_order, greater_than_or_equal_to: 0)
     |> validate_length(:role, max: 100)
     |> validate_name_variants()
     |> validate_pronunciation()

@@ -25,13 +25,18 @@ defmodule ZonelyWeb.ImportLive do
 
     case load_authorized_import(id, owner_token) do
       {:ok, draft, member} ->
+        members = Drafts.list_draft_members(draft)
+
         {:ok,
          socket
-         |> assign(:page_title, "Complete imported card")
+         |> assign(:page_title, import_page_title(draft))
          |> assign(:authorized?, true)
          |> assign(:draft, draft)
          |> assign(:member, member)
+         |> assign(:members, members)
          |> assign(:conflicts, duplicate_conflicts(member))
+         |> assign(:member_conflicts, duplicate_conflicts_by_member(members))
+         |> assign(:invalid_memberships, invalid_memberships(draft))
          |> assign_form(member)}
 
       :error ->
@@ -41,7 +46,10 @@ defmodule ZonelyWeb.ImportLive do
          |> assign(:authorized?, false)
          |> assign(:draft, nil)
          |> assign(:member, nil)
+         |> assign(:members, [])
          |> assign(:conflicts, [])
+         |> assign(:member_conflicts, %{})
+         |> assign(:invalid_memberships, [])
          |> assign(:form, to_form(%{}, as: :import))}
     end
   end
@@ -76,10 +84,18 @@ defmodule ZonelyWeb.ImportLive do
       <main class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
         <div class="mx-auto max-w-4xl">
           <%= if @authorized? do %>
-            <section
-              id="card-import-review"
-              class="rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6 shadow-[0_22px_70px_rgba(22,26,29,0.14)]"
-            >
+            <%= if team_import?(@draft, @members) do %>
+              <.team_import_review
+                draft={@draft}
+                members={@members}
+                member_conflicts={@member_conflicts}
+                invalid_memberships={@invalid_memberships}
+              />
+            <% else %>
+              <section
+                id="card-import-review"
+                class="rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6 shadow-[0_22px_70px_rgba(22,26,29,0.14)]"
+              >
               <p class="text-sm font-medium uppercase tracking-[0.18em] text-[#1F8A70]">
                 SayMyName card import
               </p>
@@ -215,7 +231,8 @@ defmodule ZonelyWeb.ImportLive do
                   </.form>
                 </section>
               </div>
-            </section>
+              </section>
+            <% end %>
           <% else %>
             <section
               id="card-import-forbidden"
@@ -232,10 +249,158 @@ defmodule ZonelyWeb.ImportLive do
     """
   end
 
+  attr(:draft, TeamDraft, required: true)
+  attr(:members, :list, required: true)
+  attr(:member_conflicts, :map, required: true)
+  attr(:invalid_memberships, :list, required: true)
+
+  defp team_import_review(assigns) do
+    ~H"""
+    <section
+      id="team-import-review"
+      class="rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6 shadow-[0_22px_70px_rgba(22,26,29,0.14)]"
+    >
+      <p class="text-sm font-medium uppercase tracking-[0.18em] text-[#1F8A70]">
+        SayMyName list import
+      </p>
+      <div class="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight">{@draft.name}</h1>
+          <p class="mt-1 text-sm text-[#5F6B73]">
+            Review imported team members before any publish step. Draft members are not visible on
+            the normal map yet.
+          </p>
+        </div>
+        <p
+          id="team-draft-status"
+          class="rounded-full border border-[rgba(22,26,29,0.10)] px-3 py-1 text-sm font-medium text-[#5F6B73]"
+        >
+          Draft team
+        </p>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        <article
+          :for={member <- @members}
+          id={"draft-member-#{member.id}"}
+          class="rounded-2xl border border-[rgba(22,26,29,0.10)] p-4"
+        >
+          <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 class="text-lg font-semibold">{member.display_name}</h2>
+              <p :if={present?(member.role)} class="mt-1 text-sm text-[#5F6B73]">
+                Role candidate: {member.role}
+              </p>
+              <p :if={present?(member.pronouns)} class="mt-1 text-sm text-[#5F6B73]">
+                Pronouns: {member.pronouns}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span
+                :if={member.completion_status == :complete}
+                id={"draft-member-#{member.id}-complete"}
+                class="rounded-full border border-[#1F8A70]/25 bg-[#1F8A70]/10 px-3 py-1 text-xs font-medium text-[#1F8A70]"
+              >
+                Complete
+              </span>
+              <span
+                :if={member.completion_status == :incomplete}
+                id={"draft-member-#{member.id}-incomplete"}
+                class="rounded-full border border-[#B9822E]/30 bg-[#B9822E]/10 px-3 py-1 text-xs font-medium text-[#5F3D13]"
+              >
+                Incomplete
+              </span>
+            </div>
+          </div>
+
+          <div
+            :if={Map.get(@member_conflicts, member.id, []) != []}
+            id={"draft-member-#{member.id}-conflict"}
+            class="mt-4 rounded-xl border border-[#B9822E]/30 bg-[#B9822E]/10 px-3 py-2 text-sm text-[#5F3D13]"
+          >
+            Possible duplicate. Existing Zonely-owned fields were not overwritten.
+          </div>
+
+          <div
+            :if={member.completion_status == :incomplete}
+            class="mt-4 flex flex-wrap gap-2 text-xs font-medium text-[#5F6B73]"
+          >
+            <span
+              :if={!present?(member.location_country)}
+              id={"draft-member-#{member.id}-missing-location-country"}
+            >
+              Missing country
+            </span>
+            <span
+              :if={!present?(member.location_label)}
+              id={"draft-member-#{member.id}-missing-location-label"}
+            >
+              Missing city/location label
+            </span>
+            <span :if={!present?(member.timezone)} id={"draft-member-#{member.id}-missing-timezone"}>
+              Missing timezone
+            </span>
+            <span :if={is_nil(member.work_start)} id={"draft-member-#{member.id}-missing-work-start"}>
+              Missing work start
+            </span>
+            <span :if={is_nil(member.work_end)} id={"draft-member-#{member.id}-missing-work-end"}>
+              Missing work end
+            </span>
+          </div>
+
+          <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <div>
+              <p class="text-[#5F6B73]">Location</p>
+              <p class="font-medium">{location_summary(member)}</p>
+            </div>
+            <div>
+              <p class="text-[#5F6B73]">Availability</p>
+              <p class="font-mono text-xs">{availability_summary(member)}</p>
+            </div>
+          </div>
+
+          <div :if={(member.name_variants || []) != []} class="mt-4">
+            <p class="text-sm text-[#5F6B73]">Name variants</p>
+            <div class="mt-2 space-y-2">
+              <div
+                :for={{variant, index} <- Enum.with_index(member.name_variants || [])}
+                id={"draft-member-#{member.id}-variant-#{index}"}
+                class="rounded-xl border border-[rgba(22,26,29,0.10)] px-3 py-2 text-sm"
+              >
+                <p class="font-medium">{variant["text"] || variant[:text]}</p>
+                <p class="font-mono text-xs text-[#5F6B73]">
+                  {variant["lang"] || variant[:lang]}
+                  <span :if={variant["script"] || variant[:script]}>
+                    · {variant["script"] || variant[:script]}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article
+          :for={invalid <- @invalid_memberships}
+          id={"invalid-import-member-#{invalid_index(invalid)}"}
+          class="rounded-2xl border border-[#B9822E]/30 bg-[#B9822E]/10 p-4 text-sm text-[#5F3D13]"
+        >
+          <p class="font-semibold">Invalid list member was skipped</p>
+          <p id={"invalid-import-member-#{invalid_index(invalid)}-reason"}>
+            Member #{invalid_index(invalid) + 1}: {invalid_reason(invalid)}
+          </p>
+          <p class="mt-1 text-xs">
+            Zonely did not create a guessed person for this malformed row.
+          </p>
+        </article>
+      </div>
+    </section>
+    """
+  end
+
   defp load_authorized_import(id, owner_token) when is_binary(owner_token) do
     with %TeamDraft{} = draft <- Repo.get(TeamDraft, id),
          true <- Drafts.owner_token_matches?(draft, owner_token),
-         [%TeamDraftMember{} = member] <- Drafts.list_draft_members(draft) do
+         [%TeamDraftMember{} = member | _members] <- Drafts.list_draft_members(draft) do
       {:ok, draft, member}
     else
       _other -> :error
@@ -258,6 +423,52 @@ defmodule ZonelyWeb.ImportLive do
   end
 
   defp duplicate_conflicts(_member), do: []
+
+  defp duplicate_conflicts_by_member(members) do
+    Map.new(members, fn member -> {member.id, duplicate_conflicts(member)} end)
+  end
+
+  defp team_import?(%TeamDraft{source_kind: "saymyname_list"}, _members), do: true
+  defp team_import?(_draft, members), do: length(members) > 1
+
+  defp import_page_title(%TeamDraft{source_kind: "saymyname_list"}), do: "Review imported team"
+  defp import_page_title(_draft), do: "Complete imported card"
+
+  defp invalid_memberships(%TeamDraft{source_payload: payload}) when is_map(payload) do
+    Map.get(payload, :invalid_memberships) || Map.get(payload, "invalid_memberships") || []
+  end
+
+  defp invalid_memberships(_draft), do: []
+
+  defp invalid_index(%{"index" => index}), do: index
+  defp invalid_index(%{index: index}), do: index
+  defp invalid_index(_invalid), do: 0
+
+  defp invalid_reason(%{"reason" => reason}), do: reason
+  defp invalid_reason(%{reason: reason}), do: reason
+  defp invalid_reason(_invalid), do: "invalid member"
+
+  defp location_summary(member) do
+    [member.location_label, member.location_country]
+    |> Enum.filter(&present?/1)
+    |> case do
+      [] -> "Missing location"
+      parts -> Enum.join(parts, ", ")
+    end
+  end
+
+  defp availability_summary(member) do
+    [member.timezone, time_value(member.work_start), time_value(member.work_end)]
+    |> Enum.filter(&present?/1)
+    |> case do
+      [] -> "Missing availability"
+      parts -> Enum.join(parts, " · ")
+    end
+  end
+
+  defp time_value(%Time{} = time), do: Calendar.strftime(time, "%H:%M")
+  defp time_value(value) when is_binary(value), do: value
+  defp time_value(_value), do: nil
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false

@@ -30,6 +30,7 @@ defmodule Zonely.Drafts do
     "published_team_id" => :published_team_id,
     "review_status" => :review_status,
     "role" => :role,
+    "sort_order" => :sort_order,
     "source_idempotency_key" => :source_idempotency_key,
     "source_kind" => :source_kind,
     "source_payload" => :source_payload,
@@ -92,7 +93,7 @@ defmodule Zonely.Drafts do
   def list_draft_members(%TeamDraft{} = draft) do
     TeamDraftMember
     |> where([member], member.team_draft_id == ^draft.id)
-    |> order_by([member], asc: member.inserted_at, asc: member.id)
+    |> order_by([member], asc: member.sort_order, asc: member.inserted_at, asc: member.id)
     |> Repo.all()
   end
 
@@ -223,9 +224,12 @@ defmodule Zonely.Drafts do
         |> create_team_draft!()
 
       members =
-        Enum.map(memberships, fn membership ->
+        memberships
+        |> Enum.with_index()
+        |> Enum.map(fn {membership, index} ->
           membership
           |> member_attrs_from_membership_projection()
+          |> Map.put(:sort_order, index)
           |> Map.put(:source_payload, membership)
           |> then(&create_draft_member!(draft.draft, &1))
         end)
