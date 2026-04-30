@@ -30,7 +30,7 @@ defmodule ZonelyWeb.Endpoint do
     at: "/",
     from: :zonely,
     gzip: false,
-    only: ZonelyWeb.static_paths()
+    only_matching: ZonelyWeb.static_path_prefixes()
   )
 
   if code_reloading? do

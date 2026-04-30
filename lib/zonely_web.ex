@@ -21,6 +21,9 @@ defmodule ZonelyWeb do
     do:
       ~w(assets fonts images apple_touch_icon.png favicon.ico favicon.svg favicon-32x32.png site.webmanifest web_app_manifest_192.png web_app_manifest_512.png robots.txt)
 
+  def static_path_prefixes,
+    do: ~w(assets fonts images apple_touch_icon favicon site web_app_manifest robots)
+
   def router do
     quote do
       use Phoenix.Router, helpers: false
