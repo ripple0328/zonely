@@ -76,6 +76,36 @@ defmodule ZonelyWeb.PacketController do
 
   def review_member(conn, _params), do: review_unavailable(conn)
 
+  def publish(conn, %{"invite_token" => invite_token}) do
+    with %TeamDraft{} = draft <- Drafts.get_draft_by_invite_token(invite_token),
+         owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, invite_token),
+         true <- Drafts.owner_token_matches?(draft, owner_token) do
+      case Drafts.publish_packet(draft, owner_token) do
+        {:ok, _result} ->
+          conn
+          |> put_flash(:info, "Packet published to the team map.")
+          |> redirect(to: ~p"/")
+
+        {:error, {:incomplete_members, _members}} ->
+          conn
+          |> put_status(:unprocessable_entity)
+          |> html(
+            owner_review_html(
+              draft,
+              invite_token,
+              Drafts.packet_review_summary(draft),
+              "Complete or exclude incomplete accepted entries before publishing."
+            )
+          )
+
+        {:error, _reason} ->
+          review_unavailable(conn)
+      end
+    else
+      _error -> review_unavailable(conn)
+    end
+  end
+
   def invite(conn, %{"invite_token" => invite_token}) do
     case Drafts.get_open_packet_by_invite_token(invite_token) do
       %TeamDraft{} = draft ->
@@ -251,20 +281,44 @@ defmodule ZonelyWeb.PacketController do
     """
   end
 
-  defp owner_review_html(%TeamDraft{} = draft, invite_token, summary) do
+  defp owner_review_html(%TeamDraft{} = draft, invite_token, summary, publish_error \\ nil) do
     """
     <main id="packet-owner-review" class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
       <section class="mx-auto max-w-4xl rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6">
         <p class="text-sm font-medium uppercase tracking-[0.18em] text-[#1F8A70]">Owner packet review</p>
         <h1>#{escape(draft.name)}</h1>
         <p id="packet-owner-review-context">Review each teammate submission before publish. Accepted entries stay in the draft roster; pending, rejected, and excluded entries are visibly separate.</p>
+        #{publish_error_html(publish_error)}
+        #{publish_action_html(invite_token, summary)}
         #{review_section_html(invite_token, "owner-review-pending", "Pending submissions", Map.fetch!(summary, :pending))}
         #{review_section_html(invite_token, "owner-review-accepted", "Accepted draft roster", Map.fetch!(summary, :accepted))}
         #{review_section_html(invite_token, "owner-review-rejected", "Rejected submissions", Map.fetch!(summary, :rejected))}
         #{review_section_html(invite_token, "owner-review-excluded", "Excluded before publish", Map.fetch!(summary, :excluded))}
+        #{review_section_html(invite_token, "owner-review-published", "Published roster", Map.fetch!(summary, :published))}
       </section>
     </main>
     """
+  end
+
+  defp publish_action_html(invite_token, summary) do
+    accepted_count = summary |> Map.fetch!(:accepted) |> length()
+
+    """
+    <section id="packet-publish-panel" class="mt-6 border-t border-[rgba(22,26,29,0.10)] pt-4">
+      <h2>Publish reviewed roster</h2>
+      <p>Only accepted complete entries publish. Pending, rejected, and excluded entries stay out of the map.</p>
+      <form id="packet-publish-form" action="/packets/review/#{escape(invite_token)}/publish" method="post">
+        <input type="hidden" name="_csrf_token" value="#{csrf_token()}" />
+        <button id="packet-publish-submit" type="submit">Publish #{accepted_count} accepted entries</button>
+      </form>
+    </section>
+    """
+  end
+
+  defp publish_error_html(nil), do: ""
+
+  defp publish_error_html(error) do
+    ~s(<p id="packet-publish-error">#{escape(error)}</p>)
   end
 
   defp review_section_html(invite_token, id, title, members) do

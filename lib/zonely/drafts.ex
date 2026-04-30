@@ -6,6 +6,7 @@ defmodule Zonely.Drafts do
   import Ecto.Query, warn: false
 
   alias Zonely.Drafts.{TeamDraft, TeamDraftMember}
+  alias Zonely.Accounts
   alias Zonely.Repo
 
   @token_bytes 32
@@ -312,6 +313,139 @@ defmodule Zonely.Drafts do
     })
     |> Repo.update()
   end
+
+  def publish_packet(%TeamDraft{} = draft, owner_token) when is_binary(owner_token) do
+    Repo.transaction(fn ->
+      draft = lock_team_draft!(draft)
+
+      if owner_token_matches?(draft, owner_token) do
+        do_publish_packet(draft)
+      else
+        Repo.rollback(:unauthorized)
+      end
+    end)
+    |> case do
+      {:ok, result} -> {:ok, result}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def publish_packet(%TeamDraft{}, _owner_token), do: {:error, :unauthorized}
+
+  defp do_publish_packet(%TeamDraft{} = draft) do
+    members = list_draft_members(draft)
+    accepted_members = filter_review_status(members, :accepted)
+    incomplete_members = Enum.reject(accepted_members, &(&1.completion_status == :complete))
+
+    if incomplete_members == [] do
+      team = published_team_for_draft!(draft)
+
+      published_members =
+        members
+        |> Enum.filter(&(&1.review_status in [:accepted, :published]))
+        |> Enum.map(&publish_member_once!(&1, team))
+
+      draft = mark_draft_published!(draft, team.id)
+
+      %{
+        draft: draft,
+        team: team,
+        members: published_members
+      }
+    else
+      Repo.rollback({:incomplete_members, incomplete_members})
+    end
+  end
+
+  defp lock_team_draft!(%TeamDraft{} = draft) do
+    TeamDraft
+    |> where([team_draft], team_draft.id == ^draft.id)
+    |> lock("FOR UPDATE")
+    |> Repo.one!()
+  end
+
+  defp published_team_for_draft!(%TeamDraft{published_team_id: published_team_id})
+       when is_binary(published_team_id) do
+    Accounts.Team |> Repo.get!(published_team_id)
+  end
+
+  defp published_team_for_draft!(%TeamDraft{} = draft) do
+    case Accounts.create_team(%{name: draft.name}) do
+      {:ok, team} -> team
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp publish_member_once!(
+         %TeamDraftMember{published_person_id: person_id, published_membership_id: membership_id} =
+           member,
+         %Accounts.Team{} = team
+       )
+       when is_binary(person_id) and is_binary(membership_id) do
+    %{
+      draft_member: member,
+      person: Repo.get!(Accounts.Person, person_id),
+      membership: Repo.get!(Accounts.Membership, membership_id),
+      team: team
+    }
+  end
+
+  defp publish_member_once!(%TeamDraftMember{} = member, %Accounts.Team{} = team) do
+    person = create_published_person!(member)
+    membership = create_published_membership!(team, person, member)
+    member = put_member_published_references!(member, person.id, membership.id)
+
+    %{draft_member: member, person: person, membership: membership, team: team}
+  end
+
+  defp create_published_person!(%TeamDraftMember{} = member) do
+    attrs =
+      %{
+        name: member.display_name,
+        pronouns: member.pronouns,
+        role: member.role,
+        timezone: member.timezone,
+        country: member.location_country,
+        work_start: member.work_start,
+        work_end: member.work_end,
+        name_variants: member.name_variants,
+        pronunciation_audio_url: pronunciation_audio_url(member.pronunciation)
+      }
+      |> maybe_put(:latitude, member.latitude)
+      |> maybe_put(:longitude, member.longitude)
+
+    case Accounts.create_person(attrs) do
+      {:ok, person} -> person
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp create_published_membership!(%Accounts.Team{} = team, %Accounts.Person{} = person, member) do
+    case Accounts.create_membership(%{team_id: team.id, person_id: person.id, role: member.role}) do
+      {:ok, membership} -> membership
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp put_member_published_references!(member, person_id, membership_id) do
+    case put_published_references(member, person_id, membership_id) do
+      {:ok, member} -> member
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp mark_draft_published!(draft, team_id) do
+    case put_published_references(draft, team_id) do
+      {:ok, draft} -> draft
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp pronunciation_audio_url(%{"audio_url" => audio_url}) when is_binary(audio_url),
+    do: audio_url
+
+  defp pronunciation_audio_url(%{audio_url: audio_url}) when is_binary(audio_url), do: audio_url
+  defp pronunciation_audio_url(_pronunciation), do: nil
 
   def create_draft_from_import(projection, attrs \\ %{})
 

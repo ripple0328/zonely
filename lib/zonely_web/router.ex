@@ -41,6 +41,7 @@ defmodule ZonelyWeb.Router do
     post("/packets", PacketController, :create)
     get("/packets/created", PacketController, :created)
     get("/packets/review/:invite_token", PacketController, :review)
+    post("/packets/review/:invite_token/publish", PacketController, :publish)
     post("/packets/review/:invite_token/:member_id", PacketController, :review_member)
     get("/packets/invite/:invite_token", PacketController, :invite)
     post("/packets/invite/:invite_token/submission", PacketController, :submit)

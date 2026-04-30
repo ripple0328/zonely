@@ -4,6 +4,98 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
   alias Zonely.Drafts
 
   describe "owner review UI" do
+    test "owner publishes accepted complete submissions into the normal map flow", %{conn: conn} do
+      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Map publish team"}})
+      draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
+      created_conn = get(recycle(create_conn), redirected_to(create_conn))
+      invite_token = session_invite_token(created_conn, draft)
+
+      {:ok, %{member: accepted}} =
+        Drafts.create_packet_submission(invite_token, %{
+          display_name: "Mara Published",
+          role: "Product Lead",
+          location_country: "PT",
+          location_label: "Lisbon",
+          latitude: Decimal.new("38.7223"),
+          longitude: Decimal.new("-9.1393"),
+          timezone: "Europe/Lisbon",
+          work_start: ~T[09:00:00],
+          work_end: ~T[17:00:00]
+        })
+
+      {:ok, %{member: pending}} =
+        Drafts.create_packet_submission(invite_token, %{
+          display_name: "Pending Draft",
+          location_country: "GB",
+          location_label: "London",
+          latitude: Decimal.new("51.5072"),
+          longitude: Decimal.new("-0.1276"),
+          timezone: "Europe/London",
+          work_start: ~T[09:00:00],
+          work_end: ~T[17:00:00]
+        })
+
+      {:ok, _accepted_member} =
+        Drafts.review_packet_member(
+          draft,
+          Plug.Conn.get_session(created_conn, "zonely_packet_created_owner_token"),
+          accepted.id,
+          :accepted
+        )
+
+      review_conn = get(recycle(created_conn), ~p"/packets/review/#{invite_token}")
+      review_html = html_response(review_conn, 200)
+
+      assert review_html =~ ~s(id="packet-publish-submit")
+      assert review_html =~ "Mara Published"
+      assert review_html =~ "Pending Draft"
+
+      publish_conn = post(recycle(review_conn), ~p"/packets/review/#{invite_token}/publish")
+      assert redirected_to(publish_conn) == ~p"/"
+
+      home_html =
+        publish_conn
+        |> recycle()
+        |> get(~p"/")
+        |> html_response(200)
+
+      assert home_html =~ "Mara Published"
+      assert home_html =~ "&quot;name&quot;:&quot;Mara Published&quot;"
+      assert home_html =~ "&quot;latitude&quot;:38.7223"
+      refute home_html =~ "Pending Draft"
+
+      assert %{review_status: :pending, published_person_id: nil} =
+               Drafts.get_draft_member!(pending.id)
+    end
+
+    test "owner review blocks publish for incomplete accepted members", %{conn: conn} do
+      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Blocked publish team"}})
+      draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
+      created_conn = get(recycle(create_conn), redirected_to(create_conn))
+      invite_token = session_invite_token(created_conn, draft)
+
+      {:ok, %{member: incomplete}} =
+        Drafts.create_packet_submission(invite_token, %{display_name: "Incomplete Accepted"})
+
+      {:ok, _accepted_member} =
+        Drafts.review_packet_member(
+          draft,
+          Plug.Conn.get_session(created_conn, "zonely_packet_created_owner_token"),
+          incomplete.id,
+          :accepted
+        )
+
+      publish_conn =
+        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/publish")
+
+      blocked_html = html_response(publish_conn, 422)
+
+      assert blocked_html =~ ~s(id="packet-publish-error")
+      assert blocked_html =~ "Complete or exclude incomplete accepted entries before publishing."
+      assert blocked_html =~ "Incomplete Accepted"
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Person, :count) == 0
+    end
+
     test "owner reviews pending submissions and reloads distinct lifecycle states", %{conn: conn} do
       create_conn =
         post(conn, ~p"/packets", %{
