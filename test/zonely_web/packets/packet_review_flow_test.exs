@@ -68,6 +68,117 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
                Drafts.get_draft_member!(pending.id)
     end
 
+    test "owner review link reopens published packet state after publish without duplicate publish controls",
+         %{conn: conn} do
+      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Replay review team"}})
+      draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
+      created_conn = get(recycle(create_conn), redirected_to(create_conn))
+      invite_token = session_invite_token(created_conn, draft)
+
+      {:ok, %{member: accepted}} =
+        Drafts.create_packet_submission(invite_token, %{
+          display_name: "Rosa Replay",
+          role: "Engineering",
+          location_country: "PT",
+          location_label: "Lisbon",
+          timezone: "Europe/Lisbon",
+          work_start: ~T[09:00:00],
+          work_end: ~T[17:00:00]
+        })
+
+      {:ok, _accepted_member} =
+        Drafts.review_packet_member(
+          draft,
+          Plug.Conn.get_session(created_conn, "zonely_packet_created_owner_token"),
+          accepted.id,
+          :accepted
+        )
+
+      publish_conn = post(recycle(created_conn), ~p"/packets/review/#{invite_token}/publish")
+      assert redirected_to(publish_conn) == ~p"/"
+
+      review_html =
+        publish_conn
+        |> recycle()
+        |> get(~p"/packets/review/#{invite_token}")
+        |> html_response(200)
+
+      assert review_html =~ ~s(id="packet-published-review")
+      assert review_html =~ "Packet already published"
+      assert review_html =~ "Rosa Replay"
+      assert review_html =~ ~s(id="owner-review-published")
+      assert review_html =~ ~s(id="packet-published-map-link")
+      refute review_html =~ ~s(id="packet-publish-form")
+      refute review_html =~ "Accept into draft"
+      refute review_html =~ "Exclude before publish"
+
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Team, :count) == 1
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Person, :count) == 1
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Membership, :count) == 1
+    end
+
+    test "published invite replay shows map continuation and cannot append duplicate submissions",
+         %{conn: conn} do
+      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Replay invite team"}})
+      draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
+      created_conn = get(recycle(create_conn), redirected_to(create_conn))
+      invite_token = session_invite_token(created_conn, draft)
+
+      recipient_conn =
+        post(build_conn(), ~p"/packets/invite/#{invite_token}/submission", %{
+          "submission" => %{
+            "display_name" => "Invite Replay",
+            "location_country" => "PT",
+            "location_label" => "Lisbon",
+            "timezone" => "Europe/Lisbon",
+            "work_start" => "09:00",
+            "work_end" => "17:00"
+          }
+        })
+
+      assert redirected_to(recipient_conn) == ~p"/packets/invite/#{invite_token}"
+      [member] = Drafts.list_draft_members(draft)
+
+      {:ok, _accepted_member} =
+        Drafts.review_packet_member(
+          draft,
+          Plug.Conn.get_session(created_conn, "zonely_packet_created_owner_token"),
+          member.id,
+          :accepted
+        )
+
+      publish_conn = post(recycle(created_conn), ~p"/packets/review/#{invite_token}/publish")
+      assert redirected_to(publish_conn) == ~p"/"
+
+      invite_html =
+        recipient_conn
+        |> recycle()
+        |> get(~p"/packets/invite/#{invite_token}")
+        |> html_response(200)
+
+      assert invite_html =~ ~s(id="packet-published-invite")
+      assert invite_html =~ "Packet already published"
+      assert invite_html =~ "Invite Replay"
+      assert invite_html =~ ~s(id="packet-published-map-link")
+      refute invite_html =~ ~s(id="packet-submission-form")
+      refute invite_html =~ "Save pending submission"
+      refute invite_html =~ "Accept into draft"
+
+      unavailable_html =
+        recipient_conn
+        |> recycle()
+        |> post(~p"/packets/invite/#{invite_token}/submission", %{
+          "submission" => %{"display_name" => "Duplicate Replay"}
+        })
+        |> html_response(404)
+
+      assert unavailable_html =~ "Packet invite unavailable"
+      assert length(Drafts.list_draft_members(draft)) == 1
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Team, :count) == 1
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Person, :count) == 1
+      assert Zonely.Repo.aggregate(Zonely.Accounts.Membership, :count) == 1
+    end
+
     test "owner review blocks publish for incomplete accepted members", %{conn: conn} do
       create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Blocked publish team"}})
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)

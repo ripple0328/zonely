@@ -47,10 +47,22 @@ defmodule ZonelyWeb.PacketController do
   end
 
   def review(conn, %{"invite_token" => invite_token}) do
-    with %TeamDraft{} = draft <- Drafts.get_open_packet_by_invite_token(invite_token),
+    with %TeamDraft{} = draft <- Drafts.get_draft_by_invite_token(invite_token),
          owner_token when is_binary(owner_token) <- get_packet_owner_token(conn, invite_token),
          true <- Drafts.owner_token_matches?(draft, owner_token) do
-      html(conn, owner_review_html(draft, invite_token, Drafts.packet_review_summary(draft)))
+      case draft.status do
+        :draft ->
+          html(conn, owner_review_html(draft, invite_token, Drafts.packet_review_summary(draft)))
+
+        :published ->
+          html(
+            conn,
+            published_review_html(draft, invite_token, Drafts.packet_review_summary(draft))
+          )
+
+        _status ->
+          review_unavailable(conn)
+      end
     else
       _error -> review_unavailable(conn)
     end
@@ -107,12 +119,18 @@ defmodule ZonelyWeb.PacketController do
   end
 
   def invite(conn, %{"invite_token" => invite_token}) do
-    case Drafts.get_open_packet_by_invite_token(invite_token) do
-      %TeamDraft{} = draft ->
+    case Drafts.get_draft_by_invite_token(invite_token) do
+      %TeamDraft{status: :draft} = draft ->
         submission = own_submission(conn, draft, invite_token)
         html(conn, invite_html(draft, invite_token, submission))
 
+      %TeamDraft{status: :published} = draft ->
+        html(conn, published_invite_html(draft, Drafts.packet_review_summary(draft)))
+
       nil ->
+        packet_unavailable(conn)
+
+      %TeamDraft{} ->
         packet_unavailable(conn)
     end
   end
@@ -300,6 +318,20 @@ defmodule ZonelyWeb.PacketController do
     """
   end
 
+  defp published_review_html(%TeamDraft{} = draft, invite_token, summary) do
+    """
+    <main id="packet-published-review" class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
+      <section class="mx-auto max-w-4xl rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6">
+        <p class="text-sm font-medium uppercase tracking-[0.18em] text-[#1F8A70]">Published packet</p>
+        <h1>#{escape(draft.name)}</h1>
+        <p id="packet-published-context">Packet already published. Reopening this owner review link resumes the existing published roster without creating another team, person, membership, or marker.</p>
+        <p><a id="packet-published-map-link" href="/">Open published team map</a></p>
+        #{review_section_html(invite_token, "owner-review-published", "Published roster", Map.fetch!(summary, :published))}
+      </section>
+    </main>
+    """
+  end
+
   defp publish_action_html(invite_token, summary) do
     accepted_count = summary |> Map.fetch!(:accepted) |> length()
 
@@ -407,6 +439,33 @@ defmodule ZonelyWeb.PacketController do
       </section>
     </main>
     """
+  end
+
+  defp published_invite_html(%TeamDraft{} = draft, summary) do
+    """
+    <main id="packet-published-invite" class="min-h-[100dvh] bg-[#F7F8F6] px-6 py-8 text-[#161A1D]">
+      <section class="mx-auto max-w-2xl rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-6">
+        <p class="text-sm font-medium uppercase tracking-[0.18em] text-[#1F8A70]">Published packet</p>
+        <h1>#{escape(draft.name)}</h1>
+        <p id="packet-published-invite-context">Packet already published. This invite is no longer accepting submissions; use the existing team map instead.</p>
+        <p><a id="packet-published-map-link" href="/">Open published team map</a></p>
+        <section id="packet-published-roster">
+          <h2>Published roster</h2>
+          #{published_member_names_html(Map.fetch!(summary, :published))}
+        </section>
+      </section>
+    </main>
+    """
+  end
+
+  defp published_member_names_html([]), do: ~s(<p class="review-empty">No published entries.</p>)
+
+  defp published_member_names_html(members) do
+    members
+    |> Enum.map(fn %TeamDraftMember{} = member ->
+      ~s(<p class="published-member-name">#{escape(member.display_name)}</p>)
+    end)
+    |> Enum.join("")
   end
 
   defp own_submission_html(%TeamDraftMember{} = member) do
