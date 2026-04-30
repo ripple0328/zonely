@@ -38,7 +38,7 @@ defmodule ZonelyWeb.PacketController do
          true <- Drafts.owner_token_matches?(draft, owner_token),
          true <- Drafts.get_draft_by_invite_token(invite_token) == draft do
       invite_path = ~p"/packets/invite/#{invite_token}"
-      invite_url = url(~p"/packets/invite/#{invite_token}")
+      invite_url = packet_invite_url(invite_path)
 
       html(conn, created_packet_html(draft, invite_token, invite_path, invite_url))
     else
@@ -374,6 +374,18 @@ defmodule ZonelyWeb.PacketController do
       <a href="/packets/invite/#{escape(invite_token)}">Return to packet invite</a>
     </main>
     """
+  end
+
+  defp packet_invite_url(invite_path) do
+    case Application.get_env(:zonely, :packet_invite_origin) do
+      origin when is_binary(origin) and origin != "" ->
+        origin
+        |> String.trim_trailing("/")
+        |> Kernel.<>(invite_path)
+
+      _origin ->
+        ZonelyWeb.Endpoint.url() <> invite_path
+    end
   end
 
   defp error_html(nil), do: ""

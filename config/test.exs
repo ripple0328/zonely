@@ -22,4 +22,6 @@ config :scout_apm, monitor: false
 
 config :zonely, :posthog_browser, enabled: false
 
+config :zonely, :packet_invite_origin, "https://zonely.localhost"
+
 config :phoenix, :plug_init_mode, :runtime

@@ -26,6 +26,8 @@ defmodule ZonelyWeb.Packets.PacketFlowTest do
       refute html =~ draft.owner_token_hash
       refute html =~ draft.invite_token_hash
       assert html =~ "/packets/invite/"
+      assert html =~ ~r"https://zonely\.localhost/packets/invite/[A-Za-z0-9_-]+"
+      refute html =~ "http://localhost"
     end
 
     test "raw draft id created URLs cannot expose owner packet details", %{conn: conn} do
