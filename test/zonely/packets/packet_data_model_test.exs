@@ -53,5 +53,99 @@ defmodule Zonely.Packets.PacketDataModelTest do
       assert Drafts.get_member_by_submission_token(draft, second_token).display_name == "Bob"
       assert length(Drafts.list_draft_members(draft)) == 2
     end
+
+    test "fresh invite submissions create distinct pending identities" do
+      {:ok, %{invite_token: invite_token}} = Drafts.create_team_draft(%{name: "Pass-on packet"})
+
+      assert {:ok, %{member: alice, submission_token: alice_token}} =
+               Drafts.create_packet_submission(invite_token, %{display_name: "Alice"})
+
+      assert {:ok, %{member: bob, submission_token: bob_token}} =
+               Drafts.create_packet_submission(invite_token, %{display_name: "Bob"})
+
+      assert alice.id != bob.id
+      assert alice_token != bob_token
+      assert alice.review_status == :pending
+      assert bob.review_status == :pending
+    end
+
+    test "owner and invite tokens cannot be reused as recipient submission tokens" do
+      {:ok, %{draft: draft, owner_token: owner_token, invite_token: invite_token}} =
+        Drafts.create_team_draft(%{name: "Authority split"})
+
+      assert {:error, :unauthorized} =
+               Drafts.upsert_submission_member(draft, owner_token, %{
+                 display_name: "Owner as recipient"
+               })
+
+      assert {:error, :unauthorized} =
+               Drafts.upsert_submission_member(draft, invite_token, %{
+                 display_name: "Invite as owner"
+               })
+
+      assert Drafts.list_draft_members(draft) == []
+    end
+
+    test "packet submission updates require valid invite and own pending submission token" do
+      {:ok, %{draft: draft, owner_token: owner_token, invite_token: invite_token}} =
+        Drafts.create_team_draft(%{name: "Bound packet"})
+
+      {:ok, %{member: member, submission_token: submission_token}} =
+        Drafts.create_packet_submission(invite_token, %{display_name: "Recipient"})
+
+      assert {:ok, updated} =
+               Drafts.update_packet_submission(invite_token, submission_token, %{
+                 display_name: "Recipient Updated"
+               })
+
+      assert updated.id == member.id
+      assert updated.display_name == "Recipient Updated"
+
+      assert {:error, :not_found} =
+               Drafts.update_packet_submission("not-a-token", submission_token, %{
+                 display_name: "Bad invite"
+               })
+
+      assert {:error, :unauthorized} =
+               Drafts.update_packet_submission(invite_token, owner_token, %{
+                 display_name: "Owner token swap"
+               })
+
+      assert Drafts.get_member_by_submission_token(draft, submission_token).display_name ==
+               "Recipient Updated"
+    end
+
+    test "packet submission visibility separates public card fields from team-only fields" do
+      {:ok, %{invite_token: invite_token}} = Drafts.create_team_draft(%{name: "Privacy packet"})
+
+      {:ok, %{member: member}} =
+        Drafts.create_packet_submission(invite_token, %{
+          display_name: "Mina Park",
+          pronouns: "she/her",
+          role: "Engineering",
+          location_country: "KR",
+          location_label: "Seoul",
+          timezone: "Asia/Seoul",
+          work_start: ~T[09:00:00],
+          work_end: ~T[17:00:00]
+        })
+
+      assert %{
+               public_card: %{display_name: "Mina Park", pronouns: "she/her"},
+               team_only: %{
+                 role: "Engineering",
+                 location_country: "KR",
+                 location_label: "Seoul",
+                 timezone: "Asia/Seoul"
+               }
+             } = Drafts.packet_submission_visibility(member)
+    end
+
+    test "invalid invite token cannot create packet submission state" do
+      assert {:error, :invalid_invite_token} =
+               Drafts.create_packet_submission("invalid-token", %{display_name: "Nope"})
+
+      assert Repo.aggregate(Zonely.Drafts.TeamDraftMember, :count) == 0
+    end
   end
 end

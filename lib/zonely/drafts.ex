@@ -76,6 +76,15 @@ defmodule Zonely.Drafts do
 
   def get_draft_by_invite_token(_token), do: nil
 
+  def get_open_packet_by_invite_token(token) when is_binary(token) do
+    case get_draft_by_invite_token(token) do
+      %TeamDraft{status: :draft} = draft -> draft
+      _draft -> nil
+    end
+  end
+
+  def get_open_packet_by_invite_token(_token), do: nil
+
   def get_draft_by_source_idempotency_key(key) when is_binary(key) do
     Repo.get_by(TeamDraft, source_idempotency_key: key)
   end
@@ -134,6 +143,17 @@ defmodule Zonely.Drafts do
     end
   end
 
+  def create_packet_submission(invite_token, attrs \\ %{})
+
+  def create_packet_submission(invite_token, attrs) when is_binary(invite_token) do
+    case get_open_packet_by_invite_token(invite_token) do
+      %TeamDraft{} = draft -> create_submission_member(draft, packet_submission_attrs(attrs))
+      nil -> {:error, :invalid_invite_token}
+    end
+  end
+
+  def create_packet_submission(_invite_token, _attrs), do: {:error, :invalid_invite_token}
+
   def get_member_by_submission_token(%TeamDraft{} = draft, token) when is_binary(token) do
     Repo.get_by(TeamDraftMember,
       team_draft_id: draft.id,
@@ -145,6 +165,61 @@ defmodule Zonely.Drafts do
 
   def upsert_submission_member(%TeamDraft{} = draft, submission_token, attrs)
       when is_binary(submission_token) do
+    if reserved_packet_token?(draft, submission_token) do
+      {:error, :unauthorized}
+    else
+      do_upsert_submission_member(draft, submission_token, attrs)
+    end
+  end
+
+  def upsert_submission_member(%TeamDraft{}, _submission_token, _attrs),
+    do: {:error, :unauthorized}
+
+  def update_packet_submission(invite_token, submission_token, attrs)
+      when is_binary(invite_token) and is_binary(submission_token) do
+    with %TeamDraft{} = draft <- get_open_packet_by_invite_token(invite_token),
+         false <- reserved_packet_token?(draft, submission_token),
+         %TeamDraftMember{} = member <- get_member_by_submission_token(draft, submission_token),
+         :pending <- member.review_status do
+      member
+      |> TeamDraftMember.changeset(packet_submission_attrs(attrs))
+      |> Repo.update()
+    else
+      nil ->
+        {:error, :not_found}
+
+      true ->
+        {:error, :unauthorized}
+
+      status when status in [:accepted, :rejected, :excluded, :published] ->
+        {:error, :not_pending}
+    end
+  end
+
+  def update_packet_submission(_invite_token, _submission_token, _attrs), do: {:error, :not_found}
+
+  def packet_submission_visibility(%TeamDraftMember{} = member) do
+    %{
+      public_card: %{
+        display_name: member.display_name,
+        pronouns: member.pronouns,
+        name_variants: member.name_variants,
+        pronunciation: member.pronunciation
+      },
+      team_only: %{
+        role: member.role,
+        location_country: member.location_country,
+        location_label: member.location_label,
+        timezone: member.timezone,
+        work_start: member.work_start,
+        work_end: member.work_end,
+        latitude: member.latitude,
+        longitude: member.longitude
+      }
+    }
+  end
+
+  defp do_upsert_submission_member(%TeamDraft{} = draft, submission_token, attrs) do
     attrs =
       attrs
       |> normalize_attrs()
@@ -162,6 +237,11 @@ defmodule Zonely.Drafts do
         |> TeamDraftMember.changeset(attrs)
         |> Repo.update()
     end
+  end
+
+  defp reserved_packet_token?(%TeamDraft{} = draft, token) do
+    hash = hash_token(token)
+    hash in [draft.owner_token_hash, draft.invite_token_hash]
   end
 
   def update_member_review_status(%TeamDraftMember{} = member, review_status)
@@ -325,6 +405,30 @@ defmodule Zonely.Drafts do
     attrs
     |> normalize_attrs()
     |> Map.take([:location_country, :location_label, :timezone, :work_start, :work_end])
+  end
+
+  defp packet_submission_attrs(attrs) do
+    attrs
+    |> normalize_attrs()
+    |> Map.take([
+      :display_name,
+      :pronouns,
+      :role,
+      :name_variants,
+      :pronunciation,
+      :location_country,
+      :location_label,
+      :latitude,
+      :longitude,
+      :timezone,
+      :work_start,
+      :work_end,
+      :source_kind,
+      :source_reference,
+      :source_idempotency_key,
+      :source_payload
+    ])
+    |> Map.put_new(:review_status, :pending)
   end
 
   defp maybe_put(map, _key, nil), do: map

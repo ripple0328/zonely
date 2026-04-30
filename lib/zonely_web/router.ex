@@ -37,6 +37,11 @@ defmodule ZonelyWeb.Router do
     get("/imports/saymyname/card", ImportController, :say_my_name_card)
     get("/imports/saymyname/list", ImportController, :say_my_name_list)
     live("/imports/:id", ImportLive, :show)
+    get("/packets/new", PacketController, :new)
+    post("/packets", PacketController, :create)
+    get("/packets/:id/created", PacketController, :created)
+    get("/packets/invite/:invite_token", PacketController, :invite)
+    post("/packets/invite/:invite_token/submission", PacketController, :submit)
   end
 
   if Application.compile_env(:zonely, :dev_routes) do
