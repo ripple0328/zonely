@@ -68,6 +68,7 @@ npm-debug.log
 
 # Log files
 *.log
+.playwright-mcp/
 
 # Temporary development data
 /dev/data/
