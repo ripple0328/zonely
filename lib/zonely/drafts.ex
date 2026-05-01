@@ -7,6 +7,7 @@ defmodule Zonely.Drafts do
 
   alias Zonely.Drafts.{TeamDraft, TeamDraftMember}
   alias Zonely.Accounts
+  alias Zonely.Geography
   alias Zonely.Repo
 
   @token_bytes 32
@@ -43,6 +44,8 @@ defmodule Zonely.Drafts do
     "team_draft_id" => :team_draft_id,
     "timezone" => :timezone,
     "work_end" => :work_end,
+    "work_end_minutes" => :work_end_minutes,
+    "work_start_minutes" => :work_start_minutes,
     "work_start" => :work_start
   }
 
@@ -332,6 +335,37 @@ defmodule Zonely.Drafts do
 
   def publish_packet(%TeamDraft{}, _owner_token), do: {:error, :unauthorized}
 
+  def publish_import(%TeamDraft{} = draft, owner_token) when is_binary(owner_token) do
+    Repo.transaction(fn ->
+      draft = lock_team_draft!(draft)
+
+      if owner_token_matches?(draft, owner_token) do
+        draft
+        |> list_draft_members()
+        |> Enum.filter(&(&1.completion_status == :complete))
+        |> case do
+          [] ->
+            Repo.rollback(:no_complete_members)
+
+          complete_members ->
+            Enum.each(complete_members, fn member ->
+              {:ok, _member} = update_member_review_status(member, :accepted)
+            end)
+
+            do_publish_packet(draft)
+        end
+      else
+        Repo.rollback(:unauthorized)
+      end
+    end)
+    |> case do
+      {:ok, result} -> {:ok, result}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def publish_import(%TeamDraft{}, _owner_token), do: {:error, :unauthorized}
+
   defp do_publish_packet(%TeamDraft{} = draft) do
     members = list_draft_members(draft)
     accepted_members = filter_review_status(members, :accepted)
@@ -580,12 +614,16 @@ defmodule Zonely.Drafts do
   defp completion_attrs(attrs) do
     attrs
     |> normalize_attrs()
+    |> normalize_location_country()
+    |> normalize_work_window_minutes()
     |> Map.take([:location_country, :location_label, :timezone, :work_start, :work_end])
   end
 
   defp packet_submission_attrs(attrs) do
     attrs
     |> normalize_attrs()
+    |> normalize_location_country()
+    |> normalize_work_window_minutes()
     |> Map.take([
       :display_name,
       :pronouns,
@@ -606,6 +644,53 @@ defmodule Zonely.Drafts do
     ])
     |> Map.put_new(:review_status, :pending)
   end
+
+  defp normalize_location_country(attrs) do
+    case Map.fetch(attrs, :location_country) do
+      {:ok, value} -> Map.put(attrs, :location_country, Geography.country_code_from_input(value))
+      :error -> attrs
+    end
+  end
+
+  defp normalize_work_window_minutes(attrs) do
+    attrs
+    |> put_time_from_minutes(:work_start, :work_start_minutes)
+    |> put_time_from_minutes(:work_end, :work_end_minutes)
+  end
+
+  defp put_time_from_minutes(attrs, time_key, minutes_key) do
+    case Map.get(attrs, minutes_key) do
+      nil ->
+        attrs
+
+      "" ->
+        Map.delete(attrs, minutes_key)
+
+      minutes ->
+        case minutes_to_time(minutes) do
+          {:ok, time} ->
+            attrs
+            |> Map.put(time_key, time)
+            |> Map.delete(minutes_key)
+
+          :error ->
+            Map.delete(attrs, minutes_key)
+        end
+    end
+  end
+
+  defp minutes_to_time(minutes) when is_binary(minutes) do
+    case Integer.parse(minutes) do
+      {value, ""} -> minutes_to_time(value)
+      _value -> :error
+    end
+  end
+
+  defp minutes_to_time(minutes) when is_integer(minutes) and minutes >= 0 and minutes <= 1439 do
+    Time.new(div(minutes, 60), rem(minutes, 60), 0)
+  end
+
+  defp minutes_to_time(_minutes), do: :error
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)

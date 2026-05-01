@@ -2,6 +2,8 @@ defmodule ZonelyWeb.HomeLiveTest do
   use ZonelyWeb.ConnCase, async: false
 
   alias Zonely.Accounts
+  alias Zonely.Drafts.TeamDraft
+  alias Zonely.Repo
 
   setup do
     previous_request_fun = Application.get_env(:zonely, :say_my_name_share_request_fun)
@@ -83,6 +85,150 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert html =~ "&quot;status&quot;:&quot;"
   end
 
+  test "map can scope people by active team and switch teams", %{conn: conn} do
+    {:ok, product_team} = Accounts.create_team(%{name: "Product"})
+    {:ok, design_team} = Accounts.create_team(%{name: "Design"})
+    {:ok, product_user} = create_person!("Avery Product", "US", "America/New_York")
+    {:ok, design_user} = create_person!("Mina Design", "PT", "Europe/Lisbon")
+
+    {:ok, _membership} =
+      Accounts.create_membership(%{team_id: product_team.id, person_id: product_user.id})
+
+    {:ok, _membership} =
+      Accounts.create_membership(%{team_id: design_team.id, person_id: design_user.id})
+
+    {:ok, view, _html} = live(conn, ~p"/?team=#{product_team.id}")
+
+    assert has_element?(view, "#toggle-team-switcher .team-switcher-label", "Product")
+    assert has_element?(view, "#team-scope-title", "People")
+    assert has_element?(view, "#team-orbit-user-#{product_user.id}", "Avery Product")
+    refute has_element?(view, "#team-packet-invite")
+    refute has_element?(view, "#team-orbit-user-#{design_user.id}")
+
+    view
+    |> element("#toggle-team-switcher")
+    |> render_click()
+
+    assert has_element?(view, "#team-switcher-menu:not([hidden])")
+    assert has_element?(view, "#team-orbit-panel[hidden]")
+    assert has_element?(view, "#create-new-team[href='/teams/new?team_id=#{product_team.id}']")
+
+    view
+    |> element("#create-new-team")
+    |> render_click()
+
+    assert_patch(view, ~p"/teams/new?team_id=#{product_team.id}")
+    assert has_element?(view, "#team-create-modal")
+    assert has_element?(view, "#team-create-form[phx-submit='create_team']")
+    assert has_element?(view, "#team-name")
+    refute has_element?(view, "#team-invite-modal")
+
+    view
+    |> element("#team-create-modal .decision-close-button")
+    |> render_click()
+
+    assert_patch(view, ~p"/?team=#{product_team.id}")
+    refute has_element?(view, "#team-create-modal")
+
+    view
+    |> element("#toggle-team-switcher")
+    |> render_click()
+
+    view
+    |> element("#team-switcher-option-#{design_team.id}")
+    |> render_click()
+
+    assert_patch(view, ~p"/?team=#{design_team.id}")
+    assert_push_event(view, "team_marker_states", %{markers: [_marker]})
+    assert has_element?(view, "#team-switcher-menu[hidden]")
+    assert has_element?(view, "#team-orbit-panel:not([hidden])")
+    assert has_element?(view, "#toggle-team-switcher .team-switcher-label", "Design")
+    assert has_element?(view, "#team-scope-title", "People")
+    assert has_element?(view, "#team-orbit-user-#{design_user.id}", "Mina Design")
+    refute has_element?(view, "#team-orbit-user-#{product_user.id}")
+  end
+
+  test "empty active team shows onboarding actions targeted to that team", %{conn: conn} do
+    {:ok, team} = Accounts.create_team(%{name: "New Launch Team"})
+
+    {:ok, view, _html} = live(conn, ~p"/?team=#{team.id}")
+
+    assert has_element?(view, "#toggle-team-switcher .team-switcher-label", "New Launch Team")
+    assert has_element?(view, "#team-scope-title", "People")
+    assert has_element?(view, "#team-onboarding-panel")
+    assert has_element?(view, "#team-orbit-empty", "No teammates yet.")
+    refute has_element?(view, "#team-orbit-empty h3")
+    refute has_element?(view, "#team-orbit-empty", "New Launch Team")
+    assert has_element?(view, "#invite-team-members[href='/team-invites/new?team_id=#{team.id}']")
+    assert has_element?(view, "#invite-team-members", "Invite people")
+
+    view
+    |> element("#invite-team-members")
+    |> render_click()
+
+    assert_patch(view, ~p"/team-invites/new?team_id=#{team.id}")
+    assert has_element?(view, "#team-invite-modal")
+    assert has_element?(view, "#packet-name[value='New Launch Team']")
+
+    assert has_element?(
+             view,
+             "#packet-create-form input[name='packet[published_team_id]'][value='#{team.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#saymyname-import-form[action='/imports/saymyname'] input[name='team_id'][value='#{team.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#saymyname-import-form input[name='url'][placeholder='Import person/team from SayMyName'][aria-label='SayMyName person or team URL']"
+           )
+
+    assert has_element?(
+             view,
+             "#saymyname-import-form button[aria-label='Import person/team from SayMyName'] .hero-arrow-right-on-rectangle"
+           )
+
+    refute has_element?(view, "#saymyname-list-import-form")
+    refute has_element?(view, "#saymyname-card-import-form")
+  end
+
+  test "creating a team from the switcher selects the empty team before inviting people", %{
+    conn: conn
+  } do
+    {:ok, product_team} = Accounts.create_team(%{name: "Product"})
+    {:ok, _product_user} = create_person!("Avery Product", "US", "America/New_York")
+
+    {:ok, view, _html} = live(conn, ~p"/?team=#{product_team.id}")
+
+    view
+    |> element("#toggle-team-switcher")
+    |> render_click()
+
+    view
+    |> element("#create-new-team")
+    |> render_click()
+
+    assert_patch(view, ~p"/teams/new?team_id=#{product_team.id}")
+    assert has_element?(view, "#team-create-modal")
+
+    view
+    |> form("#team-create-form", team: %{name: "Growth"})
+    |> render_submit()
+
+    team = Accounts.list_teams() |> Enum.find(&(&1.name == "Growth"))
+
+    assert team
+    assert_patch(view, ~p"/?team=#{team.id}")
+    assert has_element?(view, "#toggle-team-switcher .team-switcher-label", "Growth")
+    assert has_element?(view, "#team-scope-title", "People")
+    assert has_element?(view, "#team-onboarding-panel")
+    assert has_element?(view, "#invite-team-members[href='/team-invites/new?team_id=#{team.id}']")
+    assert has_element?(view, "#saymyname-import-form input[name='team_id'][value='#{team.id}']")
+    refute has_element?(view, "#team-create-modal")
+  end
+
   test "map payload omits coordinate-less published people instead of inventing markers", %{
     conn: conn
   } do
@@ -153,6 +299,35 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert has_element?(view, "#toggle-team-orbit[aria-expanded='true']")
     assert has_element?(view, "#team-orbit-panel:not([hidden])")
     refute has_element?(view, "#now-context-strip")
+  end
+
+  test "team switcher and people panel are mutually exclusive", %{conn: conn} do
+    {:ok, _team} = Accounts.create_team(%{name: "Operations"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#toggle-team-switcher[aria-expanded='false']")
+    assert has_element?(view, "#team-switcher-menu[hidden]")
+    assert has_element?(view, "#team-orbit-panel:not([hidden])")
+
+    view
+    |> element("#toggle-team-switcher")
+    |> render_click()
+
+    assert has_element?(view, "#toggle-team-switcher[aria-expanded='true']")
+    assert has_element?(view, "#team-switcher-menu:not([hidden])")
+    assert has_element?(view, "#toggle-team-orbit[aria-expanded='false']")
+    assert has_element?(view, "#team-orbit-panel[hidden]")
+
+    view
+    |> element("#toggle-team-orbit")
+    |> render_click()
+
+    assert_push_event(view, "focus_team_orbit", %{})
+    assert has_element?(view, "#toggle-team-switcher[aria-expanded='false']")
+    assert has_element?(view, "#team-switcher-menu[hidden]")
+    assert has_element?(view, "#toggle-team-orbit[aria-expanded='true']")
+    assert has_element?(view, "#team-orbit-panel:not([hidden])")
   end
 
   test "team orbit sorts reachable people first then by next reachable time", %{conn: conn} do
@@ -1167,10 +1342,11 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert render(view) =~ "Share link copied."
   end
 
-  test "team orbit can create a SayMyName name-list share", %{conn: conn} do
-    System.put_env("PRONUNCIATION_API_KEY", "test-share-key")
+  test "team orbit creates a Zonely team invite share", %{conn: conn} do
+    conn = %{conn | scheme: :http, host: "zonely.localhost", port: 4319}
+    {:ok, team} = Accounts.create_team(%{name: "Launch Team"})
 
-    {:ok, _user} =
+    {:ok, alice} =
       Accounts.create_person(%{
         name: "Alice Remote",
         role: "Frontend Developer",
@@ -1182,71 +1358,36 @@ defmodule ZonelyWeb.HomeLiveTest do
         longitude: Decimal.new("-74.0060")
       })
 
-    {:ok, _ahmed} =
-      Accounts.create_person(%{
-        name: "Ahmed Hassan",
-        name_native: "أحمد حسن",
-        native_language: "ar-EG",
-        role: "Security Engineer",
-        timezone: "Africa/Cairo",
-        country: "EG",
-        work_start: ~T[09:00:00],
-        work_end: ~T[17:00:00],
-        latitude: Decimal.new("30.0444"),
-        longitude: Decimal.new("31.2357")
-      })
-
     Application.put_env(:zonely, :say_my_name_share_request_fun, fn opts ->
-      assert opts[:method] == :post
-      assert opts[:url] == "https://saymyname.qingbo.us/api/v1/name-list-shares"
-      assert opts[:headers] == [{"authorization", "Bearer test-share-key"}]
-      assert opts[:json]["version"] == "shared_profile_v1"
-      assert opts[:json]["team"] == %{"name" => "Zonely Team"}
-
-      assert [
-               %{"person" => %{"display_name" => "Alice Remote"}},
-               %{
-                 "person" => %{
-                   "display_name" => "Ahmed Hassan",
-                   "name_variants" => [
-                     %{"lang" => "en-US", "text" => "Ahmed Hassan"},
-                     %{"lang" => "ar-SA", "text" => "أحمد حسن"}
-                   ]
-                 }
-               }
-             ] = opts[:json]["memberships"]
-
-      {:ok,
-       %{
-         status: 201,
-         body: %{
-           "share_token" => "list-token",
-           "share_url" => "https://saymyname.qingbo.us/list/list-token",
-           "preview_image_url" => "https://saymyname.qingbo.us/og/list/list-token?smn_pv=1"
-         }
-       }}
+      flunk("team invite sharing should stay inside Zonely, got request: #{inspect(opts)}")
     end)
 
-    {:ok, view, _html} = live(conn, ~p"/")
+    {:ok, _membership} = Accounts.create_membership(%{team_id: team.id, person_id: alice.id})
+
+    {:ok, view, _html} = live(conn, ~p"/?team=#{team.id}")
 
     view
-    |> element("#share-team-names")
+    |> element("#share-team")
     |> render_click()
 
     assert has_element?(view, "#share-preview-modal")
-    assert has_element?(view, "#share-preview-modal", "Name list preview")
-    assert has_element?(view, "#share-preview-modal", "2 people")
-
-    assert has_element?(
-             view,
-             ~s|img[src="https://saymyname.qingbo.us/og/list/list-token?smn_pv=1"]|
-           )
-
+    assert has_element?(view, "#share-preview-modal", "Zonely team invite")
+    assert has_element?(view, "#share-preview-modal", "Launch Team")
     assert has_element?(view, "#share-preview-copy")
 
+    team_id = team.id
+
+    assert %{
+             name: "Launch Team",
+             published_team_id: ^team_id,
+             source_kind: "zonely_team_invite"
+           } = Repo.one!(TeamDraft)
+
     html = render(view)
-    assert html =~ "https://saymyname.qingbo.us/list/list-token"
-    assert html =~ "data-clipboard-text=\"https://saymyname.qingbo.us/list/list-token\""
+    assert html =~ ~r/http:\/\/zonely\.localhost:4319\/team-invites\/invite\/[A-Za-z0-9_-]+/
+    assert html =~ ~s(data-clipboard-text="http://zonely.localhost:4319/team-invites/invite/)
+    refute html =~ "Name list preview"
+    refute html =~ "saymyname.qingbo.us"
 
     view
     |> element("#share-preview-copy")
@@ -1259,5 +1400,18 @@ defmodule ZonelyWeb.HomeLiveTest do
   test "directory route is removed", %{conn: conn} do
     conn = get(conn, "/directory")
     assert response(conn, 404)
+  end
+
+  defp create_person!(name, country, timezone) do
+    Accounts.create_person(%{
+      name: name,
+      role: "Team Member",
+      timezone: timezone,
+      country: country,
+      work_start: ~T[09:00:00],
+      work_end: ~T[17:00:00],
+      latitude: Decimal.new("38.7223"),
+      longitude: Decimal.new("-9.1393")
+    })
   end
 end

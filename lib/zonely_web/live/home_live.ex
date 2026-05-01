@@ -1,9 +1,12 @@
 defmodule ZonelyWeb.HomeLive do
   use ZonelyWeb, :live_view
 
+  alias Phoenix.LiveView.JS
   alias Zonely.Accounts
+  alias Zonely.Accounts.Team
   alias Zonely.Audio
   alias Zonely.AvatarService
+  alias Zonely.Drafts
   alias Zonely.Geography
   alias Zonely.NameProfileContract
   alias Zonely.Reachability
@@ -11,18 +14,23 @@ defmodule ZonelyWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    users = Accounts.list_people()
     live_now = live_now()
 
     {:ok,
      socket
      |> assign(:page_title, "Map")
      |> assign(:active_tab, :map)
-     |> assign(:users, users)
+     |> assign(:users, [])
+     |> assign(:teams, [])
+     |> assign(:active_team, nil)
+     |> assign(:team_member_counts, %{})
+     |> assign(:team_scope_name, "All teammates")
+     |> assign(:team_scope_count, 0)
      |> assign(:live_now, live_now)
      |> assign(:preview_at, nil)
      |> assign(:selected_user_ids, [])
      |> assign(:selected_user, nil)
+     |> assign(:team_switcher_open, false)
      |> assign(:team_orbit_open, true)
      |> assign_effective_time()
      |> assign(:loading_pronunciation, nil)
@@ -30,15 +38,47 @@ defmodule ZonelyWeb.HomeLive do
      |> assign(:name_card_share_urls, %{})
      |> assign(:name_card_share_loading, nil)
      |> assign(:name_card_share_error, nil)
-     |> assign(:team_name_list_share_url, nil)
-     |> assign(:team_name_list_share_loading, false)
-     |> assign(:team_name_list_share_error, nil)
-     |> assign(:share_preview, nil)}
+     |> assign(:team_share_loading, false)
+     |> assign(:team_share_error, nil)
+     |> assign(:current_origin, ZonelyWeb.Endpoint.url())
+     |> assign(:share_preview, nil)
+     |> assign(:team_create_modal_open, false)
+     |> assign(:team_create_form, team_create_form())
+     |> assign(:team_invite_modal_open, false)
+     |> assign(:team_invite_target_team, nil)
+     |> assign(:team_invite_form, to_form(%{}, as: :packet))}
   end
 
   @impl true
-  def handle_params(_params, _uri, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action)}
+  def handle_params(params, uri, socket) do
+    previous_team_id = active_team_id(socket.assigns.active_team)
+
+    socket =
+      socket
+      |> assign(:current_origin, current_origin(uri))
+      |> assign_team_context(params)
+      |> apply_action(socket.assigns.live_action, params)
+
+    team_changed? = team_context_changed?(previous_team_id, socket.assigns.active_team)
+
+    socket =
+      if team_changed? do
+        socket
+        |> assign(:team_switcher_open, false)
+        |> assign(:team_orbit_open, true)
+      else
+        socket
+      end
+
+    socket =
+      if connected?(socket) and
+           team_changed? do
+        push_marker_state_update(socket)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -89,9 +129,50 @@ defmodule ZonelyWeb.HomeLive do
     {:noreply, clear_selection(socket)}
   end
 
+  def handle_event("toggle_team_switcher", _params, socket) do
+    team_switcher_open = !socket.assigns.team_switcher_open
+
+    {:noreply,
+     socket
+     |> assign(:team_switcher_open, team_switcher_open)
+     |> assign(
+       :team_orbit_open,
+       if(team_switcher_open, do: false, else: socket.assigns.team_orbit_open)
+     )}
+  end
+
+  def handle_event("select_team_scope", %{"team_id" => team_id}, socket) do
+    {:noreply,
+     socket
+     |> assign(:team_switcher_open, false)
+     |> assign(:team_orbit_open, true)
+     |> push_patch(to: ~p"/?team=#{team_id}")}
+  end
+
+  def handle_event("create_team", %{"team" => team_params}, socket) do
+    case Accounts.create_team(team_params) do
+      {:ok, team} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Team created.")
+         |> assign(:team_create_modal_open, false)
+         |> push_patch(to: ~p"/?team=#{team.id}")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :team_create_form, to_form(changeset, as: :team))}
+    end
+  end
+
   def handle_event("toggle_team_orbit", _params, socket) do
     team_orbit_open = !socket.assigns.team_orbit_open
-    socket = assign(socket, :team_orbit_open, team_orbit_open)
+
+    socket =
+      socket
+      |> assign(
+        :team_switcher_open,
+        if(team_orbit_open, do: false, else: socket.assigns.team_switcher_open)
+      )
+      |> assign(:team_orbit_open, team_orbit_open)
 
     if team_orbit_open do
       {:noreply, push_event(socket, "focus_team_orbit", %{})}
@@ -168,33 +249,39 @@ defmodule ZonelyWeb.HomeLive do
     end
   end
 
-  def handle_event("share_team_names", _params, socket) do
-    payload = NameProfileContract.from_team("Zonely Team", socket.assigns.users)
+  def handle_event("share_team", _params, socket) do
+    case socket.assigns.active_team do
+      %Team{id: team_id, name: team_name} ->
+        socket =
+          socket
+          |> assign(:team_share_loading, true)
+          |> assign(:team_share_error, nil)
 
-    socket =
-      socket
-      |> assign(:team_name_list_share_loading, true)
-      |> assign(:team_name_list_share_error, nil)
+        attrs = %{
+          name: team_name,
+          published_team_id: team_id,
+          source_kind: "zonely_team_invite"
+        }
 
-    case SayMyNameShareClient.create_list_share("Zonely Team", payload) do
-      {:ok, %{"share_url" => share_url} = body} ->
-        {:noreply,
-         socket
-         |> assign(:team_name_list_share_loading, false)
-         |> assign(:share_preview, share_preview_for_list(payload, share_url, body))
-         |> assign(:team_name_list_share_url, share_url)}
+        case Drafts.create_team_draft(attrs) do
+          {:ok, %{invite_token: invite_token}} ->
+            invite_path = ~p"/team-invites/invite/#{invite_token}"
+            invite_url = absolute_url(socket.assigns.current_origin, invite_path)
 
-      {:ok, _body} ->
-        {:noreply,
-         socket
-         |> assign(:team_name_list_share_loading, false)
-         |> assign(:team_name_list_share_error, "SayMyName did not return a team share URL.")}
+            {:noreply,
+             socket
+             |> assign(:team_share_loading, false)
+             |> assign(:share_preview, share_preview_for_team_invite(team_name, invite_url))}
 
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:team_name_list_share_loading, false)
-         |> assign(:team_name_list_share_error, share_error_message(reason))}
+          {:error, _changeset} ->
+            {:noreply,
+             socket
+             |> assign(:team_share_loading, false)
+             |> assign(:team_share_error, "Could not create a Zonely team invite right now.")}
+        end
+
+      _no_team ->
+        {:noreply, assign(socket, :team_share_error, "Create or select a team before sharing.")}
     end
   end
 
@@ -228,6 +315,52 @@ defmodule ZonelyWeb.HomeLive do
           <div class="map-nav-brand" aria-current="page" aria-label="Zonely">
             <img class="map-nav-logo" src={~p"/images/zonely-logo-transparent.svg"} alt="" aria-hidden="true" />
           </div>
+          <div id="team-switcher" class={["map-team-switcher", @team_switcher_open && "is-open"]}>
+            <button
+              type="button"
+              id="toggle-team-switcher"
+              class="team-switcher-trigger"
+              phx-click="toggle_team_switcher"
+              aria-label="Switch team"
+              aria-haspopup="menu"
+              aria-controls="team-switcher-menu"
+              aria-expanded={to_string(@team_switcher_open)}
+            >
+              <.icon name="hero-building-office-2" class="h-4 w-4" />
+              <span class="team-switcher-label">{@team_scope_name}</span>
+              <span class="team-switcher-count">{@team_scope_count}</span>
+              <.icon name="hero-chevron-down" class="h-3.5 w-3.5" />
+            </button>
+            <div
+              id="team-switcher-menu"
+              class="team-switcher-menu"
+              role="menu"
+              hidden={!@team_switcher_open}
+              aria-hidden={to_string(!@team_switcher_open)}
+            >
+              <button
+                :for={team <- @teams}
+                type="button"
+                id={"team-switcher-option-#{team.id}"}
+                phx-click="select_team_scope"
+                phx-value-team_id={team.id}
+                role="menuitem"
+                class={["team-switcher-option", active_team?(team, @active_team) && "is-active"]}
+              >
+                <span>{team.name}</span>
+                <small>{Map.get(@team_member_counts, team.id, 0)}</small>
+              </button>
+              <.link
+                id="create-new-team"
+                patch={new_team_path(@active_team)}
+                role="menuitem"
+                class="team-switcher-option is-create"
+              >
+                <.icon name="hero-plus" class="h-4 w-4" />
+                <span>New team</span>
+              </.link>
+            </div>
+          </div>
           <button
             type="button"
             id="toggle-team-orbit"
@@ -251,37 +384,83 @@ defmodule ZonelyWeb.HomeLive do
         >
           <div class="orbit-header">
             <div class="orbit-title-block">
-              <h2>Team orbit</h2>
+              <h2 id="team-scope-title">People</h2>
               <p>
-                <span>{length(@users)} teammates</span>
+                <span>{team_member_label(@team_scope_count)}</span>
                 <span aria-hidden="true">·</span>
                 <span>{Reachability.format_count(@reachability.working, orbit_pill_label(@preview_at))}</span>
               </p>
             </div>
-            <button
-              type="button"
-              id="share-team-names"
-              class="orbit-share-button"
-              phx-click="share_team_names"
-              disabled={@team_name_list_share_loading}
-              data-testid="share-team-names"
-              title={if @team_name_list_share_loading, do: "Creating team name list", else: "Share team name list"}
-              aria-label={if @team_name_list_share_loading, do: "Creating team name list", else: "Share team name list"}
-            >
-              <.icon
-                name={if @team_name_list_share_loading, do: "hero-arrow-path", else: "hero-share"}
-                class={if @team_name_list_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
-              />
-            </button>
+            <div class="orbit-header-actions">
+              <button
+                type="button"
+                id="share-team"
+                class="orbit-share-button"
+                phx-click="share_team"
+                disabled={@team_share_loading}
+                data-testid="share-team"
+                title={if @team_share_loading, do: "Creating team invite link", else: "Share team invite link"}
+                aria-label={if @team_share_loading, do: "Creating team invite link", else: "Share team invite link"}
+              >
+                <.icon
+                  name={if @team_share_loading, do: "hero-arrow-path", else: "hero-share"}
+                  class={if @team_share_loading, do: "h-4 w-4 animate-spin", else: "h-4 w-4"}
+                />
+              </button>
+            </div>
           </div>
 
-          <p :if={@team_name_list_share_error} class="name-share-error px-4 pb-2">
-            {@team_name_list_share_error}
+          <p :if={@team_share_error} class="name-share-error px-4 pb-2">
+            {@team_share_error}
           </p>
 
-          <div :if={@orbit_users == []} id="team-orbit-empty" class="orbit-empty">
-            Add teammates with location and work hours to place them on the map.
-          </div>
+          <section :if={@orbit_users == []} id="team-onboarding-panel" class="orbit-onboarding">
+            <p id="team-orbit-empty" class="orbit-empty">{team_empty_message(@active_team)}</p>
+            <div class="orbit-onboarding-actions">
+              <.link
+                :if={@active_team}
+                id="invite-team-members"
+                patch={team_invite_new_path(@active_team)}
+                class="orbit-onboarding-primary"
+              >
+                <.icon name="hero-user-plus" class="h-4 w-4" />
+                <span>Invite people</span>
+              </.link>
+              <.link
+                :if={is_nil(@active_team)}
+                id="create-first-team"
+                patch={new_team_path(nil)}
+                class="orbit-onboarding-primary"
+              >
+                <.icon name="hero-plus" class="h-4 w-4" />
+                <span>Create team</span>
+              </.link>
+              <form
+                id="saymyname-import-form"
+                class="onboarding-import-form"
+                action={~p"/imports/saymyname"}
+                method="get"
+              >
+                <input :if={@active_team} type="hidden" name="team_id" value={@active_team.id} />
+                <input
+                  class="onboarding-field"
+                  name="url"
+                  type="url"
+                  placeholder="Import person/team from SayMyName"
+                  aria-label="SayMyName person or team URL"
+                  required
+                />
+                <button
+                  class="onboarding-submit"
+                  type="submit"
+                  aria-label="Import person/team from SayMyName"
+                  title="Import person/team from SayMyName"
+                >
+                  <.icon name="hero-arrow-right-on-rectangle" class="h-4 w-4" />
+                </button>
+              </form>
+            </div>
+          </section>
 
           <div id="team-orbit-list" class="orbit-list">
             <div
@@ -543,14 +722,290 @@ defmodule ZonelyWeb.HomeLive do
       </div>
 
       <.share_preview_modal preview={@share_preview} />
+      <.team_create_modal
+        :if={@team_create_modal_open}
+        form={@team_create_form}
+        return_team={@active_team}
+      />
+      <.team_invite_modal
+        :if={@team_invite_modal_open}
+        form={@team_invite_form}
+        target_team={@team_invite_target_team}
+      />
     </div>
     """
   end
 
-  defp apply_action(socket, _action) do
+  defp apply_action(socket, :new_team_invite, params) do
+    target_team = team_invite_target_team(params, socket.assigns.teams)
+
+    socket
+    |> assign(:page_title, "Create team invite")
+    |> assign(:active_tab, :map)
+    |> assign(:team_switcher_open, false)
+    |> assign(:team_create_modal_open, false)
+    |> assign(:team_create_form, team_create_form())
+    |> assign(:team_invite_modal_open, true)
+    |> assign(:team_invite_target_team, target_team)
+    |> assign(:team_invite_form, team_invite_form(target_team))
+  end
+
+  defp apply_action(socket, :new_team, _params) do
+    socket
+    |> assign(:page_title, "Create team")
+    |> assign(:active_tab, :map)
+    |> assign(:team_switcher_open, false)
+    |> assign(:team_create_modal_open, true)
+    |> assign(:team_create_form, team_create_form())
+    |> assign(:team_invite_modal_open, false)
+    |> assign(:team_invite_target_team, nil)
+    |> assign(:team_invite_form, team_invite_form(nil))
+  end
+
+  defp apply_action(socket, _action, _params) do
     socket
     |> assign(:page_title, "Map")
     |> assign(:active_tab, :map)
+    |> assign(:team_create_modal_open, false)
+    |> assign(:team_create_form, team_create_form())
+    |> assign(:team_invite_modal_open, false)
+    |> assign(:team_invite_target_team, nil)
+    |> assign(:team_invite_form, team_invite_form(nil))
+  end
+
+  attr(:form, Phoenix.HTML.Form, required: true)
+  attr(:return_team, :map, default: nil)
+
+  defp team_create_modal(assigns) do
+    ~H"""
+    <div
+      id="team-create-modal"
+      class="team-invite-modal team-create-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="team-create-modal-title"
+      phx-window-keydown={JS.patch(team_create_close_path(@return_team))}
+      phx-key="Escape"
+      data-testid="team-create-modal"
+    >
+      <.link
+        patch={team_create_close_path(@return_team)}
+        class="team-invite-backdrop"
+        aria-label="Close team dialog"
+      >
+      </.link>
+
+      <section class="team-invite-panel">
+        <header class="team-invite-header">
+          <div>
+            <p class="context-eyebrow">Team</p>
+            <h2 id="team-create-modal-title">Create a team</h2>
+            <p>Name the team first. Then invite or import people from the People panel.</p>
+          </div>
+          <.link
+            patch={team_create_close_path(@return_team)}
+            class="decision-close-button"
+            aria-label="Close team dialog"
+          >
+            <.icon name="hero-x-mark" class="h-4 w-4" />
+          </.link>
+        </header>
+
+        <.form for={@form} id="team-create-form" phx-submit="create_team" class="team-invite-modal-form">
+          <label for="team-name">Team name</label>
+          <input
+            id="team-name"
+            name={@form[:name].name}
+            type="text"
+            required
+            value={@form[:name].value}
+            autocomplete="organization"
+          />
+          <button id="team-create-submit" type="submit">
+            <.icon name="hero-plus" class="h-4 w-4" />
+            <span>Create team</span>
+          </button>
+        </.form>
+      </section>
+    </div>
+    """
+  end
+
+  attr(:form, Phoenix.HTML.Form, required: true)
+  attr(:target_team, :map, default: nil)
+
+  defp team_invite_modal(assigns) do
+    ~H"""
+    <div
+      id="team-invite-modal"
+      class="team-invite-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="team-invite-modal-title"
+      phx-window-keydown={JS.patch(team_invite_close_path(@target_team))}
+      phx-key="Escape"
+      data-testid="team-invite-modal"
+    >
+      <.link
+        patch={team_invite_close_path(@target_team)}
+        class="team-invite-backdrop"
+        aria-label="Close team invite dialog"
+      >
+      </.link>
+
+      <section class="team-invite-panel">
+        <header class="team-invite-header">
+          <div>
+            <p class="context-eyebrow">Team invite</p>
+            <h2 id="team-invite-modal-title">Create a team invite</h2>
+            <p>Invite teammates to add their location and work hours before publishing them to the map.</p>
+          </div>
+          <.link
+            patch={team_invite_close_path(@target_team)}
+            class="decision-close-button"
+            aria-label="Close team invite dialog"
+          >
+            <.icon name="hero-x-mark" class="h-4 w-4" />
+          </.link>
+        </header>
+
+        <.form for={@form} id="packet-create-form" action={~p"/team-invites"} method="post" class="team-invite-modal-form">
+          <input
+            :if={@target_team}
+            type="hidden"
+            name="packet[published_team_id]"
+            value={@target_team.id}
+          />
+          <label for="packet-name">Team name</label>
+          <input
+            id="packet-name"
+            name={@form[:name].name}
+            type="text"
+            required
+            value={@form[:name].value}
+            autocomplete="organization"
+          />
+          <button id="packet-create-submit" type="submit">
+            <.icon name="hero-user-plus" class="h-4 w-4" />
+            <span>Create invite</span>
+          </button>
+        </.form>
+      </section>
+    </div>
+    """
+  end
+
+  defp assign_team_context(socket, params) do
+    teams = Accounts.list_teams()
+    team_member_counts = Accounts.team_member_counts()
+    active_team = active_team_from_params(params, teams)
+    users = users_for_scope(active_team, teams)
+    selected_user_ids = valid_selected_user_ids(socket.assigns.selected_user_ids, users)
+
+    socket
+    |> assign(:teams, teams)
+    |> assign(:active_team, active_team)
+    |> assign(:team_member_counts, team_member_counts)
+    |> assign(:team_scope_name, team_scope_name(active_team, teams))
+    |> assign(:team_scope_count, length(users))
+    |> assign(:users, users)
+    |> assign(:selected_user_ids, selected_user_ids)
+    |> assign(:selected_user, selected_user(users, selected_user_ids))
+    |> assign_effective_time()
+  end
+
+  defp active_team_from_params(%{"team" => team_id}, teams) when is_binary(team_id) do
+    Enum.find(teams, &(&1.id == team_id)) || List.first(teams)
+  end
+
+  defp active_team_from_params(%{"team_id" => team_id}, teams) when is_binary(team_id) do
+    Enum.find(teams, &(&1.id == team_id)) || List.first(teams)
+  end
+
+  defp active_team_from_params(_params, teams), do: List.first(teams)
+
+  defp active_team_id(%{id: id}), do: id
+  defp active_team_id(_team), do: nil
+
+  defp team_context_changed?(nil, _active_team), do: false
+
+  defp team_context_changed?(previous_team_id, active_team) do
+    previous_team_id != active_team_id(active_team)
+  end
+
+  defp users_for_scope(nil, []), do: Accounts.list_people()
+  defp users_for_scope(nil, _teams), do: []
+  defp users_for_scope(team, _teams), do: Accounts.list_people_for_team(team.id)
+
+  defp team_scope_name(%{name: name}, _teams) when is_binary(name), do: name
+  defp team_scope_name(nil, []), do: "All teammates"
+  defp team_scope_name(nil, _teams), do: "No team selected"
+
+  defp valid_selected_user_ids(selected_user_ids, users) when is_list(selected_user_ids) do
+    user_ids = MapSet.new(users, & &1.id)
+    Enum.filter(selected_user_ids, &MapSet.member?(user_ids, &1))
+  end
+
+  defp active_team?(team, active_team), do: active_team && team.id == active_team.id
+
+  defp team_member_label(1), do: "1 teammate"
+  defp team_member_label(count), do: "#{count} teammates"
+
+  defp team_empty_message(%Team{}),
+    do: "No teammates yet. Invite people or import from SayMyName."
+
+  defp team_empty_message(_team),
+    do: "No teammates yet. Create a team or import from SayMyName."
+
+  defp new_team_path(%{id: id}) when is_binary(id), do: ~p"/teams/new?team_id=#{id}"
+  defp new_team_path(_team), do: ~p"/teams/new"
+
+  defp team_invite_new_path(%{id: id}) when is_binary(id), do: ~p"/team-invites/new?team_id=#{id}"
+  defp team_invite_new_path(_team), do: ~p"/teams/new"
+
+  defp team_invite_target_team(%{"team_id" => team_id}, teams) when is_binary(team_id) do
+    Enum.find(teams, &(&1.id == team_id))
+  end
+
+  defp team_invite_target_team(_params, _teams), do: nil
+
+  defp team_invite_form(%{name: name}) when is_binary(name) do
+    to_form(%{"name" => name}, as: :packet)
+  end
+
+  defp team_invite_form(_team), do: to_form(%{}, as: :packet)
+
+  defp team_create_form do
+    %Team{}
+    |> Accounts.change_team()
+    |> to_form(as: :team)
+  end
+
+  defp team_create_close_path(%{id: id}) when is_binary(id), do: ~p"/?team=#{id}"
+  defp team_create_close_path(_team), do: ~p"/"
+
+  defp team_invite_close_path(%{id: id}) when is_binary(id), do: ~p"/?team=#{id}"
+  defp team_invite_close_path(_team), do: ~p"/"
+
+  defp current_origin(uri) when is_binary(uri) do
+    case URI.parse(uri) do
+      %URI{scheme: scheme, host: host, port: port} when is_binary(scheme) and is_binary(host) ->
+        scheme <> "://" <> host <> origin_port(scheme, port)
+
+      _uri ->
+        ZonelyWeb.Endpoint.url()
+    end
+  end
+
+  defp current_origin(_uri), do: ZonelyWeb.Endpoint.url()
+
+  defp origin_port("http", 80), do: ""
+  defp origin_port("https", 443), do: ""
+  defp origin_port(_scheme, nil), do: ""
+  defp origin_port(_scheme, port), do: ":#{port}"
+
+  defp absolute_url(origin, path) do
+    String.trim_trailing(origin, "/") <> path
   end
 
   defp assign_effective_time(socket) do
@@ -1213,15 +1668,12 @@ defmodule ZonelyWeb.HomeLive do
     }
   end
 
-  defp share_preview_for_list(payload, share_url, response) do
-    memberships = Map.get(payload, "memberships", [])
-
+  defp share_preview_for_team_invite(team_name, invite_url) do
     %{
-      kind: :list,
-      title: get_in(payload, ["team", "name"]) || "Zonely Team",
-      subtitle: "#{length(memberships)} people",
-      url: share_url,
-      preview_image_url: share_preview_image_url(response, share_url)
+      kind: :team_invite,
+      title: team_name,
+      subtitle: "Zonely invite link for teammates to add location and work hours.",
+      url: invite_url
     }
   end
 

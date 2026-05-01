@@ -2009,7 +2009,7 @@ defmodule ZonelyWeb.CoreComponents do
         <header class="share-preview-header">
           <div>
             <p class="context-eyebrow">
-              <%= if @kind == :list, do: "Name list preview", else: "Name card preview" %>
+              <%= share_preview_eyebrow(@kind) %>
             </p>
             <h2 id={"#{@id}-title"}><%= @title %></h2>
             <p><%= @subtitle %></p>
@@ -2035,7 +2035,7 @@ defmodule ZonelyWeb.CoreComponents do
             data-testid="share-preview-image"
           />
           <figcaption :if={!@image_url} class="share-preview-image-fallback">
-            Preview unavailable
+            <%= share_preview_fallback(@kind) %>
           </figcaption>
         </figure>
 
@@ -2065,7 +2065,7 @@ defmodule ZonelyWeb.CoreComponents do
   defp share_preview_title(_preview), do: "Share preview"
 
   defp share_preview_subtitle(%{subtitle: subtitle}) when is_binary(subtitle), do: subtitle
-  defp share_preview_subtitle(_preview), do: "SayMyName link"
+  defp share_preview_subtitle(_preview), do: "Share link"
 
   defp share_preview_url(%{url: url}) when is_binary(url), do: url
   defp share_preview_url(_preview), do: "#"
@@ -2073,8 +2073,15 @@ defmodule ZonelyWeb.CoreComponents do
   defp share_preview_image_url(%{preview_image_url: url}) when is_binary(url), do: url
   defp share_preview_image_url(_preview), do: nil
 
-  defp share_preview_kind(%{kind: kind}) when kind in [:card, :list], do: kind
+  defp share_preview_kind(%{kind: kind}) when kind in [:card, :list, :team_invite], do: kind
   defp share_preview_kind(_preview), do: :card
+
+  defp share_preview_eyebrow(:team_invite), do: "Zonely team invite"
+  defp share_preview_eyebrow(:list), do: "Name list preview"
+  defp share_preview_eyebrow(_kind), do: "Name card preview"
+
+  defp share_preview_fallback(:team_invite), do: "Zonely invite link"
+  defp share_preview_fallback(_kind), do: "Preview unavailable"
 
   @doc """
   Renders a quick actions bar for user interactions.

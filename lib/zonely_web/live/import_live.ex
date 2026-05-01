@@ -31,6 +31,7 @@ defmodule ZonelyWeb.ImportLive do
          socket
          |> assign(:page_title, import_page_title(draft))
          |> assign(:authorized?, true)
+         |> assign(:owner_token, owner_token)
          |> assign(:draft, draft)
          |> assign(:member, member)
          |> assign(:members, members)
@@ -44,6 +45,7 @@ defmodule ZonelyWeb.ImportLive do
          socket
          |> assign(:page_title, "Import unavailable")
          |> assign(:authorized?, false)
+         |> assign(:owner_token, nil)
          |> assign(:draft, nil)
          |> assign(:member, nil)
          |> assign(:members, [])
@@ -58,17 +60,40 @@ defmodule ZonelyWeb.ImportLive do
   def handle_event("save", %{"import" => params}, %{assigns: %{authorized?: true}} = socket) do
     case Drafts.update_draft_member_completion(socket.assigns.member, params) do
       {:ok, member} ->
+        members = Drafts.list_draft_members(socket.assigns.draft)
+
         {:noreply,
          socket
          |> put_flash(:info, "Zonely-ready profile saved.")
          |> assign(:member, member)
+         |> assign(:members, members)
          |> assign(:conflicts, duplicate_conflicts(member))
+         |> assign(:member_conflicts, duplicate_conflicts_by_member(members))
          |> assign_form(member)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset, as: :import))}
     end
   end
+
+  def handle_event("publish_import", _params, %{assigns: %{authorized?: true}} = socket) do
+    case Drafts.publish_import(socket.assigns.draft, socket.assigns.owner_token) do
+      {:ok, %{team: team}} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Import published to the team map.")
+         |> push_navigate(to: ~p"/?team=#{team.id}")}
+
+      {:error, :no_complete_members} ->
+        {:noreply,
+         put_flash(socket, :error, "Complete at least one imported profile before publishing.")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Could not publish this import.")}
+    end
+  end
+
+  def handle_event("publish_import", _params, socket), do: {:noreply, socket}
 
   def handle_event("save", _params, socket), do: {:noreply, socket}
 
@@ -303,6 +328,7 @@ defmodule ZonelyWeb.ImportLive do
               </div>
               </section>
             <% end %>
+            <.import_publish_panel draft={@draft} members={@members} />
           <% else %>
             <section
               id="card-import-forbidden"
@@ -345,7 +371,7 @@ defmodule ZonelyWeb.ImportLive do
           id="team-draft-status"
           class="rounded-full border border-[rgba(22,26,29,0.10)] px-3 py-1 text-sm font-medium text-[#5F6B73]"
         >
-          Draft team
+          Draft roster
         </p>
       </div>
 
@@ -467,6 +493,40 @@ defmodule ZonelyWeb.ImportLive do
     """
   end
 
+  attr(:draft, TeamDraft, required: true)
+  attr(:members, :list, required: true)
+
+  defp import_publish_panel(assigns) do
+    assigns =
+      assigns
+      |> assign(:ready_count, complete_member_count(assigns.members))
+      |> assign(:ready_label, ready_people_label(complete_member_count(assigns.members)))
+
+    ~H"""
+    <section
+      id="import-publish-panel"
+      class="mt-4 rounded-[20px] border border-[rgba(22,26,29,0.10)] bg-white/90 p-5 shadow-[0_18px_50px_rgba(22,26,29,0.10)]"
+    >
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Publish to map</h2>
+          <p class="mt-1 text-sm text-[#5F6B73]">{@draft.name}</p>
+        </div>
+        <form id="import-publish-form" phx-submit="publish_import">
+          <button
+            id="publish-import"
+            type="submit"
+            disabled={@ready_count == 0}
+            class="min-h-11 rounded-full bg-[#1F8A70] px-5 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-[#A8B0B4] active:translate-y-px"
+          >
+            Publish {@ready_label}
+          </button>
+        </form>
+      </div>
+    </section>
+    """
+  end
+
   defp load_authorized_import(id, owner_token) when is_binary(owner_token) do
     with %TeamDraft{} = draft <- Repo.get(TeamDraft, id),
          true <- Drafts.owner_token_matches?(draft, owner_token),
@@ -516,6 +576,13 @@ defmodule ZonelyWeb.ImportLive do
 
   defp import_page_title(%TeamDraft{source_kind: "saymyname_list"}), do: "Review imported team"
   defp import_page_title(_draft), do: "Complete imported card"
+
+  defp complete_member_count(members) do
+    Enum.count(members, &(&1.completion_status == :complete))
+  end
+
+  defp ready_people_label(1), do: "1 ready person"
+  defp ready_people_label(count), do: "#{count} ready people"
 
   defp invalid_memberships(%TeamDraft{source_payload: payload}) when is_map(payload) do
     Map.get(payload, :invalid_memberships) || Map.get(payload, "invalid_memberships") || []

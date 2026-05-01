@@ -39,6 +39,30 @@ defmodule Zonely.GeographyTest do
     end
   end
 
+  describe "country_code_from_input/1" do
+    test "normalizes controlled form country names to ISO codes" do
+      assert Geography.country_code_from_input("United States") == "US"
+      assert Geography.country_code_from_input("united states") == "US"
+      assert Geography.country_code_from_input(" Japan ") == "JP"
+    end
+
+    test "keeps valid ISO codes and leaves unknown values for changeset validation" do
+      assert Geography.country_code_from_input("us") == "US"
+      assert Geography.country_code_from_input("US") == "US"
+      assert Geography.country_code_from_input("Atlantis") == "Atlantis"
+      assert Geography.country_code_from_input("") == nil
+    end
+  end
+
+  describe "country_display_value/1" do
+    test "returns controlled form display names for country codes" do
+      assert Geography.country_display_value("US") == "United States"
+      assert Geography.country_display_value("jp") == "Japan"
+      assert Geography.country_display_value("Atlantis") == "Atlantis"
+      assert Geography.country_display_value(nil) == ""
+    end
+  end
+
   describe "native_language/1" do
     test "returns correct native languages" do
       assert Geography.native_language("ES") == "Spanish"

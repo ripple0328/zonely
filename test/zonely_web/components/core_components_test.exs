@@ -352,6 +352,26 @@ defmodule ZonelyWeb.CoreComponentsTest do
       assert html =~ "data-clipboard-text=\"https://saymyname.qingbo.us/card/share-token\""
     end
 
+    test "renders Zonely team invite share preview modal" do
+      html =
+        render_component_test(&share_preview_modal/1, %{
+          preview: %{
+            kind: :team_invite,
+            title: "Launch Team",
+            subtitle: "Zonely invite link for teammates to add location and work hours.",
+            url: "http://zonely.localhost:4319/team-invites/invite/invite-token"
+          }
+        })
+
+      assert html =~ "Zonely team invite"
+      assert html =~ "Launch Team"
+      assert html =~ "Zonely invite link"
+      assert html =~ "http://zonely.localhost:4319/team-invites/invite/invite-token"
+
+      assert html =~
+               "data-clipboard-text=\"http://zonely.localhost:4319/team-invites/invite/invite-token\""
+    end
+
     test "applies custom CSS classes" do
       user = %Person{
         id: 4,

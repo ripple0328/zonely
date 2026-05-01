@@ -5,7 +5,7 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
 
   describe "owner review UI" do
     test "owner publishes accepted complete submissions into the normal map flow", %{conn: conn} do
-      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Map publish team"}})
+      create_conn = post(conn, ~p"/team-invites", %{"packet" => %{"name" => "Map publish team"}})
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
       created_conn = get(recycle(create_conn), redirected_to(create_conn))
       invite_token = session_invite_token(created_conn, draft)
@@ -43,20 +43,21 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
           :accepted
         )
 
-      review_conn = get(recycle(created_conn), ~p"/packets/review/#{invite_token}")
+      review_conn = get(recycle(created_conn), ~p"/team-invites/review/#{invite_token}")
       review_html = html_response(review_conn, 200)
 
       assert review_html =~ ~s(id="packet-publish-submit")
       assert review_html =~ "Mara Published"
       assert review_html =~ "Pending Draft"
 
-      publish_conn = post(recycle(review_conn), ~p"/packets/review/#{invite_token}/publish")
-      assert redirected_to(publish_conn) == ~p"/"
+      publish_conn = post(recycle(review_conn), ~p"/team-invites/review/#{invite_token}/publish")
+      published_draft = Zonely.Repo.get!(Zonely.Drafts.TeamDraft, draft.id)
+      assert redirected_to(publish_conn) == ~p"/?team=#{published_draft.published_team_id}"
 
       home_html =
         publish_conn
         |> recycle()
-        |> get(~p"/")
+        |> get(redirected_to(publish_conn))
         |> html_response(200)
 
       assert home_html =~ "Mara Published"
@@ -70,7 +71,9 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
 
     test "owner review link reopens published packet state after publish without duplicate publish controls",
          %{conn: conn} do
-      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Replay review team"}})
+      create_conn =
+        post(conn, ~p"/team-invites", %{"packet" => %{"name" => "Replay review team"}})
+
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
       created_conn = get(recycle(create_conn), redirected_to(create_conn))
       invite_token = session_invite_token(created_conn, draft)
@@ -94,17 +97,19 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
           :accepted
         )
 
-      publish_conn = post(recycle(created_conn), ~p"/packets/review/#{invite_token}/publish")
-      assert redirected_to(publish_conn) == ~p"/"
+      publish_conn = post(recycle(created_conn), ~p"/team-invites/review/#{invite_token}/publish")
+      published_draft = Zonely.Repo.get!(Zonely.Drafts.TeamDraft, draft.id)
+      assert redirected_to(publish_conn) == ~p"/?team=#{published_draft.published_team_id}"
 
       review_html =
         publish_conn
         |> recycle()
-        |> get(~p"/packets/review/#{invite_token}")
+        |> get(~p"/team-invites/review/#{invite_token}")
         |> html_response(200)
 
+      assert review_html =~ ~s(href="/assets/app.css")
       assert review_html =~ ~s(id="packet-published-review")
-      assert review_html =~ "Packet already published"
+      assert review_html =~ "Team invite already published"
       assert review_html =~ "Rosa Replay"
       assert review_html =~ ~s(id="owner-review-published")
       assert review_html =~ ~s(id="packet-published-map-link")
@@ -119,13 +124,15 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
 
     test "published invite replay shows map continuation and cannot append duplicate submissions",
          %{conn: conn} do
-      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Replay invite team"}})
+      create_conn =
+        post(conn, ~p"/team-invites", %{"packet" => %{"name" => "Replay invite team"}})
+
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
       created_conn = get(recycle(create_conn), redirected_to(create_conn))
       invite_token = session_invite_token(created_conn, draft)
 
       recipient_conn =
-        post(build_conn(), ~p"/packets/invite/#{invite_token}/submission", %{
+        post(build_conn(), ~p"/team-invites/invite/#{invite_token}/submission", %{
           "submission" => %{
             "display_name" => "Invite Replay",
             "location_country" => "PT",
@@ -136,7 +143,7 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
           }
         })
 
-      assert redirected_to(recipient_conn) == ~p"/packets/invite/#{invite_token}"
+      assert redirected_to(recipient_conn) == ~p"/team-invites/invite/#{invite_token}"
       [member] = Drafts.list_draft_members(draft)
 
       {:ok, _accepted_member} =
@@ -147,17 +154,19 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
           :accepted
         )
 
-      publish_conn = post(recycle(created_conn), ~p"/packets/review/#{invite_token}/publish")
-      assert redirected_to(publish_conn) == ~p"/"
+      publish_conn = post(recycle(created_conn), ~p"/team-invites/review/#{invite_token}/publish")
+      published_draft = Zonely.Repo.get!(Zonely.Drafts.TeamDraft, draft.id)
+      assert redirected_to(publish_conn) == ~p"/?team=#{published_draft.published_team_id}"
 
       invite_html =
         recipient_conn
         |> recycle()
-        |> get(~p"/packets/invite/#{invite_token}")
+        |> get(~p"/team-invites/invite/#{invite_token}")
         |> html_response(200)
 
+      assert invite_html =~ ~s(href="/assets/app.css")
       assert invite_html =~ ~s(id="packet-published-invite")
-      assert invite_html =~ "Packet already published"
+      assert invite_html =~ "Team invite already published"
       assert invite_html =~ "Invite Replay"
       assert invite_html =~ ~s(id="packet-published-map-link")
       refute invite_html =~ ~s(id="packet-submission-form")
@@ -167,12 +176,12 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
       unavailable_html =
         recipient_conn
         |> recycle()
-        |> post(~p"/packets/invite/#{invite_token}/submission", %{
+        |> post(~p"/team-invites/invite/#{invite_token}/submission", %{
           "submission" => %{"display_name" => "Duplicate Replay"}
         })
         |> html_response(404)
 
-      assert unavailable_html =~ "Packet invite unavailable"
+      assert unavailable_html =~ "Team invite unavailable"
       assert length(Drafts.list_draft_members(draft)) == 1
       assert Zonely.Repo.aggregate(Zonely.Accounts.Team, :count) == 1
       assert Zonely.Repo.aggregate(Zonely.Accounts.Person, :count) == 1
@@ -180,7 +189,9 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
     end
 
     test "owner review blocks publish for incomplete accepted members", %{conn: conn} do
-      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Blocked publish team"}})
+      create_conn =
+        post(conn, ~p"/team-invites", %{"packet" => %{"name" => "Blocked publish team"}})
+
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
       created_conn = get(recycle(create_conn), redirected_to(create_conn))
       invite_token = session_invite_token(created_conn, draft)
@@ -197,7 +208,7 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
         )
 
       publish_conn =
-        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/publish")
+        post(recycle(created_conn), ~p"/team-invites/review/#{invite_token}/publish")
 
       blocked_html = html_response(publish_conn, 422)
 
@@ -209,7 +220,7 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
 
     test "owner reviews pending submissions and reloads distinct lifecycle states", %{conn: conn} do
       create_conn =
-        post(conn, ~p"/packets", %{
+        post(conn, ~p"/team-invites", %{
           "packet" => %{"name" => "Owner review team"}
         })
 
@@ -232,7 +243,7 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
           work_end: ~T[17:00:00]
         })
 
-      review_conn = get(recycle(created_conn), ~p"/packets/review/#{invite_token}")
+      review_conn = get(recycle(created_conn), ~p"/team-invites/review/#{invite_token}")
       review_html = html_response(review_conn, 200)
 
       assert review_html =~ ~s(id="packet-owner-review")
@@ -245,16 +256,16 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
       assert review_html =~ ~s(id="review-pending-#{pending.id}")
 
       accepted_conn =
-        post(recycle(review_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+        post(recycle(review_conn), ~p"/team-invites/review/#{invite_token}/#{pending.id}", %{
           "review" => %{"status" => "accepted"}
         })
 
-      assert redirected_to(accepted_conn) == ~p"/packets/review/#{invite_token}"
+      assert redirected_to(accepted_conn) == ~p"/team-invites/review/#{invite_token}"
 
       accepted_html =
         accepted_conn
         |> recycle()
-        |> get(~p"/packets/review/#{invite_token}")
+        |> get(~p"/team-invites/review/#{invite_token}")
         |> html_response(200)
 
       assert accepted_html =~ ~s(id="owner-review-accepted")
@@ -262,14 +273,14 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
       assert accepted_html =~ ~s(id="review-exclude-#{pending.id}")
 
       excluded_conn =
-        post(recycle(accepted_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+        post(recycle(accepted_conn), ~p"/team-invites/review/#{invite_token}/#{pending.id}", %{
           "review" => %{"status" => "excluded"}
         })
 
       excluded_html =
         excluded_conn
         |> recycle()
-        |> get(~p"/packets/review/#{invite_token}")
+        |> get(~p"/team-invites/review/#{invite_token}")
         |> html_response(200)
 
       assert excluded_html =~ ~s(id="owner-review-excluded")
@@ -277,7 +288,9 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
     end
 
     test "owner can reject a pending submission without accepting it", %{conn: conn} do
-      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Reject review team"}})
+      create_conn =
+        post(conn, ~p"/team-invites", %{"packet" => %{"name" => "Reject review team"}})
+
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
       created_conn = get(recycle(create_conn), redirected_to(create_conn))
       invite_token = session_invite_token(created_conn, draft)
@@ -286,14 +299,14 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
         Drafts.create_packet_submission(invite_token, %{display_name: "Rejected Recipient"})
 
       rejected_conn =
-        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/#{member.id}", %{
+        post(recycle(created_conn), ~p"/team-invites/review/#{invite_token}/#{member.id}", %{
           "review" => %{"status" => "rejected"}
         })
 
       rejected_html =
         rejected_conn
         |> recycle()
-        |> get(~p"/packets/review/#{invite_token}")
+        |> get(~p"/team-invites/review/#{invite_token}")
         |> html_response(200)
 
       assert rejected_html =~ ~s(id="owner-review-rejected")
@@ -302,7 +315,9 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
     end
 
     test "forged owner review posts cannot skip or revive lifecycle states", %{conn: conn} do
-      create_conn = post(conn, ~p"/packets", %{"packet" => %{"name" => "Forged review team"}})
+      create_conn =
+        post(conn, ~p"/team-invites", %{"packet" => %{"name" => "Forged review team"}})
+
       draft = Zonely.Repo.one!(Zonely.Drafts.TeamDraft)
       created_conn = get(recycle(create_conn), redirected_to(create_conn))
       invite_token = session_invite_token(created_conn, draft)
@@ -311,26 +326,26 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
         Drafts.create_packet_submission(invite_token, %{display_name: "Forged Pending"})
 
       direct_exclude_conn =
-        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+        post(recycle(created_conn), ~p"/team-invites/review/#{invite_token}/#{pending.id}", %{
           "review" => %{"status" => "excluded"}
         })
 
-      assert html_response(direct_exclude_conn, 404) =~ "Packet review unavailable"
+      assert html_response(direct_exclude_conn, 404) =~ "Team invite review unavailable"
       assert [%{review_status: :pending}] = Drafts.list_draft_members(draft)
 
       rejected_conn =
-        post(recycle(created_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+        post(recycle(created_conn), ~p"/team-invites/review/#{invite_token}/#{pending.id}", %{
           "review" => %{"status" => "rejected"}
         })
 
-      assert redirected_to(rejected_conn) == ~p"/packets/review/#{invite_token}"
+      assert redirected_to(rejected_conn) == ~p"/team-invites/review/#{invite_token}"
 
       direct_accept_conn =
-        post(recycle(rejected_conn), ~p"/packets/review/#{invite_token}/#{pending.id}", %{
+        post(recycle(rejected_conn), ~p"/team-invites/review/#{invite_token}/#{pending.id}", %{
           "review" => %{"status" => "accepted"}
         })
 
-      assert html_response(direct_accept_conn, 404) =~ "Packet review unavailable"
+      assert html_response(direct_accept_conn, 404) =~ "Team invite review unavailable"
       assert [%{review_status: :rejected}] = Drafts.list_draft_members(draft)
     end
 
@@ -343,21 +358,21 @@ defmodule ZonelyWeb.Packets.PacketReviewFlowTest do
 
       unavailable_html =
         conn
-        |> get(~p"/packets/review/#{invite_token}")
+        |> get(~p"/team-invites/review/#{invite_token}")
         |> html_response(404)
 
-      assert unavailable_html =~ "Packet review unavailable"
+      assert unavailable_html =~ "Team invite review unavailable"
       refute unavailable_html =~ "Protected Recipient"
       refute unavailable_html =~ "Accept into draft"
 
       forbidden_html =
         conn
-        |> post(~p"/packets/review/#{invite_token}/#{member.id}", %{
+        |> post(~p"/team-invites/review/#{invite_token}/#{member.id}", %{
           "review" => %{"status" => "accepted"}
         })
         |> html_response(404)
 
-      assert forbidden_html =~ "Packet review unavailable"
+      assert forbidden_html =~ "Team invite review unavailable"
       assert [%{review_status: :pending}] = Drafts.list_draft_members(draft)
     end
   end

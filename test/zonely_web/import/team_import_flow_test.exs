@@ -66,6 +66,28 @@ defmodule ZonelyWeb.Import.TeamImportFlowTest do
       refute has_element?(view, "#publish-team-draft")
     end
 
+    test "infers list imports from the submitted SayMyName URL", %{conn: conn} do
+      Application.put_env(:zonely, :say_my_name_list_resolver_fun, fn
+        "https://saymyname.localhost/list/team-token" -> {:ok, team_payload()}
+      end)
+
+      conn =
+        get(conn, ~p"/imports/saymyname?url=https://saymyname.localhost/list/team-token")
+
+      assert redirected_to(conn) =~ "/imports/"
+      assert %{source_kind: "saymyname_list", source_token: "team-token"} = Repo.one!(TeamDraft)
+      assert Repo.aggregate(TeamDraftMember, :count) == 2
+    end
+
+    test "does not guess unsupported SayMyName URL shapes", %{conn: conn} do
+      conn =
+        get(conn, ~p"/imports/saymyname?url=https://saymyname.localhost/profile/team-token")
+
+      assert html_response(conn, 422) =~ "We could not identify that SayMyName link"
+      assert Repo.aggregate(TeamDraft, :count) == 0
+      assert Repo.aggregate(TeamDraftMember, :count) == 0
+    end
+
     test "fails safely for empty lists, invalid payloads, and fully invalid members", %{
       conn: conn
     } do
@@ -140,6 +162,44 @@ defmodule ZonelyWeb.Import.TeamImportFlowTest do
       assert has_element?(view, "#draft-member-#{member.id}-conflict")
       assert has_element?(view, "#invalid-import-member-1")
       assert has_element?(view, "#invalid-import-member-1-reason")
+    end
+
+    test "publishes complete list members into the selected team and returns to that map",
+         %{conn: conn} do
+      {:ok, team} = Accounts.create_team(%{name: "Existing Product Team"})
+
+      Application.put_env(:zonely, :say_my_name_list_resolver_fun, fn
+        "https://saymyname.localhost/list/team-token" -> {:ok, team_payload()}
+      end)
+
+      import_conn =
+        get(
+          conn,
+          ~p"/imports/saymyname/list?url=https://saymyname.localhost/list/team-token&team_id=#{team.id}"
+        )
+
+      assert redirected_to(import_conn) =~ "/imports/"
+
+      draft = Repo.one!(TeamDraft)
+      assert draft.name == "Existing Product Team"
+      assert draft.published_team_id == team.id
+      assert Repo.aggregate(Accounts.Team, :count) == 1
+
+      {:ok, view, _html} = live(recycle(import_conn), ~p"/imports/#{draft.id}")
+
+      assert has_element?(view, "#team-import-review")
+      assert has_element?(view, "#publish-import", "Publish 1 ready person")
+
+      view
+      |> form("#import-publish-form")
+      |> render_submit()
+
+      assert_redirect(view, ~p"/?team=#{team.id}")
+
+      assert Repo.aggregate(Accounts.Team, :count) == 1
+      assert Repo.aggregate(Accounts.Person, :count) == 1
+      assert Repo.aggregate(Accounts.Membership, :count) == 1
+      assert [%Accounts.Person{name: "Avery Stone"}] = Repo.all(Accounts.Person)
     end
   end
 

@@ -2,6 +2,7 @@ defmodule Zonely.Drafts.TeamDraftMember do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Zonely.Geography
   alias Zonely.Accounts.{Membership, Person}
   alias Zonely.Drafts.TeamDraft
 
@@ -176,7 +177,8 @@ defmodule Zonely.Drafts.TeamDraftMember do
         changeset
 
       country ->
-        if String.length(country) == 2 and String.upcase(country) == country do
+        if String.length(country) == 2 and String.upcase(country) == country and
+             Geography.valid_country?(country) do
           changeset
         else
           add_error(

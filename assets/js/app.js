@@ -21,6 +21,7 @@ import "phoenix_html"
 import {initLiveSocket} from "./boot/live_socket"
 import {initTopbar} from "./boot/topbar"
 import {initPostHog} from "./posthog"
+import {setupTeamInviteForm} from "./team_invite_form"
 // Import minimal audio functionality
 import {setupSimpleAudio} from "./simple-audio"
 // Extracted hooks
@@ -30,11 +31,13 @@ import PreviewRail from "./hooks/preview_rail"
 import RailLocalTime from "./hooks/rail_local_time"
 import LiveClock from "./hooks/live_clock"
 import LocalTime from "./hooks/local_time"
-import Clipboard from "./hooks/clipboard"
+import Clipboard, {setupClipboardButtons} from "./hooks/clipboard"
 import FocusTeamOrbit from "./hooks/focus_team_orbit"
 import AutoDismissFlash from "./hooks/auto_dismiss_flash"
 
 initPostHog()
+setupTeamInviteForm()
+setupClipboardButtons()
 
 // Setup simple audio functionality first to create AudioHook
 setupSimpleAudio()

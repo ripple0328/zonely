@@ -67,6 +67,19 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
       assert reload_html =~ "Rhea Patel"
     end
 
+    test "infers card imports from the submitted SayMyName URL", %{conn: conn} do
+      Application.put_env(:zonely, :say_my_name_card_resolver_fun, fn
+        "https://saymyname.localhost/card/card-token" -> {:ok, card_payload()}
+      end)
+
+      conn =
+        get(conn, ~p"/imports/saymyname?url=https://saymyname.localhost/card/card-token")
+
+      assert redirected_to(conn) =~ "/imports/"
+      assert %{source_kind: "saymyname_card", source_token: "card-token"} = Repo.one!(TeamDraft)
+      assert %{display_name: "Rhea Patel"} = Repo.one!(TeamDraftMember)
+    end
+
     test "does not create a draft when the link fetch fails or payload is invalid", %{conn: conn} do
       Application.put_env(:zonely, :say_my_name_card_resolver_fun, fn
         "https://saymyname.localhost/card/missing" -> {:error, :not_found}
@@ -309,18 +322,65 @@ defmodule ZonelyWeb.Import.CardImportFlowTest do
       assert html =~ "Possible duplicate"
       assert Repo.get!(Accounts.Person, person.id).timezone == "America/Los_Angeles"
     end
+
+    test "publishes a completed card import into the selected team map", %{conn: conn} do
+      {:ok, team} = Accounts.create_team(%{name: "Product Team"})
+
+      %{draft: draft, owner_token: owner_token} =
+        create_card_draft!(card_payload(), %{
+          name: team.name,
+          published_team_id: team.id,
+          source_idempotency_key: "saymyname_card:card-token:team:#{team.id}"
+        })
+
+      conn = init_test_session(conn, import_owner_session(draft, owner_token))
+      {:ok, view, _html} = live(conn, ~p"/imports/#{draft.id}")
+
+      view
+      |> form("#card-import-completion-form",
+        import: %{
+          "location_country" => "PT",
+          "location_label" => "Lisbon",
+          "timezone" => "Europe/Lisbon",
+          "work_start" => "09:00",
+          "work_end" => "17:00"
+        }
+      )
+      |> render_submit()
+
+      assert has_element?(view, "#publish-import")
+
+      view
+      |> form("#import-publish-form")
+      |> render_submit()
+
+      assert_redirect(view, ~p"/?team=#{team.id}")
+
+      assert Repo.aggregate(Accounts.Team, :count) == 1
+      assert [%Accounts.Membership{team_id: published_team_id}] = Repo.all(Accounts.Membership)
+      assert published_team_id == team.id
+
+      assert [%Accounts.Person{name: "Rhea Patel", timezone: "Europe/Lisbon"}] =
+               Repo.all(Accounts.Person)
+    end
   end
 
-  defp create_card_draft!(payload) do
+  defp create_card_draft!(payload, attrs \\ %{}) do
     assert {:ok, projection} = Zonely.NameProfileContract.parse(payload)
 
     assert {:ok, result} =
-             Drafts.create_draft_from_import(projection, %{
-               source_kind: "saymyname_card",
-               source_url: "https://saymyname.localhost/card/card-token",
-               source_token: "card-token",
-               source_idempotency_key: "saymyname_card:card-token"
-             })
+             Drafts.create_draft_from_import(
+               projection,
+               Map.merge(
+                 %{
+                   source_kind: "saymyname_card",
+                   source_url: "https://saymyname.localhost/card/card-token",
+                   source_token: "card-token",
+                   source_idempotency_key: "saymyname_card:card-token"
+                 },
+                 attrs
+               )
+             )
 
     result
   end

@@ -2,7 +2,7 @@ defmodule Zonely.Packets.PacketDataModelTest do
   use Zonely.DataCase, async: true
 
   alias Zonely.Drafts
-  alias Zonely.Drafts.TeamDraft
+  alias Zonely.Drafts.{TeamDraft, TeamDraftMember}
   alias Zonely.Repo
 
   describe "packet data model" do
@@ -146,6 +146,26 @@ defmodule Zonely.Packets.PacketDataModelTest do
                Drafts.create_packet_submission("invalid-token", %{display_name: "Nope"})
 
       assert Repo.aggregate(Zonely.Drafts.TeamDraftMember, :count) == 0
+    end
+
+    test "draft member country must be a real ISO 3166 alpha-2 country" do
+      {:ok, %{draft: draft}} = Drafts.create_team_draft(%{name: "Country validation packet"})
+
+      changeset =
+        TeamDraftMember.changeset(%TeamDraftMember{}, %{
+          team_draft_id: draft.id,
+          display_name: "Invalid Country",
+          location_country: "XX",
+          location_label: "Nowhere",
+          timezone: "UTC",
+          work_start: ~T[09:00:00],
+          work_end: ~T[17:00:00]
+        })
+
+      refute changeset.valid?
+
+      assert {"must be a valid ISO 3166-1 alpha-2 country code", _meta} =
+               changeset.errors[:location_country]
     end
   end
 end

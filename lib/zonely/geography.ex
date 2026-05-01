@@ -12,16 +12,39 @@ defmodule Zonely.Geography do
   alias Zonely.Accounts.Person
   alias Zonely.LanguageService
 
+  @country_display_overrides %{
+    "BO" => "Bolivia",
+    "BN" => "Brunei",
+    "CD" => "Democratic Republic of the Congo",
+    "CG" => "Republic of the Congo",
+    "FK" => "Falkland Islands",
+    "FM" => "Micronesia",
+    "GB" => "United Kingdom",
+    "IR" => "Iran",
+    "KP" => "North Korea",
+    "KR" => "South Korea",
+    "LA" => "Laos",
+    "MD" => "Moldova",
+    "MK" => "North Macedonia",
+    "RU" => "Russia",
+    "SY" => "Syria",
+    "TW" => "Taiwan",
+    "TZ" => "Tanzania",
+    "US" => "United States",
+    "VE" => "Venezuela",
+    "VN" => "Vietnam"
+  }
+
   @doc """
   Resolves a country code to its full name.
 
   ## Examples
 
       iex> Zonely.Geography.country_name("US")
-      "United States"
+      "United States of America"
       
       iex> Zonely.Geography.country_name("GB") 
-      "United Kingdom"
+      "United Kingdom of Great Britain and Northern Ireland"
       
       iex> Zonely.Geography.country_name("INVALID")
       "Unknown Country"
@@ -40,6 +63,77 @@ defmodule Zonely.Geography do
   end
 
   def country_name(_), do: "Unknown Country"
+
+  @doc """
+  Returns active country options sorted by display name for controlled forms.
+  """
+  @spec country_options() :: [%{code: String.t(), name: String.t()}]
+  def country_options do
+    Countries.all()
+    |> Enum.reject(& &1.dissolved_on)
+    |> Enum.map(&%{code: &1.alpha2, name: display_country_name(&1)})
+    |> Enum.sort_by(&String.downcase(&1.name))
+  end
+
+  @doc """
+  Resolves a country form value to an ISO 3166-1 alpha-2 code.
+
+  The input may already be a two-letter code or may be a display name from
+  `country_options/0`. Unknown values are returned trimmed so normal changeset
+  validation can reject them.
+  """
+  @spec country_code_from_input(String.t() | nil) :: String.t() | nil
+  def country_code_from_input(input) when is_binary(input) do
+    value = String.trim(input)
+    code = String.upcase(value)
+
+    cond do
+      value == "" ->
+        nil
+
+      String.length(code) == 2 and valid_country?(code) ->
+        code
+
+      true ->
+        case Enum.find(country_options(), &(String.downcase(&1.name) == String.downcase(value))) do
+          %{code: code} -> code
+          nil -> value
+        end
+    end
+  end
+
+  def country_code_from_input(_input), do: nil
+
+  @doc """
+  Returns the controlled-form display value for a country code.
+  """
+  @spec country_display_value(String.t() | nil) :: String.t()
+  def country_display_value(country_code) when is_binary(country_code) do
+    code = String.upcase(String.trim(country_code))
+
+    case Enum.find(country_options(), &(&1.code == code)) do
+      %{name: name} -> name
+      nil -> String.trim(country_code)
+    end
+  end
+
+  def country_display_value(_country_code), do: ""
+
+  defp display_country_name(%{alpha2: code}) when is_map_key(@country_display_overrides, code),
+    do: Map.fetch!(@country_display_overrides, code)
+
+  defp display_country_name(%{name: name}) when is_binary(name), do: name
+
+  @doc """
+  Returns valid IANA timezone options for controlled forms.
+  """
+  @spec timezone_options() :: [String.t()]
+  def timezone_options do
+    Tzdata.canonical_zone_list()
+    |> Enum.concat(["UTC"])
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
 
   @doc """
   Validates if a country code is valid according to ISO standards.
