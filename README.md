@@ -2,7 +2,7 @@
 
 Zonely helps distributed teams understand where teammates are, when work hours overlap, and which local context matters before reaching out.
 
-The canonical mission, product boundaries, and roadmap live in [docs/mission.md](docs/mission.md). The Stitch-ready product design direction lives in [design.md](design.md). The current stack recommendation lives in [docs/tech-stack-review.md](docs/tech-stack-review.md). Shared profile/team import-export principles live in [docs/shared-profile-contract.md](docs/shared-profile-contract.md). In short: Zonely is a team coordination app, not a pronunciation product. Pronunciation is profile context only and always calls the production pronunciation API at `https://saymyname.qingbo.us`.
+The canonical mission, product boundaries, and roadmap live in [docs/mission.md](docs/mission.md). The foundational availability and reachability capability model lives in [docs/foundational-capabilities.md](docs/foundational-capabilities.md). The Stitch-ready product design direction lives in [design.md](design.md). The current stack recommendation lives in [docs/tech-stack-review.md](docs/tech-stack-review.md). Shared profile/team import-export principles live in [docs/shared-profile-contract.md](docs/shared-profile-contract.md). In short: Zonely is a team coordination app, not a pronunciation product. Pronunciation is profile context only and always calls the production pronunciation API at `https://saymyname.qingbo.us`.
 
 Live: [zonely.qingbo.us](https://zonely.qingbo.us)
 
@@ -40,6 +40,14 @@ Shared profile boundary:
 - Use JSContact as the modern JSON contact reference and keep a clear long-term projection to vCard 4.0 export.
 - Zonely owns location, timezone, work hours, team membership, and reachability.
 - SayMyName owns name variants, per-variant pronunciation, and name-card/list rendering.
+
+Foundational capability boundary:
+
+- Zonely's durable core is a composable availability and reachability engine; the map, rail, panels, APIs, and future integrations are projections.
+- Availability is evidence-based: timezone, working windows, public holidays, company exceptions, personal leave, calendar busy blocks, preferences, daylight, and data confidence should remain separate signals with explicit precedence.
+- Core decisions should be deterministic from an explicit `effective_at` timestamp and return structured reason codes/evidence before UI copy.
+- Foundational primitives live in `Zonely.LocalTime`, `Zonely.Calendar.PublicHolidays`, `Zonely.Availability.Evidence`, and `Zonely.Schedules` for local-time projection, holiday evidence, and schedule evaluation.
+- Read-only V1 API projections include `GET /api/v1/countries/:country/holidays?year=YYYY` and `GET /api/v1/local-time?timezone=Asia/Tokyo&at=2026-04-30T16:00:00Z`.
 
 ## Development
 

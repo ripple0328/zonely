@@ -4,6 +4,12 @@ Zonely helps distributed teams answer one practical question: who can I reasonab
 
 The product exists to make availability feel spatial and immediate. A teammate's location, local time, work window, daylight, and regional context should be visible through the map before someone decides to send a message, wait, or plan a handoff.
 
+The durable product foundation is a composable availability and reachability
+engine, not a specific map implementation. See
+[foundational-capabilities.md](foundational-capabilities.md) for the core
+capability model that future UI, API, calendar, holiday, leave, preference, and
+integration work should build on.
+
 ## V1 Goal: Reachability Now
 
 The smallest useful product is a fullscreen team map that turns local time into a clear reachability decision.
