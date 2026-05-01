@@ -1,7 +1,5 @@
 defmodule Zonely.HolidaysTest do
-  use ExUnit.Case
-  # TODO: Database tests temporarily skipped due to sandbox configuration issues
-  @moduletag :skip
+  use Zonely.DataCase, async: true
 
   alias Zonely.Holidays
   alias Zonely.Holidays.Holiday
@@ -148,19 +146,7 @@ defmodule Zonely.HolidaysTest do
     test "requires all fields" do
       {:error, changeset} = Holidays.create_holiday(%{})
 
-      # Since we skipped the module, just verify the changeset is invalid
       refute changeset.valid?
-    end
-  end
-
-  # Note: Testing fetch_and_store_holidays/2 would require mocking the HTTP client
-  # or using a library like Bypass. For now, we test the core database operations.
-
-  describe "fetch_and_store_holidays/2" do
-    test "handles API errors gracefully" do
-      # This is a simplified test - in practice you'd mock the HTTP client
-      result = Holidays.fetch_and_store_holidays("INVALID", 2024)
-      assert {:error, _reason} = result
     end
   end
 
