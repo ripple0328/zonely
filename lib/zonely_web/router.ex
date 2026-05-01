@@ -38,6 +38,17 @@ defmodule ZonelyWeb.Router do
     pipe_through(:browser)
 
     live("/", HomeLive, :map)
+    get("/imports/saymyname/card", ImportController, :say_my_name_card)
+    get("/imports/saymyname/list", ImportController, :say_my_name_list)
+    live("/imports/:id", ImportLive, :show)
+    get("/packets/new", PacketController, :new)
+    post("/packets", PacketController, :create)
+    get("/packets/created", PacketController, :created)
+    get("/packets/review/:invite_token", PacketController, :review)
+    post("/packets/review/:invite_token/publish", PacketController, :publish)
+    post("/packets/review/:invite_token/:member_id", PacketController, :review_member)
+    get("/packets/invite/:invite_token", PacketController, :invite)
+    post("/packets/invite/:invite_token/submission", PacketController, :submit)
   end
 
   scope "/api/v1", ZonelyWeb.Api.V1 do

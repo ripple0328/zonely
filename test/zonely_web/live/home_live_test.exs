@@ -83,6 +83,46 @@ defmodule ZonelyWeb.HomeLiveTest do
     assert html =~ "&quot;status&quot;:&quot;"
   end
 
+  test "map payload omits coordinate-less published people instead of inventing markers", %{
+    conn: conn
+  } do
+    {:ok, _coordinate_user} =
+      Accounts.create_person(%{
+        name: "Mara Published",
+        role: "Product Lead",
+        timezone: "Europe/Lisbon",
+        country: "PT",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00],
+        latitude: Decimal.new("38.7223"),
+        longitude: Decimal.new("-9.1393")
+      })
+
+    {:ok, _private_location_user} =
+      Accounts.create_person(%{
+        name: "Private Location",
+        role: "Engineering",
+        timezone: "Europe/London",
+        country: "GB",
+        work_start: ~T[09:00:00],
+        work_end: ~T[17:00:00]
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#team-orbit-list", "Private Location")
+
+    html = render(view)
+    assert html =~ "&quot;name&quot;:&quot;Mara Published&quot;"
+    assert html =~ "&quot;latitude&quot;:38.7223"
+
+    refute html =~
+             "&quot;name&quot;:&quot;Private Location&quot;,&quot;role&quot;:&quot;Engineering&quot;"
+
+    refute html =~ "&quot;latitude&quot;:null"
+    refute html =~ "&quot;longitude&quot;:null"
+  end
+
   test "people control toggles the team orbit panel", %{conn: conn} do
     {:ok, _user} =
       Accounts.create_person(%{
