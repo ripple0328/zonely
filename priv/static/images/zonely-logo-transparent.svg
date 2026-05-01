@@ -1,0 +1,20 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <title>Zonely</title>
+  <defs>
+    <linearGradient id="cyan" x1="240" y1="284" x2="700" y2="670" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0891B2"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="332" y1="704" x2="784" y2="704" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D99A2B"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="512" cy="512" r="344" fill="none" stroke="#1F8A70" stroke-opacity="0.22" stroke-width="56"/>
+  <circle cx="512" cy="512" r="226" fill="none" stroke="#4A5965" stroke-opacity="0.24" stroke-width="36"/>
+  <path d="M280 320H744L344 704" fill="none" stroke="url(#cyan)" stroke-width="116" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M344 704H744" fill="none" stroke="url(#amber)" stroke-width="116" stroke-linecap="round"/>
+  <circle cx="280" cy="320" r="76" fill="#34D399" stroke="#FFFFFF" stroke-opacity="0.82" stroke-width="38"/>
+  <circle cx="744" cy="704" r="76" fill="#F97316" stroke="#FFFFFF" stroke-opacity="0.82" stroke-width="38"/>
+</svg>

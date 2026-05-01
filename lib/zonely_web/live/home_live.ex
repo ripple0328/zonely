@@ -226,7 +226,7 @@ defmodule ZonelyWeb.HomeLive do
       <section id="global-team-map" class="zonely-map-workspace" aria-label="Global team map">
         <nav class="map-nav-island" aria-label="Map workspace navigation">
           <div class="map-nav-brand" aria-current="page" aria-label="Zonely">
-            <img class="map-nav-logo" src={~p"/favicon.svg"} alt="" aria-hidden="true" />
+            <img class="map-nav-logo" src={~p"/images/zonely-logo-transparent.svg"} alt="" aria-hidden="true" />
           </div>
           <button
             type="button"

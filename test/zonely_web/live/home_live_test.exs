@@ -71,7 +71,7 @@ defmodule ZonelyWeb.HomeLiveTest do
 
     assert has_element?(
              view,
-             ".map-nav-brand[aria-label='Zonely'] img.map-nav-logo[src='/favicon.svg']"
+             ".map-nav-brand[aria-label='Zonely'] img.map-nav-logo[src='/images/zonely-logo-transparent.svg']"
            )
 
     refute has_element?(view, "a.map-nav-brand")

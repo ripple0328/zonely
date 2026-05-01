@@ -116,7 +116,7 @@ button.map-nav-link {
 }
 
 .map-nav-brand {
-  background: rgba(31, 138, 112, 0.12);
+  background: transparent;
   color: var(--live-meridian);
   padding: 0;
   width: 40px;
@@ -368,13 +368,15 @@ button.map-nav-link {
 }
 
 .selected-group-panel {
+  --selected-group-panel-top: 6rem;
+
   position: absolute;
   right: max(1rem, env(safe-area-inset-right));
-  top: 6rem;
+  top: var(--selected-group-panel-top);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   width: min(28rem, calc(100vw - 2rem));
-  max-height: min(39rem, calc(100dvh - 8rem));
+  max-height: calc(100dvh - var(--selected-group-panel-top) - max(1rem, env(safe-area-inset-bottom)));
   overflow: hidden;
   border-radius: 20px;
   padding: 1rem;
